@@ -3684,13 +3684,13 @@ BARISTA_HTML = """
             <div class="db-header-card" style="margin-top:22px; border-color:rgba(255,179,64,0.32);">
                 <div>
                     <div style="display:inline-flex; align-items:center; gap:6px; background:rgba(255,179,64,0.12); border:1px solid rgba(255,179,64,0.35); color:#FFB340; padding:3px 10px; border-radius:99px; font-size:11px; font-weight:800; margin-bottom:6px;">
-                        📦 PAPELERA DE SEGURIDAD · HISTORIAL PRESERVADO EN BASE DE DATOS
+                        📦 PAPELERA DE SEGURIDAD · CLIENTES DESACTIVADOS
                     </div>
                     <h2 style="margin:0; font-size:18px; font-weight:800; color:var(--text-primary);">
                         Clientes Desactivados / Papelera ({{ (inactive_clients or [])|length }})
                     </h2>
                     <p style="margin:4px 0 0; font-size:12.5px; color:var(--text-secondary);">
-                        Los clientes desactivados no aparecen en el Mostrador POS ni reciben notificaciones Push, pero conservan sus sellos e historial. Puedes <strong>♻️ Reactivarlos</strong> con un clic o <strong>🗑️ Eliminarlos Definitivamente</strong> del sistema (su registro histórico permanecerá resguardado internamente en la base de datos como desactivado, sin ser visible en el panel).
+                        Los clientes desactivados no aparecen en el Mostrador POS ni reciben notificaciones Push, pero conservan sus sellos e historial. Puedes <strong>♻️ Reactivarlos</strong> con un clic o <strong>🗑️ Eliminarlos Definitivamente</strong> para que ya no estén disponibles en ninguna parte del sistema.
                     </p>
                 </div>
             </div>
@@ -4256,7 +4256,7 @@ BARISTA_HTML = """
                 iconBox.className = 'cm-icon danger';
                 iconBox.textContent = '🗑️';
                 titleEl.textContent = '¿Eliminar definitivamente del sistema?';
-                descEl.innerHTML = 'Estás por eliminar definitivamente de la vista del sistema a <strong>' + safeName + '</strong> (' + safeSerial + '). Ya no aparecerá en el Mostrador ni en la Papelera (su registro permanecerá resguardado internamente en la base de datos como desactivado).';
+                descEl.innerHTML = 'Estás por eliminar definitivamente a <strong>' + safeName + '</strong> (' + safeSerial + '). Esta acción no se puede deshacer y el cliente ya no estará disponible en ninguna parte del sistema.';
                 confirmBtn.className = 'cm-btn-confirm danger';
                 confirmBtn.textContent = 'Sí, eliminar definitivamente';
             } else if (actionType === 'sub') {
