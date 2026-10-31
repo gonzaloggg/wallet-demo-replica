@@ -838,6 +838,16 @@ def init_db():
     ''')
 
     c.execute('''
+        CREATE TABLE IF NOT EXISTS birthday_push_logs (
+            serial TEXT,
+            year INTEGER,
+            sent_at_sonora TEXT,
+            mode TEXT DEFAULT 'auto',
+            PRIMARY KEY (serial, year)
+        )
+    ''')
+
+    c.execute('''
         CREATE TABLE IF NOT EXISTS settings (
             key TEXT PRIMARY KEY,
             value TEXT
@@ -847,6 +857,9 @@ def init_db():
         "shop_lat": str(DEFAULT_LAT),
         "shop_lng": str(DEFAULT_LNG),
         "shop_relevant_text": DEFAULT_GEO_TEXT,
+        "bday_auto_enabled": "1",
+        "bday_auto_hour": "08:00",
+        "bday_auto_template": "🎂 ¡Feliz cumpleaños, {nombre}! Hoy tienes una bebida o postre de cortesía en Maishas Café ☕️✨",
     }
     for k, v in default_settings.items():
         c.execute("INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)", (k, v))
@@ -856,6 +869,102 @@ def init_db():
 
 
 init_db()
+
+
+DEFAULT_BDAY_AUTO_TEMPLATE = "🎂 ¡Feliz cumpleaños, {nombre}! Hoy tienes una bebida o postre de cortesía en Maishas Café ☕️✨"
+
+
+def get_birthday_auto_config():
+    """Obtiene la configuración del envío automático de felicitación de cumpleaños a las 8:00 AM (Hora Sonora)."""
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    rows = dict(c.execute("SELECT key, value FROM settings WHERE key IN ('bday_auto_enabled', 'bday_auto_hour', 'bday_auto_template')").fetchall())
+    now_son = datetime.now(SONORA_TZ)
+    sent_rows = c.execute(
+        "SELECT serial, sent_at_sonora, mode FROM birthday_push_logs WHERE year = ?",
+        (now_son.year,)
+    ).fetchall()
+    conn.close()
+    enabled = str(rows.get("bday_auto_enabled", "1")).strip() == "1"
+    hour_str = (rows.get("bday_auto_hour") or "08:00").strip()
+    template = (rows.get("bday_auto_template") or DEFAULT_BDAY_AUTO_TEMPLATE).strip() or DEFAULT_BDAY_AUTO_TEMPLATE
+    sent_map = {r[0]: {"sent_at": r[1], "mode": r[2]} for r in sent_rows}
+    return {
+        "enabled": enabled,
+        "hour": hour_str,
+        "template": template,
+        "sent_map": sent_map,
+        "sent_this_year_count": len(sent_map),
+    }
+
+
+def run_auto_birthday_dispatch(force_now=False):
+    """
+    Revisa si el envío automático de cumpleaños está activo (check activado) y si en Navojoa, Sonora
+    ya son las 8:00 AM o más. Envía automáticamente el regalo/felicitación Push a los clientes activos
+    que cumplen años HOY y aún no han recibido su felicitación este año.
+    """
+    try:
+        cfg = get_birthday_auto_config()
+        if not cfg["enabled"] and not force_now:
+            return 0
+        now_son = datetime.now(SONORA_TZ)
+        if not force_now and now_son.hour < 8:
+            return 0
+
+        conn = sqlite3.connect(DB_PATH)
+        c = conn.cursor()
+        rows = c.execute(
+            "SELECT serial, name, birthdate, message FROM clients WHERE COALESCE(status, 'active') = 'active' AND birthdate IS NOT NULL AND TRIM(birthdate) != ''"
+        ).fetchall()
+        already_sent = set(
+            r[0] for r in c.execute("SELECT serial FROM birthday_push_logs WHERE year = ?", (now_son.year,)).fetchall()
+        )
+
+        to_dispatch = []
+        for serial_id, full_name, bdate_str, prev_msg in rows:
+            if serial_id in already_sent:
+                continue
+            binfo = calculate_birthday_info(bdate_str, ref_date=now_son.date())
+            if binfo.get("is_today"):
+                parts = [p for p in (full_name or "Cliente").strip().split() if p]
+                first_name = parts[0] if parts else (full_name or "Cliente")
+                msg_text = (
+                    cfg["template"]
+                    .replace("{nombre}", first_name)
+                    .replace("[Nombre]", first_name)
+                    .replace("{name}", first_name)
+                ).strip()[:200]
+                msg_to_save = msg_text + ("\u200b" if prev_msg == msg_text else "")
+                now_utc = get_utc_timestamp()
+                sonora_dt = get_sonora_datetime_str()
+                c.execute(
+                    "UPDATE clients SET message = ?, updated_at = ? WHERE serial = ?",
+                    (msg_to_save, now_utc, serial_id)
+                )
+                c.execute(
+                    "INSERT OR REPLACE INTO birthday_push_logs (serial, year, sent_at_sonora, mode) VALUES (?, ?, ?, 'auto')",
+                    (serial_id, now_son.year, sonora_dt)
+                )
+                c.execute(
+                    "INSERT INTO wallet_logs (created_at, log_text) VALUES (?, ?)",
+                    (now_utc, f"🎂 Auto-Cumpleaños 8:00 AM Sonora enviado a {full_name} ({serial_id})")
+                )
+                to_dispatch.append((serial_id, msg_text))
+
+        conn.commit()
+        conn.close()
+
+        for serial_id, msg_text in to_dispatch:
+            try:
+                send_apns_push_for_serial(serial_id, notification_body=f"📣 {msg_text}")
+            except Exception:
+                pass
+        return len(to_dispatch)
+    except Exception as e:
+        print(f"⚠️ Error en run_auto_birthday_dispatch: {e}")
+        return 0
+
 
 
 def get_shop_location():
@@ -2841,6 +2950,100 @@ BARISTA_HTML = """
             background: rgba(212, 175, 55, 0.05);
         }
 
+        /* Switch / Check accesible para Automatización de Cumpleaños (8:00 AM Sonora) */
+        .bday-auto-card {
+            background: linear-gradient(145deg, rgba(255, 55, 95, 0.08) 0%, rgba(28, 24, 21, 0.92) 100%);
+            border: 1px solid rgba(255, 55, 95, 0.32);
+            border-radius: 20px;
+            padding: 18px 22px;
+            margin-bottom: 18px;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            box-shadow: 0 12px 32px rgba(0, 0, 0, 0.38);
+        }
+        .bday-auto-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+        .bday-check-label {
+            display: inline-flex;
+            align-items: center;
+            gap: 11px;
+            cursor: pointer;
+            padding: 9px 15px;
+            border-radius: 14px;
+            background: rgba(0, 0, 0, 0.42);
+            border: 1px solid rgba(212, 175, 55, 0.38);
+            font-size: 13.5px;
+            font-weight: 700;
+            color: var(--text-primary);
+            user-select: none;
+            transition: border-color 0.2s ease, background 0.2s ease;
+        }
+        .bday-check-label:hover {
+            border-color: var(--gold);
+            background: rgba(212, 175, 55, 0.1);
+        }
+        input[type="checkbox"][switch] {
+            accent-color: var(--gold, #D4AF37);
+            width: 20px;
+            height: 20px;
+            margin: 0;
+            cursor: pointer;
+            color-scheme: dark;
+        }
+        input[type="checkbox"][switch]:focus-visible {
+            outline: 3px solid var(--gold-light, #E6C280);
+            outline-offset: 4px;
+        }
+
+        /* Resumen de Corte de Turno en la Bitácora (3 Contadores del Día en Hora Sonora) */
+        .shift-summary-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 14px;
+            margin-bottom: 16px;
+        }
+        .shift-kpi-card {
+            background: linear-gradient(155deg, rgba(28, 25, 22, 0.96) 0%, rgba(18, 16, 14, 0.96) 100%);
+            border: 1px solid var(--border-subtle);
+            border-radius: 18px;
+            padding: 16px 18px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            box-shadow: 0 10px 26px rgba(0, 0, 0, 0.35);
+        }
+        .shift-kpi-label {
+            font-size: 12.5px;
+            font-weight: 700;
+            color: var(--text-secondary);
+            line-height: 1.35;
+        }
+        .shift-kpi-sub {
+            font-size: 11px;
+            color: var(--text-tertiary);
+            margin-top: 3px;
+        }
+        .shift-kpi-value {
+            font-size: 28px;
+            font-weight: 900;
+            font-variant-numeric: tabular-nums;
+            line-height: 1;
+            white-space: nowrap;
+        }
+        @media (max-width: 780px) {
+            .shift-summary-grid {
+                grid-template-columns: 1fr;
+                gap: 10px;
+            }
+        }
+
         /* Modal Personalizado Glassmorphism (Sin URL de navegador) */
         .custom-modal-backdrop {
             position: fixed;
@@ -3229,8 +3432,9 @@ BARISTA_HTML = """
                     <div id="qr-status" style="font-size:12px; color:var(--gold-light); margin-bottom:8px; display:none; text-align:center;"></div>
                 </div>
 
-                <form id="scan-form" action="/api/scan-action" method="POST" class="quick-scan-form">
+                <form id="scan-form" action="/api/scan-action" method="POST" class="quick-scan-form" onsubmit="return checkDuplicateScanBeforeSubmit(event, this)">
                     <input type="hidden" id="auto-stamp-flag" value="1">
+                    <input type="hidden" name="force_duplicate" id="scan-force-dup" value="0">
                     <input type="text" id="scan-serial-input" name="serial" class="input-dark" placeholder="Serial ej. MAISHAS-AD58E5" required>
                     <input type="hidden" name="action" id="scan-action-input" value="add">
                     <button type="submit" class="btn-gold-sm">+1 Sello ☕️</button>
@@ -3323,9 +3527,15 @@ BARISTA_HTML = """
                     </div>
 
                     <div class="row-actions">
-                        <form action="/api/add-stamp" method="POST" style="margin:0;">
+                        <form id="form-add-{{ client.serial }}" action="/api/add-stamp" method="POST" style="margin:0;"
+                              data-serial="{{ client.serial }}"
+                              data-name="{{ client.name|e }}"
+                              data-stamps="{{ client.stamps }}"
+                              data-last-add-epoch="{{ client.last_add_epoch }}"
+                              onsubmit="return checkDuplicateStampBeforeSubmit(event, this)">
                             <input type="hidden" name="serial" value="{{ client.serial }}">
                             <input type="hidden" name="action" value="add">
+                            <input type="hidden" name="force_duplicate" value="0">
                             <button type="submit" class="btn-stamp-plus">+1 Sello ☕️</button>
                         </form>
 
@@ -3411,6 +3621,43 @@ BARISTA_HTML = """
                 </div>
             </div>
 
+            <!-- TARJETA DE AUTOMATIZACIÓN DE CUMPLEAÑOS A LAS 8:00 AM (HORA SONORA) CON CHECK ACTIVABLE -->
+            <div class="bday-auto-card" id="bday-auto-settings-card">
+                <div class="bday-auto-top">
+                    <div style="min-width:240px; flex:1;">
+                        <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:4px;">
+                            <span style="font-size:15.5px; font-weight:800; color:var(--text-primary);">
+                                ⏰ Automatización de Cumpleaños (8:00 AM · Hora Sonora)
+                            </span>
+                            <span id="bday-auto-status-pill" class="{{ 'status-pill-on' if bday_auto.enabled else 'status-pill-off' }}" style="{{ '' if bday_auto.enabled else 'color:#FFB340; border-color:rgba(255,179,64,0.4);' }}">
+                                {{ '🟢 Envío Automático Activo (8:00 AM)' if bday_auto.enabled else '⏸️ Automático Desactivado (Solo manual)' }}
+                            </span>
+                        </div>
+                        <p style="margin:0; font-size:12.5px; color:var(--text-secondary); line-height:1.45;">
+                            Cuando la casilla está marcada, el sistema envía automáticamente a las <strong>8:00 AM (hora de Navojoa, Sonora)</strong> la notificación de cumpleaños al celular de cada socio activo que cumpla años ese día, sin necesidad de presionar el botón manualmente.
+                        </p>
+                    </div>
+
+                    <label class="bday-check-label" for="bday-auto-check">
+                        <input type="checkbox" switch id="bday-auto-check" {{ 'checked' if bday_auto.enabled else '' }} onchange="toggleBirthdayAutoSetting(this.checked)">
+                        <span id="bday-auto-check-text">
+                            {{ 'Función automática activada' if bday_auto.enabled else 'Activar función automática' }}
+                        </span>
+                    </label>
+                </div>
+
+                <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; background:rgba(0,0,0,0.28); padding:11px 14px; border-radius:14px; border:1px solid var(--border-subtle);">
+                    <label for="bday-auto-tpl-input" style="font-size:11.5px; font-weight:700; color:var(--gold-light); white-space:nowrap;">
+                        💬 Mensaje automático (<code style="color:#FF859D;">{nombre}</code>):
+                    </label>
+                    <input type="text" id="bday-auto-tpl-input" class="input-dark" maxlength="190" value="{{ bday_auto.template }}" style="flex:1; min-width:220px; padding:8px 12px; font-size:13px;">
+                    <button type="button" class="btn-gold-sm" onclick="saveBirthdayAutoTemplate()" style="padding:8px 14px; font-size:12px;">
+                        💾 Guardar Mensaje
+                    </button>
+                </div>
+                <div id="bday-auto-feedback" style="display:none; font-size:12px; font-weight:700; color:#30D158;"></div>
+            </div>
+
             <div class="tab-split-grid">
                 <!-- Columna 1: Radar Hoy y Próximos 7 días -->
                 <div class="bento-card bday-card-widget">
@@ -3432,6 +3679,11 @@ BARISTA_HTML = """
                                         <span class="{{ 'bday-badge-today' if bclient.bday.is_today else 'bday-badge-soon' }}">
                                             {{ bclient.bday.badge_text }}
                                         </span>
+                                        {% if bclient.serial in bday_auto.sent_map %}
+                                        <span class="status-pill-on" style="font-size:10.5px; padding:2px 8px;">
+                                            ✅ Felicitado ({{ 'Auto 8AM' if bday_auto.sent_map[bclient.serial].mode == 'auto' else 'Manual' }})
+                                        </span>
+                                        {% endif %}
                                     </div>
                                     <div style="font-size:11.5px; color:var(--text-secondary); margin-top:3px;">
                                         {{ bclient.tier.badge }} · {{ bclient.stamps }}/10 sellos
@@ -3441,7 +3693,8 @@ BARISTA_HTML = """
                                 <div style="display:flex; gap:6px; align-items:center;">
                                     <form action="/api/send-message" method="POST" style="margin:0;">
                                         <input type="hidden" name="target" value="{{ bclient.serial }}">
-                                        <input type="hidden" name="message" value="🎂 ¡Feliz cumpleaños, {{ bclient.first_name }}! Te esperamos en Maishas Café con una sorpresa especial para celebrar tu día ☕️✨">
+                                        <input type="hidden" name="is_bday" value="1">
+                                        <input type="hidden" name="message" value="🎂 ¡Feliz cumpleaños, {{ bclient.first_name }}! Hoy tienes una bebida o postre de cortesía en Maishas Café ☕️✨">
                                         <button type="submit" class="btn-bday-gift">
                                             🎁 Enviar Regalo Push
                                         </button>
@@ -3480,6 +3733,11 @@ BARISTA_HTML = """
                                             <span class="{{ 'bday-badge-today' if client.bday.is_today else 'bday-badge-soon' }}">
                                                 {{ client.bday.badge_text }}
                                             </span>
+                                            {% if client.serial in bday_auto.sent_map %}
+                                            <span class="status-pill-on" style="font-size:10.5px; padding:2px 8px;">
+                                                ✅ Felicitado
+                                            </span>
+                                            {% endif %}
                                         </div>
                                         <div style="font-size:11px; color:var(--text-secondary); margin-top:2px;">
                                             {{ client.tier.badge }} · {{ client.stamps }}/10 sellos · {{ client.serial }}
@@ -3488,7 +3746,8 @@ BARISTA_HTML = """
                                     <div style="display:flex; gap:6px; align-items:center;">
                                         <form action="/api/send-message" method="POST" style="margin:0;">
                                             <input type="hidden" name="target" value="{{ client.serial }}">
-                                            <input type="hidden" name="message" value="🎂 ¡Feliz cumpleaños, {{ client.first_name }}! Te esperamos en Maishas Café con una sorpresa especial para celebrar tu día ☕️✨">
+                                            <input type="hidden" name="is_bday" value="1">
+                                            <input type="hidden" name="message" value="🎂 ¡Feliz cumpleaños, {{ client.first_name }}! Hoy tienes una bebida o postre de cortesía en Maishas Café ☕️✨">
                                             <button type="submit" class="btn-bday-gift">
                                                 🎁 Felicitación
                                             </button>
@@ -3791,15 +4050,48 @@ BARISTA_HTML = """
                 </table>
             </div>
 
-            <!-- BITÁCORA DE AUDITORÍA DE MOVIMIENTOS (SELLOS Y CANJES) -->
+            <!-- BITÁCORA DE AUDITORÍA DE MOVIMIENTOS (SELLOS Y CANJES) + RESUMEN DE CORTE DE TURNO -->
             <div class="db-header-card" style="margin-top:22px;">
                 <div>
+                    <div style="display:inline-flex; align-items:center; gap:6px; background:rgba(212,175,55,0.14); border:1px solid rgba(212,175,55,0.38); color:var(--gold-light); padding:3px 10px; border-radius:99px; font-size:11px; font-weight:800; margin-bottom:6px;">
+                        📊 CORTE DE TURNO EN VIVO · HORA SONORA ({{ shift_summary.date_label }})
+                    </div>
                     <h2 style="margin:0; font-size:18px; font-weight:800; color:var(--text-primary);">
                         📜 Bitácora Reciente de Sellos y Canjes (Auditoría de Turno)
                     </h2>
                     <p style="margin:4px 0 0; font-size:12.5px; color:var(--text-secondary);">
-                        Historial cronológico de los últimos movimientos de sellos (+1, -1, canjes y estados de cuenta) con hora local de Sonora.
+                        Resumen automático del día para cuadrar caja en segundos e historial cronológico de los últimos movimientos (+1, -1, canjes y estados de cuenta).
                     </p>
+                </div>
+            </div>
+
+            <!-- 3 CONTADORES AUTOMÁTICOS DEL DÍA DE HOY (PUNTO B #7) -->
+            <div class="shift-summary-grid" role="region" aria-label="Resumen de corte de turno de hoy">
+                <div class="shift-kpi-card" style="border-color:rgba(212, 175, 55, 0.35);">
+                    <div>
+                        <div class="shift-kpi-label">☕️ Sellos otorgados hoy</div>
+                        <div class="shift-kpi-sub">
+                            Movimientos +1 hoy ({{ shift_summary.date_label }})
+                            {% if shift_summary.sub_today > 0 %} · {{ shift_summary.sub_today }} ajuste(s) -1{% endif %}
+                        </div>
+                    </div>
+                    <div class="shift-kpi-value" style="color:var(--gold-light);" id="kpi-stamps-today">{{ shift_summary.stamps_today }}</div>
+                </div>
+
+                <div class="shift-kpi-card" style="border-color:rgba(48, 209, 88, 0.35);">
+                    <div>
+                        <div class="shift-kpi-label">🎁 Cafés gratis canjeados hoy</div>
+                        <div class="shift-kpi-sub">Recompensas entregadas en el turno</div>
+                    </div>
+                    <div class="shift-kpi-value" style="color:#30D158;" id="kpi-redeemed-today">{{ shift_summary.redeemed_today }}</div>
+                </div>
+
+                <div class="shift-kpi-card" style="border-color:rgba(56, 189, 248, 0.35);">
+                    <div>
+                        <div class="shift-kpi-label">🆕 Nuevos socios registrados hoy</div>
+                        <div class="shift-kpi-sub">Altas de tarjeta en el día ({{ shift_summary.date_label }})</div>
+                    </div>
+                    <div class="shift-kpi-value" style="color:#7DD3FC;" id="kpi-new-clients-today">{{ shift_summary.new_clients_today }}</div>
                 </div>
             </div>
 
@@ -4258,7 +4550,16 @@ BARISTA_HTML = """
         // Modal de Confirmación Personalizado (Sin URL de navegador)
         let pendingFormId = null;
         const CURRENT_STAMP_GOAL = {{ campaign.stampGoal }};
-        function openConfirmModal(actionType, formId, clientName, serial, currentStamps) {
+        const SERVER_RENDER_EPOCH = {{ server_now_epoch }};
+        const CLIENT_PAGE_LOAD_MS = Date.now();
+        const STAMP_COOLDOWN_SECONDS = 60;
+
+        function getCurrentServerEpoch() {
+            const elapsedSec = Math.max(0, (Date.now() - CLIENT_PAGE_LOAD_MS) / 1000);
+            return SERVER_RENDER_EPOCH + elapsedSec;
+        }
+
+        function openConfirmModal(actionType, formId, clientName, serial, currentStamps, extraSeconds) {
             pendingFormId = formId;
             const safeName = escapeHtml(clientName);
             const safeSerial = escapeHtml(serial);
@@ -4268,7 +4569,16 @@ BARISTA_HTML = """
             const descEl = document.getElementById('cm-desc-text');
             const confirmBtn = document.getElementById('cm-confirm-btn');
 
-            if (actionType === 'delete') {
+            if (actionType === 'duplicate_add') {
+                const secsAgo = Math.max(1, Math.round(Number(extraSeconds) || 1));
+                const secWord = (secsAgo === 1) ? 'segundo' : 'segundos';
+                iconBox.className = 'cm-icon warn';
+                iconBox.textContent = '⚠️';
+                titleEl.textContent = 'Protección Anti-Doble Sello';
+                descEl.innerHTML = '⚠️ Ya se le sumó 1 sello a <strong>' + safeName + '</strong> hace <strong>' + secsAgo + ' ' + secWord + '</strong>. ¿Deseas sumarle un segundo sello?';
+                confirmBtn.className = 'cm-btn-confirm warn';
+                confirmBtn.textContent = 'Sí, sumar segundo sello';
+            } else if (actionType === 'delete') {
                 iconBox.className = 'cm-icon warn';
                 iconBox.textContent = '📦';
                 titleEl.textContent = '¿Desactivar cliente y enviar a Papelera?';
@@ -4310,6 +4620,17 @@ BARISTA_HTML = """
         }
 
         function closeConfirmModal() {
+            if (pendingFormId) {
+                const form = document.getElementById(pendingFormId);
+                if (form) {
+                    form.dataset.submitting = '0';
+                    const btn = form.querySelector('button[type="submit"]');
+                    if (btn) {
+                        btn.style.opacity = '1';
+                        btn.style.pointerEvents = 'auto';
+                    }
+                }
+            }
             pendingFormId = null;
             document.getElementById('maishas-confirm-modal').classList.remove('open');
         }
@@ -4318,11 +4639,127 @@ BARISTA_HTML = """
             if (pendingFormId) {
                 const form = document.getElementById(pendingFormId);
                 if (form) {
+                    const dupInput = form.querySelector('input[name="force_duplicate"]');
+                    if (dupInput) dupInput.value = '1';
+                    form.dataset.submitting = '0';
                     saveBaristaUiState();
                     form.submit();
                 }
             }
-            closeConfirmModal();
+            pendingFormId = null;
+            document.getElementById('maishas-confirm-modal').classList.remove('open');
+        }
+
+        // Protección Anti-Doble Escaneo / Sello Duplicado (< 60 segundos) en Mostrador POS y Escáner QR
+        function checkDuplicateStampBeforeSubmit(e, formEl) {
+            if (!formEl) return true;
+            const forceInput = formEl.querySelector('input[name="force_duplicate"]');
+            if (forceInput && forceInput.value === '1') return true;
+
+            const lastAddEpoch = parseFloat(formEl.dataset.lastAddEpoch || '0');
+            if (lastAddEpoch > 0) {
+                const diffSec = getCurrentServerEpoch() - lastAddEpoch;
+                if (diffSec >= 0 && diffSec < STAMP_COOLDOWN_SECONDS) {
+                    if (e && e.preventDefault) e.preventDefault();
+                    if (e && e.stopImmediatePropagation) e.stopImmediatePropagation();
+                    const secsAgo = Math.max(1, Math.round(diffSec));
+                    openConfirmModal(
+                        'duplicate_add',
+                        formEl.id,
+                        formEl.dataset.name || 'Cliente',
+                        formEl.dataset.serial || '',
+                        parseInt(formEl.dataset.stamps || '0', 10),
+                        secsAgo
+                    );
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        function checkDuplicateScanBeforeSubmit(e, scanFormEl) {
+            if (!scanFormEl) return true;
+            const forceInput = document.getElementById('scan-force-dup');
+            if (forceInput && forceInput.value === '1') return true;
+
+            const rawVal = (document.getElementById('scan-serial-input').value || '').trim().toUpperCase();
+            const m = rawVal.match(/MAISHAS-[A-Z0-9]{6}/);
+            const normSerial = m ? m[0] : (/^[A-Z0-9]{6}$/.test(rawVal) ? ('MAISHAS-' + rawVal) : rawVal);
+            const rowForm = document.getElementById('form-add-' + normSerial);
+            if (rowForm) {
+                const lastAddEpoch = parseFloat(rowForm.dataset.lastAddEpoch || '0');
+                if (lastAddEpoch > 0) {
+                    const diffSec = getCurrentServerEpoch() - lastAddEpoch;
+                    if (diffSec >= 0 && diffSec < STAMP_COOLDOWN_SECONDS) {
+                        if (e && e.preventDefault) e.preventDefault();
+                        if (e && e.stopImmediatePropagation) e.stopImmediatePropagation();
+                        const secsAgo = Math.max(1, Math.round(diffSec));
+                        openConfirmModal(
+                            'duplicate_add',
+                            scanFormEl.id,
+                            rowForm.dataset.name || normSerial,
+                            normSerial,
+                            parseInt(rowForm.dataset.stamps || '0', 10),
+                            secsAgo
+                        );
+                        return false;
+                    }
+                }
+            }
+            return true;
+        }
+
+        // Control del Check de Envío Automático de Cumpleaños a las 8:00 AM (Hora Sonora)
+        async function toggleBirthdayAutoSetting(enabled) {
+            const pill = document.getElementById('bday-auto-status-pill');
+            const txt = document.getElementById('bday-auto-check-text');
+            const fb = document.getElementById('bday-auto-feedback');
+            const tplInput = document.getElementById('bday-auto-tpl-input');
+            try {
+                const res = await fetch('/api/birthday-auto-settings', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({
+                        enabled: Boolean(enabled),
+                        template: tplInput ? tplInput.value : ''
+                    })
+                });
+                const data = await res.json();
+                if (!res.ok || !data.ok) throw new Error(data.error || 'No se pudo actualizar');
+
+                if (pill) {
+                    pill.className = data.enabled ? 'status-pill-on' : 'status-pill-off';
+                    pill.style.cssText = data.enabled ? '' : 'color:#FFB340; border-color:rgba(255,179,64,0.4);';
+                    pill.textContent = data.enabled
+                        ? '🟢 Envío Automático Activo (8:00 AM)'
+                        : '⏸️ Automático Desactivado (Solo manual)';
+                }
+                if (txt) {
+                    txt.textContent = data.enabled
+                        ? 'Función automática activada'
+                        : 'Activar función automática';
+                }
+                if (fb) {
+                    fb.style.display = 'block';
+                    fb.style.color = data.enabled ? '#30D158' : '#FFB340';
+                    fb.textContent = data.message || (data.enabled
+                        ? '✅ Envío automático de cumpleaños activado (8:00 AM Hora Sonora).'
+                        : '⏸️ Envío automático desactivado. Solo se enviarán felicitaciones cuando presiones el botón manualmente.');
+                    setTimeout(() => { fb.style.display = 'none'; }, 5000);
+                }
+            } catch (err) {
+                if (fb) {
+                    fb.style.display = 'block';
+                    fb.style.color = '#FF6B88';
+                    fb.textContent = '⚠️ Error al guardar: ' + err.message;
+                }
+            }
+        }
+
+        async function saveBirthdayAutoTemplate() {
+            const chk = document.getElementById('bday-auto-check');
+            await toggleBirthdayAutoSetting(chk ? chk.checked : true);
         }
 
         document.addEventListener('keydown', (e) => {
@@ -4830,7 +5267,10 @@ BARISTA_HTML = """
                             status.style.display = 'block';
                             status.textContent = '✅ Detectado: ' + detected;
                             if (autoScanMode) {
-                                document.getElementById('scan-form').submit();
+                                const scanFormEl = document.getElementById('scan-form');
+                                if (checkDuplicateScanBeforeSubmit(null, scanFormEl) !== false) {
+                                    scanFormEl.submit();
+                                }
                             } else {
                                 document.getElementById('client-search').value = detected;
                                 filterClients();
@@ -4842,6 +5282,25 @@ BARISTA_HTML = """
             }
             requestAnimationFrame(scanTick);
         }
+
+        {% if dup_confirm %}
+        setTimeout(() => {
+            const targetFormId = {{ dup_confirm.form_id | tojson }};
+            const targetSerial = {{ dup_confirm.serial | tojson }};
+            if (targetFormId === 'scan-form') {
+                const scanInput = document.getElementById('scan-serial-input');
+                if (scanInput) scanInput.value = targetSerial;
+            }
+            openConfirmModal(
+                'duplicate_add',
+                targetFormId,
+                {{ dup_confirm.name | tojson }},
+                targetSerial,
+                {{ dup_confirm.stamps }},
+                {{ dup_confirm.secs_ago }}
+            );
+        }, 60);
+        {% endif %}
 
         // --- PWA Instalación en Teléfono / Tablet / iPad ---
         let deferredBaristaPrompt = null;
@@ -5239,6 +5698,9 @@ def barista_logout():
 @app.route("/barista")
 @requires_auth
 def barista():
+    # Ejecutar verificación automática de cumpleaños (si el check está activo y son >= 8:00 AM Hora Sonora)
+    run_auto_birthday_dispatch(force_now=False)
+
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     c.execute("""
@@ -5268,6 +5730,44 @@ def barista():
             if m_ser:
                 s_key = m_ser.group(0)
                 gw_push_counts[s_key] = gw_push_counts.get(s_key, 0) + 1
+    except Exception:
+        pass
+
+    # Obtener timestamp UTC del último sello (+1) por cliente para la protección Anti-Doble Escaneo (< 60s)
+    last_add_map = {}
+    try:
+        for ser_k, max_utc in c.execute(
+            "SELECT serial, MAX(created_at_utc) FROM stamp_transactions WHERE action = 'add' GROUP BY serial"
+        ).fetchall():
+            if ser_k and max_utc:
+                for fmt in ("%Y-%m-%d %H:%M:%S.%f", "%Y-%m-%d %H:%M:%S"):
+                    try:
+                        dt_u = datetime.strptime(max_utc, fmt).replace(tzinfo=timezone.utc)
+                        last_add_map[ser_k] = round(dt_u.timestamp(), 2)
+                        break
+                    except Exception:
+                        pass
+    except Exception:
+        pass
+
+    # Calcular Resumen de Corte de Turno del día de HOY en Hora Sonora (Punto B #7)
+    now_son = datetime.now(SONORA_TZ)
+    today_date_label = f"{now_son.day:02d}/{MESES_ES[now_son.month]}/{now_son.year}"
+    stamps_today_count = 0
+    sub_today_count = 0
+    redeemed_today_count = 0
+    try:
+        today_tx_rows = c.execute("""
+            SELECT action, COUNT(*)
+            FROM stamp_transactions
+            WHERE serial NOT IN (SELECT serial FROM clients WHERE COALESCE(status, 'active') = 'hidden')
+              AND created_at_sonora LIKE ?
+            GROUP BY action
+        """, (f"{today_date_label}%",)).fetchall()
+        tx_counts_map = dict(today_tx_rows)
+        stamps_today_count = int(tx_counts_map.get("add", 0))
+        sub_today_count = int(tx_counts_map.get("sub", 0))
+        redeemed_today_count = int(tx_counts_map.get("reset", 0))
     except Exception:
         pass
 
@@ -5301,6 +5801,7 @@ def barista():
 
     campaign_cfg = get_campaign_config()
     stamp_goal = campaign_cfg["stampGoal"]
+    bday_auto_cfg = get_birthday_auto_config()
 
     clients = []
     inactive_clients = []
@@ -5311,6 +5812,8 @@ def barista():
     total_redeemed = 0
     ready_to_redeem_count = 0
     month_birthdays_count = 0
+    new_clients_today_count = 0
+    client_lookup_by_serial = {}
 
     for r in rows:
         status_val = (r[16] or "active").strip().lower()
@@ -5340,6 +5843,8 @@ def barista():
 
         bday_info = calculate_birthday_info(r[7] or "")
         created_at_clean = format_sonora_time(r[15] or "")
+        if created_at_clean.startswith(today_date_label):
+            new_clients_today_count += 1
         last_push_clean = humanize_push_status(r[8] or "")
         last_sync_clean = format_sonora_time(r[9] or "")
 
@@ -5370,7 +5875,9 @@ def barista():
             "gw_pushes_24h": gw_push_counts.get(r[0], 0),
             "status": status_val,
             "deactivated_at": deactivated_at_val,
+            "last_add_epoch": last_add_map.get(r[0], 0),
         }
+        client_lookup_by_serial[r[0]] = client_obj
 
         if status_val == "inactive":
             inactive_clients.append(client_obj)
@@ -5394,6 +5901,32 @@ def barista():
 
     upcoming_birthdays.sort(key=lambda x: x["bday"]["days_until"])
 
+    shift_summary = {
+        "date_label": today_date_label,
+        "stamps_today": stamps_today_count,
+        "sub_today": sub_today_count,
+        "redeemed_today": redeemed_today_count,
+        "new_clients_today": new_clients_today_count,
+    }
+
+    dup_confirm = None
+    dup_serial_arg = (request.args.get("dup_serial") or "").strip().upper()
+    dup_secs_arg = request.args.get("dup_secs")
+    dup_src_arg = request.args.get("dup_src", "pos")
+    if dup_serial_arg and dup_serial_arg in client_lookup_by_serial:
+        dc_obj = client_lookup_by_serial[dup_serial_arg]
+        try:
+            secs_val = max(1, int(float(dup_secs_arg or 1)))
+        except Exception:
+            secs_val = 1
+        dup_confirm = {
+            "serial": dup_serial_arg,
+            "name": dc_obj["name"],
+            "stamps": dc_obj["stamps"],
+            "secs_ago": secs_val,
+            "form_id": "scan-form" if dup_src_arg == "scan" else f"form-add-{dup_serial_arg}",
+        }
+
     html_out = render_template_string(
         BARISTA_HTML,
         clients=clients,
@@ -5407,6 +5940,10 @@ def barista():
         total_redeemed=total_redeemed,
         shop_loc=get_shop_location(),
         campaign=campaign_cfg,
+        bday_auto=bday_auto_cfg,
+        shift_summary=shift_summary,
+        server_now_epoch=round(datetime.now(timezone.utc).timestamp(), 2),
+        dup_confirm=dup_confirm,
         recent_transactions=recent_transactions,
         ok=request.args.get("ok"),
         updated_serial=request.args.get("updated")
@@ -5976,7 +6513,7 @@ def android_card_state(serial_number):
     })
 
 
-def _perform_stamp_update(serial, action="add"):
+def _perform_stamp_update(serial, action="add", force_duplicate=False):
     """Función auxiliar compartida entre el botón de la tabla y el escáner QR."""
     raw_s = (serial or "").strip().upper()
     m_ser = re.search(r"MAISHAS-[A-Z0-9]{6}", raw_s)
@@ -6035,6 +6572,26 @@ def _perform_stamp_update(serial, action="add"):
         if current_stamps >= goal:
             conn.close()
             return serial_id, f"ℹ️ {client_name} ({serial_id}) ya tiene {goal}/{goal} sellos. Usa '🎁 Canjear' para entregar su recompensa.{bday_alert}"
+
+        # Protección Anti-Doble Escaneo / Sello Duplicado (< 60 segundos) si no viene confirmado explícitamente
+        if not force_duplicate:
+            last_add_row = c.execute(
+                "SELECT created_at_utc FROM stamp_transactions WHERE serial = ? AND action = 'add' ORDER BY id DESC LIMIT 1",
+                (serial_id,)
+            ).fetchone()
+            if last_add_row and last_add_row[0]:
+                for fmt in ("%Y-%m-%d %H:%M:%S.%f", "%Y-%m-%d %H:%M:%S"):
+                    try:
+                        dt_prev = datetime.strptime(last_add_row[0], fmt).replace(tzinfo=timezone.utc)
+                        diff_sec = (datetime.now(timezone.utc) - dt_prev).total_seconds()
+                        if 0 <= diff_sec < 60:
+                            secs_ago = max(1, int(round(diff_sec)))
+                            conn.close()
+                            return serial_id, f"DUPLICATE_COOLDOWN:{secs_ago}"
+                        break
+                    except Exception:
+                        pass
+
         new_stamps = current_stamps + 1
         new_visits = current_visits + 1
         new_redeemed = current_redeemed
@@ -6072,7 +6629,11 @@ def _perform_stamp_update(serial, action="add"):
 def add_stamp():
     serial = request.form.get("serial")
     action = request.form.get("action", "add")
-    serial_id, msg = _perform_stamp_update(serial, action)
+    force_dup = str(request.form.get("force_duplicate", "0")).strip() == "1"
+    serial_id, msg = _perform_stamp_update(serial, action, force_duplicate=force_dup)
+    if isinstance(msg, str) and msg.startswith("DUPLICATE_COOLDOWN:"):
+        secs_ago = msg.split(":", 1)[1]
+        return redirect(url_for("barista", dup_serial=serial_id, dup_secs=secs_ago, dup_src="pos", updated=serial_id))
     return redirect(url_for("barista", ok=msg, updated=serial_id))
 
 
@@ -6081,8 +6642,49 @@ def add_stamp():
 def scan_action():
     serial = request.form.get("serial")
     action = request.form.get("action", "add")
-    serial_id, msg = _perform_stamp_update(serial, action)
+    force_dup = str(request.form.get("force_duplicate", "0")).strip() == "1"
+    serial_id, msg = _perform_stamp_update(serial, action, force_duplicate=force_dup)
+    if isinstance(msg, str) and msg.startswith("DUPLICATE_COOLDOWN:"):
+        secs_ago = msg.split(":", 1)[1]
+        return redirect(url_for("barista", dup_serial=serial_id, dup_secs=secs_ago, dup_src="scan", updated=serial_id))
     return redirect(url_for("barista", ok=f"📷 QR Escaneado: {msg}", updated=serial_id))
+
+
+@app.route("/api/birthday-auto-settings", methods=["GET", "POST"])
+@requires_auth
+def api_birthday_auto_settings():
+    """Activa o desactiva la función automática de felicitación de cumpleaños a las 8:00 AM (Hora Sonora)."""
+    if request.method == "GET":
+        return jsonify({"ok": True, "bday_auto": get_birthday_auto_config()})
+
+    payload = request.get_json(force=True, silent=True) or {}
+    enabled = bool(payload.get("enabled", True))
+    raw_tpl = (payload.get("template") or "").strip()
+    template = raw_tpl[:190] if raw_tpl else DEFAULT_BDAY_AUTO_TEMPLATE
+
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute("INSERT OR REPLACE INTO settings (key, value) VALUES ('bday_auto_enabled', ?)", ("1" if enabled else "0",))
+    c.execute("INSERT OR REPLACE INTO settings (key, value) VALUES ('bday_auto_template', ?)", (template,))
+    conn.commit()
+    conn.close()
+
+    dispatched = 0
+    if enabled:
+        dispatched = run_auto_birthday_dispatch(force_now=False)
+
+    status_msg = (
+        f"✅ Función automática de cumpleaños ACTIVADA (8:00 AM Hora Sonora){f' · {dispatched} felicitación(es) enviada(s) hoy' if dispatched else ''}."
+        if enabled
+        else "⏸️ Función automática de cumpleaños DESACTIVADA (solo envío manual)."
+    )
+    return jsonify({
+        "ok": True,
+        "enabled": enabled,
+        "template": template,
+        "dispatched_today": dispatched,
+        "message": status_msg,
+    })
 
 
 def _decode_data_url_to_png(data_url, out_path, resize_max=None):
@@ -6426,6 +7028,7 @@ def reactivate_client():
 def send_message():
     raw_message = (request.form.get("message") or "").strip()[:200]
     target = request.form.get("target", "all")
+    is_bday = (request.form.get("is_bday") or "") == "1"
     if not raw_message:
         return redirect(url_for("barista", ok="⚠️ Escribe un mensaje antes de enviar"))
 
@@ -6438,6 +7041,8 @@ def send_message():
     rows = c.fetchall()
 
     now_ts = get_utc_timestamp()
+    now_sonora_year = datetime.now(SONORA_TZ).year
+    sonora_dt_str = get_sonora_datetime_str()
     for serial_id, _, prev_msg in rows:
         msg_to_save = raw_message
         if prev_msg == raw_message:
@@ -6446,6 +7051,11 @@ def send_message():
             "UPDATE clients SET message = ?, updated_at = ? WHERE serial = ?",
             (msg_to_save, now_ts, serial_id)
         )
+        if is_bday and target != "all":
+            c.execute(
+                "INSERT OR REPLACE INTO birthday_push_logs (serial, year, sent_at_sonora, mode) VALUES (?, ?, ?, ?)",
+                (serial_id, now_sonora_year, sonora_dt_str, "manual")
+            )
     conn.commit()
     conn.close()
 
@@ -7242,6 +7852,21 @@ def diagnostics():
     ]
     conn.close()
     return jsonify(report)
+
+
+def _start_birthday_auto_worker():
+    def _worker():
+        while True:
+            try:
+                run_auto_birthday_dispatch(force_now=False)
+            except Exception as e:
+                print(f"⚠️ Error en worker de cumpleaños automático: {e}")
+            time.sleep(60)
+    t = threading.Thread(target=_worker, daemon=True, name="bday-auto-worker")
+    t.start()
+
+
+_start_birthday_auto_worker()
 
 
 if __name__ == "__main__":
