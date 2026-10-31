@@ -191,12 +191,16 @@ BARISTA_LOGIN_HTML = """
             margin-bottom: 14px;
         }
     </style>
+    <title>[DEMO] Maishas Café — Barista POS</title>
 </head>
 <body>
     <div class="login-card">
+        <div style="display:inline-flex; align-items:center; gap:6px; padding:5px 12px; border-radius:99px; background:rgba(56,189,248,0.16); border:1px solid rgba(56,189,248,0.5); color:#7DD3FC; font-size:11px; font-weight:800; letter-spacing:0.6px; text-transform:uppercase; margin-bottom:12px;">
+            🧪 ENTORNO DEMO · RÉPLICA DE PRUEBAS
+        </div>
         <div class="login-emblem">☕️</div>
-        <h1 class="login-title">Iniciar sesión</h1>
-        <p class="login-sub">Maishas Café · Consola Barista</p>
+        <h1 class="login-title">Iniciar sesión <span style="color:#38BDF8; font-size:15px;">(DEMO)</span></h1>
+        <p class="login-sub">Maishas Café · Consola Barista DEMO</p>
         {% if error %}
         <div class="login-error">{{ error }}</div>
         {% endif %}
@@ -241,6 +245,8 @@ CERT_PEM = os.path.join(DATA_DIR, "cert.pem")
 WWDR_PEM = os.path.join(DATA_DIR, "wwdr.pem")
 DB_PATH = os.path.join(DATA_DIR, "loyalty.db")
 VAPID_FILE = os.path.join(DATA_DIR, "vapid_keys.json")
+CUSTOM_LOGO_PATH = os.path.join(DATA_DIR, "campaign_logo.png")
+CUSTOM_STRIP_BG_PATH = os.path.join(DATA_DIR, "campaign_strip_bg.png")
 
 
 AUTH_TOKEN = os.environ.get("AUTH_TOKEN", "MaishasSecretAuthToken2026")
@@ -519,56 +525,107 @@ def _clean_text_for_pil(text, has_utf8_font=False):
     return " ".join(cleaned.split()).strip()
 
 
+def _hex_to_rgb_tuple(hex_str, default=(18, 16, 14)):
+    s = (hex_str or "").strip().lstrip("#")
+    if len(s) == 3:
+        s = "".join(ch * 2 for ch in s)
+    if len(s) == 6:
+        try:
+            return (int(s[0:2], 16), int(s[2:4], 16), int(s[4:6], 16))
+        except ValueError:
+            pass
+    return default
+
+
+def _hex_to_passkit_rgb(hex_str, default="rgb(18, 16, 14)"):
+    r, g, b = _hex_to_rgb_tuple(hex_str, default=None) or (None, None, None)
+    if r is None:
+        return default
+    return f"rgb({r}, {g}, {b})"
+
+
 def _create_dynamic_strip_pil(stamps_count, message=None):
     """
-    Crea el objeto PIL Image (1500x500 super-sampled) de la matriz Luxury Coffee de 10 sellos
-    e incluye una barra inferior de alta legibilidad con el AVISO / estado del cliente.
+    Crea el objeto PIL Image (1500x500 super-sampled) adaptándose dinámicamente
+    a la configuración de campaña (meta de sellos ej. 8 o 10, colores, premio y banner opcional).
     """
-    stamps = max(0, min(10, int(stamps_count or 0)))
+    cfg = get_campaign_config()
+    goal = max(4, min(12, int(cfg.get("stampGoal") or 10)))
+    stamps = max(0, min(goal, int(stamps_count or 0)))
     W, H = 1500, 500
-    img = Image.new("RGB", (W, H), (18, 16, 14))
+
+    bg_rgb = _hex_to_rgb_tuple(cfg.get("backgroundColor"), (18, 16, 14))
+    fg_rgb = _hex_to_rgb_tuple(cfg.get("foregroundColor"), (245, 242, 235))
+    accent_rgb = _hex_to_rgb_tuple(cfg.get("labelColor"), (212, 175, 55))
+
+    img = Image.new("RGB", (W, H), bg_rgb)
+
+    if cfg.get("useCustomStripBg") and os.path.isfile(CUSTOM_STRIP_BG_PATH):
+        try:
+            bg_img = Image.open(CUSTOM_STRIP_BG_PATH).convert("RGB").resize((W, H), Image.Resampling.LANCZOS)
+            overlay = Image.new("RGB", (W, H), bg_rgb)
+            img = Image.blend(bg_img, overlay, 0.48)
+        except Exception:
+            pass
+    else:
+        draw_bg = ImageDraw.Draw(img)
+        for y in range(H):
+            t = y / float(H)
+            mid = 1.0 - abs(t - 0.5) * 2.0
+            boost = 24 if stamps >= goal else 12
+            r = min(255, int(bg_rgb[0] + boost * mid))
+            g = min(255, int(bg_rgb[1] + int(boost * 0.85) * mid))
+            b = min(255, int(bg_rgb[2] + int(boost * 0.65) * mid))
+            draw_bg.line([(0, y), (W, y)], fill=(r, g, b))
+
     draw = ImageDraw.Draw(img)
 
-    for y in range(H):
-        t = y / float(H)
-        mid = 1.0 - abs(t - 0.5) * 2.0
-        if stamps >= 10:
-            r = int(20 + 28 * mid)
-            g = int(17 + 22 * mid)
-            b = int(13 + 12 * mid)
-        else:
-            r = int(16 + 14 * mid)
-            g = int(14 + 11 * mid)
-            b = int(12 + 9 * mid)
-        draw.line([(0, y), (W, y)], fill=(r, g, b))
-
-    border_col = (212, 175, 55) if stamps >= 10 else (82, 68, 50)
-    inner_border_col = (145, 118, 68) if stamps >= 10 else (50, 42, 33)
+    border_col = accent_rgb if stamps >= goal else (
+        max(30, int(accent_rgb[0] * 0.45)),
+        max(25, int(accent_rgb[1] * 0.45)),
+        max(20, int(accent_rgb[2] * 0.45)),
+    )
+    inner_border_col = (
+        max(25, int(accent_rgb[0] * 0.65)),
+        max(20, int(accent_rgb[1] * 0.65)),
+        max(18, int(accent_rgb[2] * 0.65)),
+    ) if stamps >= goal else (50, 42, 33)
     draw.rounded_rectangle([24, 18, W - 25, H - 19], radius=36, outline=border_col, width=4)
     draw.rounded_rectangle([36, 30, W - 37, H - 31], radius=28, outline=inner_border_col, width=2)
 
-    cols_x = [230, 490, 750, 1010, 1270]
-    rows_y = [125, 282]
-    radius = 58
+    cols_per_row = math.ceil(goal / 2.0) if goal > 5 else goal
+    num_rows = 2 if goal > 5 else 1
+    rows_y = [125, 282] if num_rows == 2 else [205]
+    radius = 58 if cols_per_row <= 5 else 50
+    margin_x = 230 if cols_per_row <= 5 else 195
+    span_x = W - 2 * margin_x
 
-    for idx in range(10):
-        row = idx // 5
-        col = idx % 5
-        cx = cols_x[col]
-        cy = rows_y[row]
+    for idx in range(goal):
+        row = idx // cols_per_row
+        col = idx % cols_per_row
+        items_in_this_row = min(cols_per_row, goal - row * cols_per_row)
+        if items_in_this_row <= 1:
+            cx = W // 2
+        else:
+            cx = int(margin_x + col * (span_x / float(cols_per_row - 1)))
+        cy = rows_y[min(row, len(rows_y) - 1)]
         is_earned = (idx < stamps)
-        is_tenth = (idx == 9)
+        is_last = (idx == goal - 1)
 
         if is_earned:
             halo_r = radius + 10
             draw.ellipse(
                 [cx - halo_r, cy - halo_r, cx + halo_r, cy + halo_r],
-                fill=(48, 39, 24),
-                outline=(110, 88, 44),
+                fill=(max(10, bg_rgb[0] + 20), max(10, bg_rgb[1] + 16), max(10, bg_rgb[2] + 10)),
+                outline=(int(accent_rgb[0] * 0.55), int(accent_rgb[1] * 0.55), int(accent_rgb[2] * 0.55)),
                 width=2
             )
-            fill_gold = (232, 196, 96) if stamps >= 10 else (212, 175, 55)
-            rim_gold = (248, 232, 176)
+            fill_gold = accent_rgb
+            rim_gold = (
+                min(255, accent_rgb[0] + 35),
+                min(255, accent_rgb[1] + 35),
+                min(255, accent_rgb[2] + 35),
+            )
             draw.ellipse(
                 [cx - radius, cy - radius, cx + radius, cy + radius],
                 fill=fill_gold,
@@ -578,31 +635,31 @@ def _create_dynamic_strip_pil(stamps_count, message=None):
             in_r = radius - 12
             draw.ellipse(
                 [cx - in_r, cy - in_r, cx + in_r, cy + in_r],
-                outline=(150, 118, 30),
+                outline=(max(0, accent_rgb[0] - 55), max(0, accent_rgb[1] - 55), max(0, accent_rgb[2] - 55)),
                 width=3
             )
 
-            if is_tenth:
+            if is_last:
                 pts = []
                 for i in range(10):
                     ang = -math.pi / 2 + i * (math.pi / 5)
                     rad_p = 26 if i % 2 == 0 else 11
                     pts.append((cx + rad_p * math.cos(ang), cy + rad_p * math.sin(ang)))
-                draw.polygon(pts, fill=(22, 18, 15))
+                draw.polygon(pts, fill=bg_rgb)
             else:
                 bean_rx, bean_ry = 17, 23
                 draw.ellipse(
                     [cx - bean_rx, cy - bean_ry, cx + bean_rx, cy + bean_ry],
-                    fill=(24, 20, 16)
+                    fill=bg_rgb
                 )
                 draw.arc(
                     [cx - 12, cy - bean_ry + 3, cx + 15, cy + bean_ry - 3],
                     start=110, end=250, fill=fill_gold, width=4
                 )
         else:
-            bg_pending = (22, 19, 16)
-            ring_color = (158, 130, 84) if is_tenth else (76, 64, 50)
-            ring_width = 6 if is_tenth else 4
+            bg_pending = (max(8, bg_rgb[0] + 4), max(8, bg_rgb[1] + 3), max(8, bg_rgb[2] + 2))
+            ring_color = accent_rgb if is_last else (76, 64, 50)
+            ring_width = 6 if is_last else 4
             draw.ellipse(
                 [cx - radius, cy - radius, cx + radius, cy + radius],
                 fill=bg_pending,
@@ -612,17 +669,17 @@ def _create_dynamic_strip_pil(stamps_count, message=None):
             in_r = radius - 13
             draw.ellipse(
                 [cx - in_r, cy - in_r, cx + in_r, cy + in_r],
-                outline=(52, 44, 35) if not is_tenth else (110, 90, 58),
+                outline=(52, 44, 35) if not is_last else (110, 90, 58),
                 width=2
             )
 
-            if is_tenth:
+            if is_last:
                 pts = []
                 for i in range(10):
                     ang = -math.pi / 2 + i * (math.pi / 5)
                     rad_p = 21 if i % 2 == 0 else 9
                     pts.append((cx + rad_p * math.cos(ang), cy + rad_p * math.sin(ang)))
-                draw.polygon(pts, outline=(158, 130, 84), fill=(42, 35, 26))
+                draw.polygon(pts, outline=accent_rgb, fill=(42, 35, 26))
             else:
                 dot_r = 7
                 draw.ellipse(
@@ -630,15 +687,16 @@ def _create_dynamic_strip_pil(stamps_count, message=None):
                     fill=(66, 56, 44)
                 )
 
-    # Barra inferior de alta legibilidad dentro del strip para que el AVISO siempre se lea completo
     font_banner, has_utf8 = _load_strip_font(size=26)
-    raw_msg = _clean_text_for_pil((message or DEFAULT_MESSAGE).replace("\u200b", ""), has_utf8_font=has_utf8)
+    shop_name_clean = _clean_text_for_pil(cfg.get("shopName") or "Maishas Café", has_utf8_font=has_utf8)
+    reward_cfg_clean = _clean_text_for_pil(cfg.get("rewardText") or "Café Gratis", has_utf8_font=has_utf8)
+    raw_msg = _clean_text_for_pil((message or f"Bienvenido a {shop_name_clean}").replace("\u200b", ""), has_utf8_font=has_utf8)
     if not raw_msg:
-        raw_msg = "Bienvenido a Maishas Café" if has_utf8 else "Bienvenido a Maishas Cafe"
-    if has_utf8:
-        reward_txt = "¡CAFÉ GRATIS DISPONIBLE!" if stamps >= 10 else f"Faltan {10 - stamps} sellos para tu Café Gratis"
+        raw_msg = f"Bienvenido a {shop_name_clean}"
+    if stamps >= goal:
+        reward_txt = f"¡PREMIO LISTO: {reward_cfg_clean.upper()}!" if has_utf8 else f"PREMIO LISTO: {reward_cfg_clean.upper()}!"
     else:
-        reward_txt = "CAFE GRATIS DISPONIBLE!" if stamps >= 10 else f"Faltan {10 - stamps} sellos para tu Cafe Gratis"
+        reward_txt = f"Faltan {goal - stamps} sellos ({reward_cfg_clean})"
     banner_text = f"{reward_txt}  |  AVISO: {raw_msg}"
     if len(banner_text) > 88:
         banner_text = banner_text[:85] + "..."
@@ -646,8 +704,8 @@ def _create_dynamic_strip_pil(stamps_count, message=None):
     draw.rounded_rectangle(
         [64, 382, W - 64, 452],
         radius=22,
-        fill=(26, 22, 18),
-        outline=(128, 104, 62),
+        fill=(max(10, bg_rgb[0] + 6), max(10, bg_rgb[1] + 5), max(10, bg_rgb[2] + 4)),
+        outline=accent_rgb,
         width=2
     )
 
@@ -656,7 +714,7 @@ def _create_dynamic_strip_pil(stamps_count, message=None):
     th = bbox[3] - bbox[1]
     tx = max(80, (W - tw) // 2)
     ty = 382 + (70 - th) // 2 - 3
-    draw.text((tx, ty), banner_text, fill=(238, 212, 152), font=font_banner)
+    draw.text((tx, ty), banner_text, fill=fg_rgb, font=font_banner)
 
     return img
 
@@ -810,6 +868,47 @@ def get_shop_location():
         lng = DEFAULT_LNG
     relevant_text = rows.get("shop_relevant_text") or DEFAULT_GEO_TEXT
     return {"lat": lat, "lng": lng, "relevant_text": relevant_text}
+
+
+def get_campaign_config():
+    """Obtiene la configuración integral de la Tarjeta/Campaña (Marca, Reglas y Ubicación)."""
+    loc = get_shop_location()
+    defaults = {
+        "shopName": "Maishas Café",
+        "backgroundColor": "#12100E",
+        "foregroundColor": "#F5F2EB",
+        "labelColor": "#D4AF37",
+        "logoDataUrl": "/api/campaign/logo.png",
+        "stripDataUrl": "/api/campaign/strip-bg.png" if os.path.isfile(CUSTOM_STRIP_BG_PATH) else "",
+        "useCustomStripBg": os.path.isfile(CUSTOM_STRIP_BG_PATH),
+        "stampGoal": 10,
+        "rewardText": "¡1 Café Gratis!",
+        "termsText": (
+            "1. Acumula 1 sello por cada compra de bebida participante.\n"
+            "2. Al completar la meta de sellos, canjea 1 bebida de cortesía en mostrador.\n"
+            "3. Programa de lealtad personal e intransferible."
+        ),
+        "menuUrl": "https://wa.me/526421127306",
+        "lat": loc["lat"],
+        "lng": loc["lng"],
+        "relevantText": loc["relevant_text"],
+        "logoVersion": "1",
+    }
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        row = conn.execute("SELECT value FROM settings WHERE key = 'campaign_config_json'").fetchone()
+        conn.close()
+        if row and row[0]:
+            saved = json.loads(row[0])
+            if isinstance(saved, dict):
+                defaults.update(saved)
+    except Exception:
+        pass
+    defaults["lat"] = loc["lat"]
+    defaults["lng"] = loc["lng"]
+    defaults["relevantText"] = loc["relevant_text"]
+    defaults["stampGoal"] = max(4, min(12, int(defaults.get("stampGoal") or 10)))
+    return defaults
 
 
 # ---------------------------------------------------------
@@ -976,14 +1075,35 @@ REGISTRATION_HTML = """
             margin-top: 12px;
             margin-bottom: 0;
         }
+        .demo-top-banner {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 7px 16px;
+            border-radius: 999px;
+            background: rgba(56, 189, 248, 0.16);
+            border: 1.5px solid rgba(56, 189, 248, 0.55);
+            color: #7DD3FC;
+            font-size: 12px;
+            font-weight: 800;
+            letter-spacing: 0.7px;
+            text-transform: uppercase;
+            margin-bottom: 10px;
+            box-shadow: 0 4px 18px rgba(56, 189, 248, 0.2);
+        }
     </style>
+    <title>[DEMO] {{ campaign.shopName if campaign is defined else 'Maishas Café' }} — Club de Fidelización Digital</title>
 </head>
 <body>
     <div class="layout-wrapper">
         <div class="brand-header">
-            <span class="brand-pill">☕️ Maishas Loyalty Club</span>
-            <h1>Maishas Café</h1>
-            <p>Regístrate y acumula sellos por cada café</p>
+            <div>
+                <span class="demo-top-banner">🧪 SITIO DEMO · PRUEBAS Y DEMOSTRACIÓN</span>
+            </div>
+            <span class="brand-pill">☕️ {{ campaign.shopName if campaign is defined else 'Maishas' }} Loyalty Club</span>
+            <h1>{{ campaign.shopName if campaign is defined else 'Maishas Café' }} <span style="font-size:15px; color:#38BDF8; font-weight:800; vertical-align:middle;">(DEMO)</span></h1>
+            <p>Regístrate y acumula {{ campaign.stampGoal if campaign is defined else 10 }} sellos para ganar: {{ campaign.rewardText if campaign is defined else '¡1 Café Gratis!' }}</p>
         </div>
 
         <!-- Formulario de Registro Limpio con Detección Automática de Dispositivo -->
@@ -1540,9 +1660,12 @@ ANDROID_CARD_HTML = """
 
     <!-- Barra Superior -->
     <div class="wallet-top-bar">
-        <div class="sync-badge">
-            <span class="sync-dot"></span>
-            <span id="sync-status-label">ID: {{ client.serial }} · Sincronizado</span>
+        <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+            <span style="background:rgba(56,189,248,0.18); border:1px solid #38BDF8; color:#7DD3FC; padding:4px 9px; border-radius:99px; font-size:10.5px; font-weight:800; letter-spacing:0.6px;">🧪 DEMO</span>
+            <div class="sync-badge">
+                <span class="sync-dot"></span>
+                <span id="sync-status-label">ID: {{ client.serial }} · Sincronizado</span>
+            </div>
         </div>
         <button type="button" class="btn-flip" id="btn-flip-toggle" onclick="toggleBackView()">
             ⓘ Detalles / Reverso
@@ -1581,7 +1704,7 @@ ANDROID_CARD_HTML = """
             </span>
         </a>
         <div style="font-size:11.5px; color:var(--text-muted); text-align:center; line-height:1.4;">
-            Tus sellos ({{ client.stamps }}/10) y avisos se actualizan solos dentro de Google Wallet.
+            Tus sellos ({{ client.stamps }}/{{ campaign.stampGoal }}) y avisos se actualizan solos dentro de Google Wallet.
         </div>
         {% else %}
         <div id="push-required-notice" style="background:rgba(212,175,55,0.13); border:1px solid rgba(212,175,55,0.4); border-radius:12px; padding:9px 12px; font-size:12px; color:#F5E3B3; line-height:1.4;">
@@ -1591,10 +1714,10 @@ ANDROID_CARD_HTML = """
            id="btn-save-wallet-top"
            class="btn-action-gold"
            onclick="onSaveToWalletClick()">
-            <span id="btn-save-wallet-label">📲 Activar Alertas y Guardar en Wallet ({{ client.stamps }}/10)</span>
+            <span id="btn-save-wallet-label">📲 Activar Alertas y Guardar en Wallet ({{ client.stamps }}/{{ campaign.stampGoal }})</span>
         </a>
         <div id="wallet-download-hint" class="wallet-step-hint">
-            ✅ <strong>Pase {{ client.serial }} descargado ({{ client.stamps }}/10 sellos):</strong> Toca <strong>«Abrir»</strong> en la descarga para guardarlo en tu <strong>Billetera</strong>, y toca <strong>«Permitir»</strong> si tu celular te pregunta por las notificaciones.
+            ✅ <strong>Pase {{ client.serial }} descargado ({{ client.stamps }}/{{ campaign.stampGoal }} sellos):</strong> Toca <strong>«Abrir»</strong> en la descarga para guardarlo en tu <strong>Billetera</strong>, y toca <strong>«Permitir»</strong> si tu celular te pregunta por las notificaciones.
         </div>
 
         <div class="wallet-sub-links">
@@ -1606,41 +1729,41 @@ ANDROID_CARD_HTML = """
     </div>
 
     <!-- TARJETA DIGITAL INTERACTIVA -->
-    <div class="pass-card">
+    <div class="pass-card" style="background: {{ campaign.backgroundColor }}; color: {{ campaign.foregroundColor }};">
         <!-- VISTA FRONTAL -->
         <div id="pass-front-view">
             <div class="pass-header">
                 <div class="pass-brand">
-                    <img src="/card/icon-192.png" alt="Maishas">
-                    <span>MAISHAS CAFÉ</span>
+                    <img src="/api/campaign/logo.png?v={{ campaign.logoVersion }}" alt="{{ campaign.shopName }}">
+                    <span style="color: {{ campaign.foregroundColor }};">{{ campaign.shopName | upper }}</span>
                 </div>
                 <div class="pass-header-field">
-                    <span class="ph-lbl">SELLOS</span>
-                    <span class="ph-val" id="val-stamps">{{ client.stamps }} / 10</span>
+                    <span class="ph-lbl" style="color: {{ campaign.labelColor }};">SELLOS</span>
+                    <span class="ph-val" id="val-stamps" style="color: {{ campaign.foregroundColor }};">{{ client.stamps }} / {{ campaign.stampGoal }}</span>
                 </div>
             </div>
 
             <div class="pass-strip-wrap">
-                <img id="card-strip-img" src="/card/{{ client.serial }}/strip.png?v={{ client.updated_at }}" alt="Sellos Maishas Café">
+                <img id="card-strip-img" src="/card/{{ client.serial }}/strip.png?v={{ client.updated_at }}" alt="Sellos {{ campaign.shopName }}">
             </div>
 
             <div class="pass-fields-grid">
                 <div class="p-field">
-                    <span class="lbl">CLIENTE</span>
-                    <span class="val" id="val-name">{{ client.name }}</span>
+                    <span class="lbl" style="color: {{ campaign.labelColor }};">CLIENTE</span>
+                    <span class="val" id="val-name" style="color: {{ campaign.foregroundColor }};">{{ client.name }}</span>
                 </div>
                 <div class="p-field">
-                    <span class="lbl">NIVEL VIP</span>
-                    <span class="val" id="val-tier">{{ client.tier.name }}</span>
+                    <span class="lbl" style="color: {{ campaign.labelColor }};">NIVEL VIP</span>
+                    <span class="val" id="val-tier" style="color: {{ campaign.foregroundColor }};">{{ client.tier.name }}</span>
                 </div>
                 <div class="p-field" style="text-align:right;">
-                    <span class="lbl">PREMIO</span>
-                    <span class="val" id="val-reward">{{ client.reward_status }}</span>
+                    <span class="lbl" style="color: {{ campaign.labelColor }};">PREMIO</span>
+                    <span class="val" id="val-reward" style="color: {{ campaign.foregroundColor }};">{{ client.reward_status }}</span>
                 </div>
             </div>
 
             <div class="pass-promo-row">
-                <span class="lbl">AVISO MAISHAS</span>
+                <span class="lbl" style="color: {{ campaign.labelColor }};">AVISO {{ campaign.shopName | upper }}</span>
                 <span class="val" id="val-promo">{{ client.message }}</span>
             </div>
 
@@ -1655,22 +1778,22 @@ ANDROID_CARD_HTML = """
         <!-- VISTA REVERSO (DETALLES DEL PASE) -->
         <div id="pass-back-view" class="pass-back-view">
             <div class="back-section">
-                <div class="back-lbl">Código Único de Socio (ID)</div>
+                <div class="back-lbl" style="color: {{ campaign.labelColor }};">Código Único de Socio (ID)</div>
                 <div class="back-val" style="font-family:ui-monospace, monospace; font-weight:700; color:var(--gold-light);">{{ client.serial }}</div>
             </div>
             <div class="back-section">
-                <div class="back-lbl">Mensaje de Maishas Café</div>
+                <div class="back-lbl" style="color: {{ campaign.labelColor }};">Mensaje de {{ campaign.shopName }}</div>
                 <div class="back-val" id="back-val-msg">{{ client.message }}</div>
             </div>
             <div class="back-section">
-                <div class="back-lbl">Historial y Nivel de Socio</div>
+                <div class="back-lbl" style="color: {{ campaign.labelColor }};">Historial y Nivel de Socio</div>
                 <div class="back-val" id="back-val-history">
                     Nivel: {{ client.tier.name }} | Visitas históricas: {{ client.total_visits }} | Cafés gratis canjeados: {{ client.redeemed_count }} ({{ client.tier.next_goal }})
                 </div>
             </div>
             {% if client.phone or client.birthdate %}
             <div class="back-section">
-                <div class="back-lbl">Datos del Socio</div>
+                <div class="back-lbl" style="color: {{ campaign.labelColor }};">Datos del Socio</div>
                 <div class="back-val">
                     {% if client.phone %}Celular: {{ client.phone }}{% endif %}
                     {% if client.phone and client.birthdate %} | {% endif %}
@@ -1678,13 +1801,19 @@ ANDROID_CARD_HTML = """
                 </div>
             </div>
             {% endif %}
+            {% if campaign.menuUrl %}
             <div class="back-section">
-                <div class="back-lbl">📍 Ubicación y Alertas de Proximidad</div>
+                <div class="back-lbl" style="color: {{ campaign.labelColor }};">Menú Digital / WhatsApp</div>
+                <div class="back-val"><a href="{{ campaign.menuUrl }}" target="_blank" rel="noopener" style="color:#66F08B; text-decoration:underline;">{{ campaign.menuUrl }}</a></div>
+            </div>
+            {% endif %}
+            <div class="back-section">
+                <div class="back-lbl" style="color: {{ campaign.labelColor }};">📍 Ubicación y Alertas de Proximidad</div>
                 <div class="back-val">{{ shop_loc.relevant_text }}</div>
             </div>
             <div class="back-section">
-                <div class="back-lbl">Términos y Condiciones</div>
-                <div class="back-val">Acumula 1 sello por cada compra de café. Al completar 10 sellos, obtén un café de cualquier tamaño totalmente gratis. Válido en sucursal Maishas Café (@maishascafe).</div>
+                <div class="back-lbl" style="color: {{ campaign.labelColor }};">Términos y Condiciones</div>
+                <div class="back-val">{{ campaign.termsText }}</div>
             </div>
         </div>
     </div>
@@ -1704,6 +1833,7 @@ ANDROID_CARD_HTML = """
 
     <script>
         const SERIAL = "{{ client.serial }}";
+        const STAMP_GOAL = {{ campaign.stampGoal }};
         const VAPID_PUBLIC_KEY = "{{ vapid_public_key }}";
         const SHOP_LAT = {{ shop_loc.lat }};
         const SHOP_LNG = {{ shop_loc.lng }};
@@ -1718,7 +1848,7 @@ ANDROID_CARD_HTML = """
         function onSaveToWalletClick() {
             const hint = document.getElementById('wallet-download-hint');
             if (hint) hint.style.display = 'block';
-            showLiveBanner('📲 Pase ' + SERIAL + ' (' + currentStamps + '/10) descargado. Toca "Abrir" arriba para guardarlo en Wallet.');
+            showLiveBanner('📲 Pase ' + SERIAL + ' (' + currentStamps + '/' + STAMP_GOAL + ') descargado. Toca "Abrir" arriba para guardarlo en Wallet.');
             try {
                 enableAndroidPush(true);
             } catch (e) {}
@@ -1762,6 +1892,7 @@ ANDROID_CARD_HTML = """
                 const res = await fetch(`/api/android/state/${SERIAL}?t=${Date.now()}`, { cache: 'no-store' });
                 if (!res.ok) return;
                 const data = await res.json();
+                const goal = data.stamp_goal || STAMP_GOAL;
                 if (data.updated_at && data.updated_at !== currentUpdatedAt) {
                     const prevStamps = currentStamps;
                     const prevMsg = currentMessage;
@@ -1773,7 +1904,7 @@ ANDROID_CARD_HTML = """
                     currentTier = data.tier_name;
 
                     // Actualizar textos e imagen dinámica strip.png
-                    document.getElementById('val-stamps').textContent = `${data.stamps} / 10`;
+                    document.getElementById('val-stamps').textContent = `${data.stamps} / ${goal}`;
                     document.getElementById('val-tier').textContent = data.tier_name;
                     document.getElementById('val-reward').textContent = data.reward_status;
                     document.getElementById('val-promo').textContent = data.message;
@@ -1786,27 +1917,27 @@ ANDROID_CARD_HTML = """
                         saveBtn.href = `/card/${SERIAL}/download.pkpass?v=${encodeURIComponent(data.updated_at)}`;
                         const saveLbl = document.getElementById('btn-save-wallet-label');
                         if (saveLbl) {
-                            saveLbl.textContent = `🔄 Actualizar mi pase en Billetera (${data.stamps}/10 sellos)`;
+                            saveLbl.textContent = `🔄 Actualizar mi pase en Billetera (${data.stamps}/${goal} sellos)`;
                         }
                     }
 
                     // Mostrar alerta estilo pantalla bloqueada según el cambio
                     if (data.stamps !== prevStamps) {
-                        if (data.stamps >= 10) {
-                            showLiveBanner(`🎉 ¡Felicidades! Completaste 10/10 sellos. ¡Tienes 1 Café Gratis disponible!`);
+                        if (data.stamps >= goal) {
+                            showLiveBanner(`🎉 ¡Felicidades! Completaste ${goal}/${goal} sellos. ¡Tienes tu recompensa disponible!`);
                         } else if (data.stamps === 0) {
-                            showLiveBanner(`🎁 ¡Recompensa canjeada! Tu tarjeta se ha reiniciado a 0 / 10.`);
+                            showLiveBanner(`🎁 ¡Recompensa canjeada! Tu tarjeta se ha reiniciado a 0 / ${goal}.`);
                         } else if (data.stamps < prevStamps) {
-                            showLiveBanner(`☕️ Tu tarjeta Maishas Café está al día. Sellos acumulados: ${data.stamps} / 10`);
+                            showLiveBanner(`☕️ Tu tarjeta está al día. Sellos acumulados: ${data.stamps} / ${goal}`);
                         } else {
-                            showLiveBanner(`☕️ ¡Has ganado 1 nuevo sello en Maishas Café! Total: ${data.stamps} / 10`);
+                            showLiveBanner(`☕️ ¡Has ganado 1 nuevo sello! Total: ${data.stamps} / ${goal}`);
                         }
                     } else if (data.tier_name !== prevTier) {
-                        showLiveBanner(`🏆 ¡Subiste de nivel en Maishas Café! Ahora eres: ${data.tier_name}`);
+                        showLiveBanner(`🏆 ¡Subiste de nivel! Ahora eres: ${data.tier_name}`);
                     } else if (data.message !== prevMsg) {
                         showLiveBanner(`📣 ${data.message}`);
                     } else {
-                        showLiveBanner(`✨ Tu tarjeta Maishas Café se ha actualizado.`);
+                        showLiveBanner(`✨ Tu tarjeta de fidelidad se ha actualizado.`);
                     }
                 }
             } catch (e) {}
@@ -2860,17 +2991,25 @@ BARISTA_HTML = """
     <header class="sticky-header">
         <div class="header-inner">
             <div class="brand-Cluster">
-                <div class="brand-emblem">☕️</div>
+                <div class="brand-emblem" style="overflow:hidden;">
+                    <img src="/api/campaign/logo.png?v={{ campaign.logoVersion }}" alt="Logo" style="width:100%; height:100%; object-fit:cover; border-radius:10px;" onerror="this.style.display='none'">
+                </div>
                 <div>
-                    <h1 class="brand-title">Maishas Café</h1>
-                    <span class="brand-sub">Navojoa, Sonora · Consola Barista</span>
+                    <h1 class="brand-title" style="display:flex; align-items:center; gap:7px; flex-wrap:wrap;">
+                        <span id="hdr-shop-name">{{ campaign.shopName }}</span>
+                        <span style="background:rgba(56,189,248,0.18); border:1px solid #38BDF8; color:#7DD3FC; padding:2px 8px; border-radius:99px; font-size:10.5px; font-weight:800; letter-spacing:0.6px;">🧪 DEMO</span>
+                    </h1>
+                    <span class="brand-sub">Navojoa, Sonora · Consola Barista (Entorno DEMO)</span>
                 </div>
             </div>
 
-            <!-- Pestañas de Vista Principal (Mostrador, Cumpleañeros, Alertas Push, Base de Datos) -->
+            <!-- Pestañas de Vista Principal (Mostrador, Diseño y Campaña, Cumpleañeros, Alertas Push, Base de Datos) -->
             <div class="main-nav-tabs">
                 <button type="button" id="nav-btn-pos" class="nav-tab-btn active" onclick="switchMainView('pos')">
                     ☕️ Mostrador POS
+                </button>
+                <button type="button" id="nav-btn-campaign" class="nav-tab-btn" onclick="switchMainView('campaign')" style="border-color:rgba(56,189,248,0.45); color:#7DD3FC;">
+                    🎨 Diseño y Campaña
                 </button>
                 <button type="button" id="nav-btn-bday" class="nav-tab-btn" onclick="switchMainView('bday')">
                     🎂 Cumpleañeros ({{ upcoming_birthdays|length }})
@@ -2957,7 +3096,7 @@ BARISTA_HTML = """
                      class="client-card-row client-row {{ 'highlight-row' if updated_serial == client.serial else '' }}"
                      data-search="{{ (client.name ~ ' ' ~ client.serial ~ ' ' ~ client.email ~ ' ' ~ client.phone ~ ' ' ~ client.tier.badge ~ ' ' ~ client.created_at)|lower }}"
                      data-installed="{{ '1' if client.is_installed else '0' }}"
-                     data-ready="{{ '1' if client.stamps >= 10 else '0' }}"
+                     data-ready="{{ '1' if client.stamps >= campaign.stampGoal else '0' }}"
                      data-bday="{{ '1' if (client.bday.is_upcoming_week or client.bday.is_this_month) else '0' }}"
                      data-vip="{{ '1' if client.total_visits >= 10 else '0' }}">
 
@@ -2989,15 +3128,15 @@ BARISTA_HTML = """
 
                     <div class="stamp-progress-col">
                         <div class="stamp-top-row">
-                            <span class="stamp-big-num">{{ client.stamps }} / 10</span>
+                            <span class="stamp-big-num">{{ client.stamps }} / {{ campaign.stampGoal }}</span>
                             <span class="stamp-visits-meta">
                                 ☕️ {{ client.total_visits }} visitas
                                 {% if client.redeemed_count > 0 %} · 🎁 {{ client.redeemed_count }} canjes{% endif %}
                             </span>
                         </div>
                         <div class="stamp-dots-row">
-                            {% for idx in range(10) %}
-                            <span class="s-dot {{ 'full-10' if client.stamps >= 10 else ('filled' if idx < client.stamps else '') }}"></span>
+                            {% for idx in range(campaign.stampGoal) %}
+                            <span class="s-dot {{ 'full-10' if client.stamps >= campaign.stampGoal else ('filled' if idx < client.stamps else '') }}"></span>
                             {% endfor %}
                         </div>
                     </div>
@@ -3030,7 +3169,7 @@ BARISTA_HTML = """
                             <button type="submit" class="btn-stamp-plus">+1 Sello ☕️</button>
                         </form>
 
-                        {% if client.stamps >= 10 %}
+                        {% if client.stamps >= campaign.stampGoal %}
                         <form id="form-redeem-{{ client.serial }}" action="/api/add-stamp" method="POST" style="margin:0;">
                             <input type="hidden" name="serial" value="{{ client.serial }}">
                             <input type="hidden" name="action" value="reset">
@@ -3442,7 +3581,7 @@ BARISTA_HTML = """
                             </td>
                             <td><strong>{{ tx.client_name }}</strong></td>
                             <td><span class="serial-tag">{{ tx.serial }}</span></td>
-                            <td><strong style="color:var(--gold-light);">{{ tx.stamps_before }} → {{ tx.stamps_after }} / 10</strong></td>
+                            <td><strong style="color:var(--gold-light);">{{ tx.stamps_before }} → {{ tx.stamps_after }} / {{ campaign.stampGoal }}</strong></td>
                             <td>{{ tx.visits_after }}</td>
                             <td>{{ tx.redeemed_after }}</td>
                         </tr>
@@ -3455,6 +3594,307 @@ BARISTA_HTML = """
                         {% endfor %}
                     </tbody>
                 </table>
+            </div>
+        </section>
+
+        <!-- VISTA 5: 🎨 DASHBOARD DE ADMINISTRACIÓN DE LA TARJETA / CAMPAÑA -->
+        <section id="view-campaign-container" class="db-view-section">
+            <div class="db-header-card" style="border-color:rgba(56,189,248,0.35);">
+                <div>
+                    <div style="display:inline-flex; align-items:center; gap:6px; background:rgba(56,189,248,0.14); border:1px solid rgba(56,189,248,0.4); color:#7DD3FC; padding:3px 10px; border-radius:99px; font-size:11px; font-weight:800; margin-bottom:6px;">
+                        🎨 PLANTILLA EN VIVO · APPLE WALLET & GOOGLE WALLET
+                    </div>
+                    <h2 style="margin:0; font-size:20px; font-weight:800; color:var(--text-primary);">
+                        Dashboard de Administración de la Tarjeta / Campaña
+                    </h2>
+                    <p style="margin:4px 0 0; font-size:13px; color:var(--text-secondary);">
+                        Personaliza colores, logotipo, banner/strip, meta de sellos, textos legales y coordenadas GPS. Los cambios se reflejan en tiempo real y sincronizan los pases de tus clientes.
+                    </p>
+                </div>
+                <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+                    <button type="button" id="btn-save-campaign-top" class="btn-cam-launch" onclick="saveCampaignSettings()" style="padding:11px 18px; font-size:13.5px;">
+                        💾 Guardar y Actualizar Plantilla
+                    </button>
+                </div>
+            </div>
+
+            <div id="ca-save-banner" style="display:none; margin-bottom:16px; padding:13px 16px; border-radius:14px; font-size:13.5px; font-weight:700;"></div>
+
+            <div style="display:grid; grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.95fr); gap:20px; align-items:start;">
+                <!-- PANEL IZQUIERDO: 3 PESTAÑAS DE CONFIGURACIÓN -->
+                <div class="bento-card" style="padding:20px;">
+                    <div>
+                        <!-- Sub-navegación de las 3 pestañas del configurador -->
+                        <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:8px; background:rgba(0,0,0,0.38); padding:6px; border-radius:14px; border:1px solid var(--border-subtle); margin-bottom:18px;">
+                            <button type="button" id="ca-tab-btn-brand" class="nav-tab-btn active" style="justify-content:center; padding:10px 8px;" onclick="switchCampaignSubTab('brand')">
+                                🎨 1. Marca y Diseño
+                            </button>
+                            <button type="button" id="ca-tab-btn-rules" class="nav-tab-btn" style="justify-content:center; padding:10px 8px;" onclick="switchCampaignSubTab('rules')">
+                                🏆 2. Reglas del Programa
+                            </button>
+                            <button type="button" id="ca-tab-btn-location" class="nav-tab-btn" style="justify-content:center; padding:10px 8px;" onclick="switchCampaignSubTab('location')">
+                                📍 3. Ubicación GPS
+                            </button>
+                        </div>
+
+                        <!-- SUB-PESTAÑA 1: MARCA Y DISEÑO -->
+                        <div id="ca-pane-brand">
+                            <div style="margin-bottom:16px;">
+                                <label style="font-size:11.5px; color:var(--gold-light); font-weight:700; display:block; margin-bottom:6px; text-transform:uppercase; letter-spacing:0.5px;">
+                                    ☕️ Nombre de la Cafetería / Marca
+                                </label>
+                                <input type="text" id="ca-shop-name" class="input-dark" maxlength="40" value="{{ campaign.shopName }}" placeholder="Ej. Maishas Café" oninput="onCampaignFieldInput()">
+                            </div>
+
+                            <!-- Selectores de Color -->
+                            <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(155px, 1fr)); gap:12px; margin-bottom:18px;">
+                                <div style="background:rgba(0,0,0,0.3); border:1px solid var(--border-subtle); border-radius:12px; padding:10px 12px;">
+                                    <label style="font-size:11px; color:var(--text-secondary); font-weight:700; display:block; margin-bottom:6px;">Color de Fondo</label>
+                                    <div style="display:flex; align-items:center; gap:8px;">
+                                        <input type="color" id="ca-bg-picker" value="{{ campaign.backgroundColor }}" style="width:36px; height:34px; border:none; border-radius:8px; background:transparent; cursor:pointer;" oninput="syncColorPair('bg', this.value)">
+                                        <input type="text" id="ca-bg-hex" class="input-dark" value="{{ campaign.backgroundColor }}" maxlength="7" style="font-family:monospace; font-size:12.5px; padding:7px 9px;" oninput="syncColorPair('bg', this.value)">
+                                    </div>
+                                </div>
+
+                                <div style="background:rgba(0,0,0,0.3); border:1px solid var(--border-subtle); border-radius:12px; padding:10px 12px;">
+                                    <label style="font-size:11px; color:var(--text-secondary); font-weight:700; display:block; margin-bottom:6px;">Color de Texto</label>
+                                    <div style="display:flex; align-items:center; gap:8px;">
+                                        <input type="color" id="ca-fg-picker" value="{{ campaign.foregroundColor }}" style="width:36px; height:34px; border:none; border-radius:8px; background:transparent; cursor:pointer;" oninput="syncColorPair('fg', this.value)">
+                                        <input type="text" id="ca-fg-hex" class="input-dark" value="{{ campaign.foregroundColor }}" maxlength="7" style="font-family:monospace; font-size:12.5px; padding:7px 9px;" oninput="syncColorPair('fg', this.value)">
+                                    </div>
+                                </div>
+
+                                <div style="background:rgba(0,0,0,0.3); border:1px solid var(--border-subtle); border-radius:12px; padding:10px 12px;">
+                                    <label style="font-size:11px; color:var(--text-secondary); font-weight:700; display:block; margin-bottom:6px;">Color Acento / Sellos</label>
+                                    <div style="display:flex; align-items:center; gap:8px;">
+                                        <input type="color" id="ca-lbl-picker" value="{{ campaign.labelColor }}" style="width:36px; height:34px; border:none; border-radius:8px; background:transparent; cursor:pointer;" oninput="syncColorPair('lbl', this.value)">
+                                        <input type="text" id="ca-lbl-hex" class="input-dark" value="{{ campaign.labelColor }}" maxlength="7" style="font-family:monospace; font-size:12.5px; padding:7px 9px;" oninput="syncColorPair('lbl', this.value)">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Dropzones para Logo y Banner/Strip con validación de proporciones -->
+                            <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(230px, 1fr)); gap:14px;">
+                                <!-- Dropzone Logo -->
+                                <div style="background:rgba(0,0,0,0.28); border:1.5px dashed rgba(212,175,55,0.45); border-radius:14px; padding:14px; text-align:center;"
+                                     ondragover="event.preventDefault(); this.style.borderColor='#38BDF8';"
+                                     ondragleave="this.style.borderColor='rgba(212,175,55,0.45)';"
+                                     ondrop="handleCampaignDrop(event, 'logo')">
+                                    <div style="font-size:12px; font-weight:800; color:var(--gold-light); margin-bottom:4px;">🖼️ Logotipo de la Marca</div>
+                                    <div style="font-size:11px; color:var(--text-secondary); margin-bottom:10px;">Proporción recomendada: <strong>1:1 cuadrada</strong> (ej. 660×660 px, PNG/JPG)</div>
+                                    <img id="ca-logo-thumb" src="/api/campaign/logo.png?v={{ campaign.logoVersion }}" alt="Logo actual" style="width:60px; height:60px; border-radius:50%; object-fit:cover; border:2px solid var(--gold); margin:0 auto 10px; display:block;">
+                                    <input type="file" id="ca-logo-file" accept="image/png,image/jpeg,image/webp" style="display:none;" onchange="handleCampaignFileSelect(this.files[0], 'logo')">
+                                    <button type="button" class="btn-gold-sm" style="width:100%;" onclick="document.getElementById('ca-logo-file').click()">
+                                        📤 Subir / Arrastrar Logo
+                                    </button>
+                                    <div id="ca-logo-feedback" style="font-size:11px; margin-top:8px; display:none; padding:6px 8px; border-radius:8px;"></div>
+                                </div>
+
+                                <!-- Dropzone Banner / Strip -->
+                                <div style="background:rgba(0,0,0,0.28); border:1.5px dashed rgba(212,175,55,0.45); border-radius:14px; padding:14px; text-align:center;"
+                                     ondragover="event.preventDefault(); this.style.borderColor='#38BDF8';"
+                                     ondragleave="this.style.borderColor='rgba(212,175,55,0.45)';"
+                                     ondrop="handleCampaignDrop(event, 'strip')">
+                                    <div style="font-size:12px; font-weight:800; color:var(--gold-light); margin-bottom:4px;">🎞️ Fondo de Tira / Strip Banner</div>
+                                    <div style="font-size:11px; color:var(--text-secondary); margin-bottom:10px;">Proporción recomendada: <strong>~3:1 panorámica</strong> (1125×432 o 1032×336 px)</div>
+                                    <div style="display:flex; gap:6px; justify-content:center; margin-bottom:8px;">
+                                        <input type="file" id="ca-strip-file" accept="image/png,image/jpeg,image/webp" style="display:none;" onchange="handleCampaignFileSelect(this.files[0], 'strip')">
+                                        <button type="button" class="btn-gold-sm" style="flex:1;" onclick="document.getElementById('ca-strip-file').click()">
+                                            📤 Subir Fondo Strip
+                                        </button>
+                                        <button type="button" class="btn-icon-sec" title="Usar fondo automático sin imagen" onclick="clearCustomStripBg()">↺ Auto</button>
+                                    </div>
+                                    <label style="display:inline-flex; align-items:center; gap:6px; font-size:11.5px; color:var(--text-secondary); cursor:pointer;">
+                                        <input type="checkbox" id="ca-use-custom-strip" {% if campaign.useCustomStrip %}checked{% endif %} onchange="onCampaignFieldInput()">
+                                        Usar imagen de fondo en la tira de sellos
+                                    </label>
+                                    <div id="ca-strip-feedback" style="font-size:11px; margin-top:8px; display:none; padding:6px 8px; border-radius:8px;"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- SUB-PESTAÑA 2: REGLAS DEL PROGRAMA -->
+                        <div id="ca-pane-rules" style="display:none;">
+                            <div style="margin-bottom:16px;">
+                                <label style="font-size:11.5px; color:var(--gold-light); font-weight:700; display:block; margin-bottom:6px; text-transform:uppercase; letter-spacing:0.5px;">
+                                    🎯 Meta de Sellos para Canje (4 a 12 sellos)
+                                </label>
+                                <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+                                    {% for g in [6, 8, 9, 10, 12] %}
+                                    <button type="button" class="action-chip ca-goal-btn" data-goal="{{ g }}" onclick="setCampaignGoal({{ g }})" style="padding:8px 14px; font-size:13px; font-weight:800;">
+                                        {{ g }} Sellos
+                                    </button>
+                                    {% endfor %}
+                                    <input type="number" id="ca-stamp-goal" class="input-dark" min="4" max="12" value="{{ campaign.stampGoal }}" style="width:90px; text-align:center; font-weight:800;" oninput="onCampaignFieldInput()">
+                                </div>
+                            </div>
+
+                            <div style="margin-bottom:16px;">
+                                <label style="font-size:11.5px; color:var(--gold-light); font-weight:700; display:block; margin-bottom:6px; text-transform:uppercase; letter-spacing:0.5px;">
+                                    🎁 Texto del Premio / Recompensa
+                                </label>
+                                <input type="text" id="ca-reward-text" class="input-dark" maxlength="80" value="{{ campaign.rewardText }}" placeholder="Ej. 1 Café Gratis de cualquier tamaño" oninput="onCampaignFieldInput()">
+                            </div>
+
+                            <div style="margin-bottom:16px;">
+                                <label style="font-size:11.5px; color:var(--gold-light); font-weight:700; display:block; margin-bottom:6px; text-transform:uppercase; letter-spacing:0.5px;">
+                                    🔗 Enlace al Menú Digital o WhatsApp
+                                </label>
+                                <input type="url" id="ca-menu-url" class="input-dark" maxlength="200" value="{{ campaign.menuUrl }}" placeholder="https://wa.me/526421234567 o link de Instagram/Menú" oninput="onCampaignFieldInput()">
+                            </div>
+
+                            <div style="margin-bottom:8px;">
+                                <label style="font-size:11.5px; color:var(--gold-light); font-weight:700; display:block; margin-bottom:6px; text-transform:uppercase; letter-spacing:0.5px;">
+                                    📜 Textos Legales y Términos (Reverso de la Tarjeta)
+                                </label>
+                                <textarea id="ca-terms-text" class="input-dark" rows="4" maxlength="500" placeholder="Condiciones de uso del programa de lealtad..." oninput="onCampaignFieldInput()">{{ campaign.termsText }}</textarea>
+                            </div>
+                        </div>
+
+                        <!-- SUB-PESTAÑA 3: UBICACIÓN Y PROXIMIDAD -->
+                        <div id="ca-pane-location" style="display:none;">
+                            <div style="display:grid; grid-template-columns:1fr 1fr auto; gap:10px; margin-bottom:16px;">
+                                <div>
+                                    <label style="font-size:11.5px; color:var(--gold-light); font-weight:700; display:block; margin-bottom:6px;">Latitud (GPS)</label>
+                                    <input type="text" id="ca-lat" class="input-dark" value="{{ campaign.lat }}" oninput="onCampaignFieldInput()">
+                                </div>
+                                <div>
+                                    <label style="font-size:11.5px; color:var(--gold-light); font-weight:700; display:block; margin-bottom:6px;">Longitud (GPS)</label>
+                                    <input type="text" id="ca-lng" class="input-dark" value="{{ campaign.lng }}" oninput="onCampaignFieldInput()">
+                                </div>
+                                <div style="display:flex; align-items:flex-end;">
+                                    <button type="button" class="btn-gold-sm" onclick="detectCampaignGPS()">📍 Usar mi GPS</button>
+                                </div>
+                            </div>
+
+                            <div style="margin-bottom:16px;">
+                                <label style="font-size:11.5px; color:var(--gold-light); font-weight:700; display:block; margin-bottom:6px;">
+                                    📲 Mensaje de Notificación por Proximidad (~150m en Apple Wallet)
+                                </label>
+                                <input type="text" id="ca-relevant-text" class="input-dark" maxlength="160" value="{{ campaign.relevantText }}" oninput="onCampaignFieldInput()">
+                            </div>
+
+                            <!-- Vista previa de pantalla de bloqueo iOS por cercanía -->
+                            <div class="ios-lockscreen-preview">
+                                <div class="ios-notif-icon">☕️</div>
+                                <div class="ios-notif-body">
+                                    <div class="ios-notif-top">
+                                        <span id="ca-gps-lock-brand">{{ campaign.shopName | upper }} · CERCA DE TI</span>
+                                        <span>ahora</span>
+                                    </div>
+                                    <div class="ios-notif-text" id="ca-gps-lock-msg">{{ campaign.relevantText }}</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div style="margin-top:20px; padding-top:16px; border-top:1px solid var(--border-subtle); display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;">
+                            <span style="font-size:12px; color:var(--text-secondary);">
+                                Al guardar se actualiza la plantilla para nuevos registros y pases activos.
+                            </span>
+                            <button type="button" id="btn-save-campaign-bottom" class="btn-cam-launch" onclick="saveCampaignSettings()">
+                                💾 Guardar y Actualizar Plantilla de Campaña
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- PANEL LATERAL DERECHO: PREVIEW EN TIEMPO REAL ESTILO APPLE WALLET -->
+                <div class="bento-card" style="padding:20px; position:sticky; top:92px;">
+                    <div>
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; flex-wrap:wrap; gap:8px;">
+                            <div>
+                                <span style="font-size:11px; font-weight:800; color:#7DD3FC; text-transform:uppercase; letter-spacing:0.7px;">⚡ Preview en Tiempo Real</span>
+                                <h3 style="margin:2px 0 0; font-size:16px; font-weight:800;">Simulador Apple Wallet</h3>
+                            </div>
+                            <div style="display:flex; gap:6px; align-items:center;">
+                                <button type="button" class="action-chip" onclick="setPreviewStamps(0)">0</button>
+                                <button type="button" class="action-chip" onclick="setPreviewStamps(3)">3</button>
+                                <button type="button" class="action-chip" onclick="setPreviewStamps('goal')">Meta</button>
+                                <button type="button" id="ca-flip-btn" class="action-chip" style="border-color:rgba(212,175,55,0.45); color:var(--gold-light);" onclick="toggleCampaignPreviewSide()">
+                                    🔄 Reverso
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- TARJETA SIMULADA APPLE WALLET -->
+                        <div id="ca-wallet-card" style="border-radius:22px; overflow:hidden; border:1px solid rgba(255,255,255,0.18); box-shadow:0 22px 50px rgba(0,0,0,0.75); transition:background 0.2s ease, color 0.2s ease; background:{{ campaign.backgroundColor }}; color:{{ campaign.foregroundColor }};">
+                            <!-- CARA FRONTAL -->
+                            <div id="ca-preview-front">
+                                <!-- Header del Pase -->
+                                <div style="padding:14px 18px 12px; display:flex; justify-content:space-between; align-items:center;">
+                                    <div style="display:flex; align-items:center; gap:9px; min-width:0;">
+                                        <img id="ca-prev-logo" src="/api/campaign/logo.png?v={{ campaign.logoVersion }}" alt="Logo" style="width:32px; height:32px; border-radius:50%; object-fit:cover; border:1px solid rgba(255,255,255,0.25); flex-shrink:0;">
+                                        <span id="ca-prev-shop-name" style="font-weight:800; font-size:13.5px; letter-spacing:0.7px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ campaign.shopName | upper }}</span>
+                                    </div>
+                                    <div style="text-align:right;">
+                                        <div id="ca-prev-hdr-lbl" style="font-size:9.5px; font-weight:800; letter-spacing:0.8px; color:{{ campaign.labelColor }};">SELLOS</div>
+                                        <div id="ca-prev-hdr-val" style="font-size:17px; font-weight:800;">3 / {{ campaign.stampGoal }}</div>
+                                    </div>
+                                </div>
+
+                                <!-- Strip / Tira de Sellos en Tiempo Real -->
+                                <div id="ca-prev-strip-box" style="position:relative; padding:14px 16px 12px; background:rgba(0,0,0,0.28); border-top:1px solid rgba(255,255,255,0.12); border-bottom:1px solid rgba(255,255,255,0.12); background-size:cover; background-position:center;">
+                                    <div id="ca-prev-strip-overlay" style="position:relative; z-index:2;">
+                                        <div style="display:flex; justify-content:space-between; align-items:center; font-size:9.5px; font-weight:800; letter-spacing:0.6px; margin-bottom:10px;">
+                                            <span id="ca-prev-strip-title" style="color:{{ campaign.labelColor }};">TARJETA DE FIDELIDAD</span>
+                                            <span id="ca-prev-strip-status" style="color:{{ campaign.foregroundColor }};">3/{{ campaign.stampGoal }} SELLOS</span>
+                                        </div>
+                                        <!-- Grid dinámico de círculos de sellos -->
+                                        <div id="ca-prev-stamps-grid" style="display:grid; grid-template-columns:repeat(5, 1fr); gap:8px; justify-items:center; margin-bottom:8px;"></div>
+                                        <div id="ca-prev-strip-footer" style="text-align:center; font-size:10px; font-weight:700; color:{{ campaign.labelColor }}; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                                            Premio: {{ campaign.rewardText }}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Secondary Fields -->
+                                <div style="padding:12px 18px; display:grid; grid-template-columns:1fr 1.2fr; gap:10px;">
+                                    <div>
+                                        <div id="ca-prev-sec1-lbl" style="font-size:9px; font-weight:800; letter-spacing:0.6px; color:{{ campaign.labelColor }};">CLIENTE · VIP</div>
+                                        <div style="font-size:12.5px; font-weight:700; margin-top:2px;">Socio Demo</div>
+                                    </div>
+                                    <div style="text-align:right;">
+                                        <div id="ca-prev-sec2-lbl" style="font-size:9px; font-weight:800; letter-spacing:0.6px; color:{{ campaign.labelColor }};">PREMIO META</div>
+                                        <div id="ca-prev-reward-val" style="font-size:12px; font-weight:700; margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ campaign.rewardText }}</div>
+                                    </div>
+                                </div>
+
+                                <!-- Zona QR -->
+                                <div style="padding:10px 18px 18px; text-align:center;">
+                                    <div style="background:#FFFFFF; display:inline-block; padding:10px; border-radius:14px; box-shadow:0 8px 20px rgba(0,0,0,0.45);">
+                                        <div style="width:96px; height:96px; background:repeating-conic-gradient(#12100E 0% 25%, #FFFFFF 0% 50%) 50% / 16px 16px; display:flex; align-items:center; justify-content:center; border:3px solid #12100E;">
+                                            <span style="background:#FFFFFF; color:#12100E; font-size:10px; font-weight:900; padding:2px 5px; border-radius:4px;">QR PASS</span>
+                                        </div>
+                                    </div>
+                                    <div style="font-family:ui-monospace, monospace; font-size:11px; opacity:0.75; margin-top:6px; letter-spacing:1px;">MAISHAS-DEMO01</div>
+                                </div>
+                            </div>
+
+                            <!-- CARA REVERSO (TÉRMINOS, MENÚ Y UBICACIÓN) -->
+                            <div id="ca-preview-back" style="display:none; padding:18px; font-size:12.5px;">
+                                <div style="font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:0.6px; margin-bottom:12px; opacity:0.8;">
+                                    Reverso del Pase (Apple & Google Wallet)
+                                </div>
+                                <div style="padding:10px 0; border-bottom:1px solid rgba(255,255,255,0.12);">
+                                    <div id="ca-back-lbl-reward" style="font-size:10px; font-weight:800; text-transform:uppercase; color:{{ campaign.labelColor }};">Beneficio del Programa</div>
+                                    <div id="ca-back-val-reward" style="margin-top:3px;">Meta de {{ campaign.stampGoal }} sellos: {{ campaign.rewardText }}</div>
+                                </div>
+                                <div style="padding:10px 0; border-bottom:1px solid rgba(255,255,255,0.12);">
+                                    <div id="ca-back-lbl-menu" style="font-size:10px; font-weight:800; text-transform:uppercase; color:{{ campaign.labelColor }};">Menú Digital / WhatsApp</div>
+                                    <div id="ca-back-val-menu" style="margin-top:3px; word-break:break-all; text-decoration:underline;">{{ campaign.menuUrl }}</div>
+                                </div>
+                                <div style="padding:10px 0; border-bottom:1px solid rgba(255,255,255,0.12);">
+                                    <div id="ca-back-lbl-gps" style="font-size:10px; font-weight:800; text-transform:uppercase; color:{{ campaign.labelColor }};">Notificación por Cercanía GPS</div>
+                                    <div id="ca-back-val-gps" style="margin-top:3px;">{{ campaign.relevantText }} ({{ campaign.lat }}, {{ campaign.lng }})</div>
+                                </div>
+                                <div style="padding:10px 0;">
+                                    <div id="ca-back-lbl-terms" style="font-size:10px; font-weight:800; text-transform:uppercase; color:{{ campaign.labelColor }};">Términos y Condiciones Legales</div>
+                                    <div id="ca-back-val-terms" style="margin-top:3px; line-height:1.45; opacity:0.92;">{{ campaign.termsText }}</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </section>
     </main>
@@ -3516,17 +3956,19 @@ BARISTA_HTML = """
             setTimeout(() => { form.dataset.submitting = '0'; }, 6000);
         });
 
-        // Cambio entre las 4 pestañas principales: Mostrador POS, Cumpleañeros, Alertas Push y Base de Datos
+        // Cambio entre las 5 pestañas principales: Mostrador POS, Diseño y Campaña, Cumpleañeros, Alertas Push y Base de Datos
         function switchMainView(view) {
             currentMainView = view || 'pos';
             const views = {
                 pos: document.getElementById('view-pos-container'),
+                campaign: document.getElementById('view-campaign-container'),
                 bday: document.getElementById('view-bday-container'),
                 push: document.getElementById('view-push-container'),
                 db: document.getElementById('view-db-container')
             };
             const btns = {
                 pos: document.getElementById('nav-btn-pos'),
+                campaign: document.getElementById('nav-btn-campaign'),
                 bday: document.getElementById('nav-btn-bday'),
                 push: document.getElementById('nav-btn-push'),
                 db: document.getElementById('nav-btn-db')
@@ -3537,6 +3979,9 @@ BARISTA_HTML = """
             });
             if (view !== 'pos' && typeof scanning !== 'undefined' && scanning) {
                 stopScanner();
+            }
+            if (view === 'campaign' && typeof renderCampaignLivePreview === 'function') {
+                renderCampaignLivePreview();
             }
         }
 
@@ -3558,6 +4003,7 @@ BARISTA_HTML = """
 
         // Modal de Confirmación Personalizado (Sin URL de navegador)
         let pendingFormId = null;
+        const CURRENT_STAMP_GOAL = {{ campaign.stampGoal }};
         function openConfirmModal(actionType, formId, clientName, serial, currentStamps) {
             pendingFormId = formId;
             const safeName = escapeHtml(clientName);
@@ -3580,16 +4026,16 @@ BARISTA_HTML = """
                 iconBox.className = 'cm-icon warn';
                 iconBox.textContent = '☕️';
                 titleEl.textContent = '¿Corregir sellos (-1)?';
-                descEl.innerHTML = '¿Estás seguro de quitar 1 sello a <strong>' + safeName + '</strong>? Su tarjeta pasará de <strong>' + currentStamps + ' / 10</strong> a <strong>' + nextStamps + ' / 10</strong> sellos.';
+                descEl.innerHTML = '¿Estás seguro de quitar 1 sello a <strong>' + safeName + '</strong>? Su tarjeta pasará de <strong>' + currentStamps + ' / ' + CURRENT_STAMP_GOAL + '</strong> a <strong>' + nextStamps + ' / ' + CURRENT_STAMP_GOAL + '</strong> sellos.';
                 confirmBtn.className = 'cm-btn-confirm warn';
                 confirmBtn.textContent = 'Sí, restar 1 sello';
             } else if (actionType === 'redeem') {
                 iconBox.className = 'cm-icon success';
                 iconBox.textContent = '🎁';
-                titleEl.textContent = '¿Canjear Café Gratis?';
-                descEl.innerHTML = 'Se entregará 1 Café Gratis a <strong>' + safeName + '</strong> y su tarjeta se reiniciará a <strong>0 / 10</strong> sellos.';
+                titleEl.textContent = '¿Canjear Recompensa Gratis?';
+                descEl.innerHTML = 'Se entregará la recompensa a <strong>' + safeName + '</strong> y su tarjeta se reiniciará a <strong>0 / ' + CURRENT_STAMP_GOAL + '</strong> sellos.';
                 confirmBtn.className = 'cm-btn-confirm success';
-                confirmBtn.textContent = 'Sí, canjear café';
+                confirmBtn.textContent = 'Sí, canjear';
             }
 
             modal.classList.add('open');
@@ -3702,6 +4148,275 @@ BARISTA_HTML = """
             });
         }
 
+        // --- LÓGICA DEL DASHBOARD DE ADMINISTRACIÓN DE LA TARJETA / CAMPAÑA ---
+        let caPreviewStamps = 3;
+        let caPreviewShowBack = false;
+        let caUploadedLogoDataUrl = '';
+        let caUploadedStripDataUrl = {% if campaign.hasCustomStrip %}'/api/campaign/strip-bg.png?v={{ campaign.stripVersion }}'{% else %}''{% endif %};
+
+        function switchCampaignSubTab(sub) {
+            const panes = {
+                brand: document.getElementById('ca-pane-brand'),
+                rules: document.getElementById('ca-pane-rules'),
+                location: document.getElementById('ca-pane-location')
+            };
+            const btns = {
+                brand: document.getElementById('ca-tab-btn-brand'),
+                rules: document.getElementById('ca-tab-btn-rules'),
+                location: document.getElementById('ca-tab-btn-location')
+            };
+            Object.keys(panes).forEach(k => {
+                if (panes[k]) panes[k].style.display = (k === sub) ? 'block' : 'none';
+                if (btns[k]) btns[k].classList.toggle('active', k === sub);
+            });
+        }
+
+        function syncColorPair(which, val) {
+            const clean = (val || '').trim();
+            if (which === 'bg') {
+                document.getElementById('ca-bg-hex').value = clean;
+                if (/^#[0-9A-Fa-f]{6}$/.test(clean)) document.getElementById('ca-bg-picker').value = clean;
+            } else if (which === 'fg') {
+                document.getElementById('ca-fg-hex').value = clean;
+                if (/^#[0-9A-Fa-f]{6}$/.test(clean)) document.getElementById('ca-fg-picker').value = clean;
+            } else if (which === 'lbl') {
+                document.getElementById('ca-lbl-hex').value = clean;
+                if (/^#[0-9A-Fa-f]{6}$/.test(clean)) document.getElementById('ca-lbl-picker').value = clean;
+            }
+            renderCampaignLivePreview();
+        }
+
+        function setCampaignGoal(goalNum) {
+            const el = document.getElementById('ca-stamp-goal');
+            if (el) el.value = goalNum;
+            onCampaignFieldInput();
+        }
+
+        function setPreviewStamps(mode) {
+            const goal = Math.max(4, Math.min(12, parseInt(document.getElementById('ca-stamp-goal').value || '10', 10)));
+            if (mode === 'goal') caPreviewStamps = goal;
+            else caPreviewStamps = Math.min(goal, parseInt(mode, 10) || 0);
+            renderCampaignLivePreview();
+        }
+
+        function toggleCampaignPreviewSide() {
+            caPreviewShowBack = !caPreviewShowBack;
+            document.getElementById('ca-preview-front').style.display = caPreviewShowBack ? 'none' : 'block';
+            document.getElementById('ca-preview-back').style.display = caPreviewShowBack ? 'block' : 'none';
+            document.getElementById('ca-flip-btn').textContent = caPreviewShowBack ? '← Frente' : '🔄 Reverso';
+        }
+
+        function handleCampaignDrop(evt, kind) {
+            evt.preventDefault();
+            evt.currentTarget.style.borderColor = 'rgba(212,175,55,0.45)';
+            const file = evt.dataTransfer && evt.dataTransfer.files && evt.dataTransfer.files[0];
+            if (file) handleCampaignFileSelect(file, kind);
+        }
+
+        function handleCampaignFileSelect(file, kind) {
+            if (!file) return;
+            const fb = document.getElementById(kind === 'logo' ? 'ca-logo-feedback' : 'ca-strip-feedback');
+            if (!file.type.startsWith('image/')) {
+                fb.style.display = 'block';
+                fb.style.background = 'rgba(255,55,95,0.16)';
+                fb.style.color = '#FF6B88';
+                fb.textContent = '⚠️ El archivo debe ser una imagen PNG, JPG o WEBP.';
+                return;
+            }
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const dataUrl = e.target.result;
+                const img = new Image();
+                img.onload = function() {
+                    const ratio = img.width / img.height;
+                    fb.style.display = 'block';
+                    if (kind === 'logo') {
+                        caUploadedLogoDataUrl = dataUrl;
+                        document.getElementById('ca-logo-thumb').src = dataUrl;
+                        document.getElementById('ca-prev-logo').src = dataUrl;
+                        if (ratio >= 0.7 && ratio <= 1.4) {
+                            fb.style.background = 'rgba(48,209,88,0.15)';
+                            fb.style.color = '#66F08B';
+                            fb.textContent = `✅ Logo válido (${img.width}×${img.height}px · proporción ${ratio.toFixed(2)}:1)`;
+                        } else {
+                            fb.style.background = 'rgba(255,179,64,0.16)';
+                            fb.style.color = '#FFD07B';
+                            fb.textContent = `⚠️ Cargado (${img.width}×${img.height}px, ${ratio.toFixed(2)}:1). Se recomienda formato cuadrado 1:1.`;
+                        }
+                    } else {
+                        caUploadedStripDataUrl = dataUrl;
+                        document.getElementById('ca-use-custom-strip').checked = true;
+                        if (ratio >= 2.2 && ratio <= 4.0) {
+                            fb.style.background = 'rgba(48,209,88,0.15)';
+                            fb.style.color = '#66F08B';
+                            fb.textContent = `✅ Strip válido (${img.width}×${img.height}px · proporción ${ratio.toFixed(2)}:1)`;
+                        } else {
+                            fb.style.background = 'rgba(255,179,64,0.16)';
+                            fb.style.color = '#FFD07B';
+                            fb.textContent = `⚠️ Cargado (${img.width}×${img.height}px, ${ratio.toFixed(2)}:1). Proporción óptima Apple Wallet: ~3:1 (1125×432px).`;
+                        }
+                    }
+                    renderCampaignLivePreview();
+                };
+                img.src = dataUrl;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function clearCustomStripBg() {
+            caUploadedStripDataUrl = '';
+            document.getElementById('ca-use-custom-strip').checked = false;
+            const fb = document.getElementById('ca-strip-feedback');
+            fb.style.display = 'block';
+            fb.style.background = 'rgba(56,189,248,0.15)';
+            fb.style.color = '#7DD3FC';
+            fb.textContent = '✨ Usando fondo generado dinámicamente con los colores de tu marca.';
+            renderCampaignLivePreview();
+        }
+
+        function detectCampaignGPS() {
+            if (!navigator.geolocation) return;
+            navigator.geolocation.getCurrentPosition(pos => {
+                document.getElementById('ca-lat').value = pos.coords.latitude.toFixed(6);
+                document.getElementById('ca-lng').value = pos.coords.longitude.toFixed(6);
+                onCampaignFieldInput();
+            }, () => {}, { enableHighAccuracy: true });
+        }
+
+        function onCampaignFieldInput() {
+            renderCampaignLivePreview();
+        }
+
+        function renderCampaignLivePreview() {
+            const shopName = (document.getElementById('ca-shop-name').value || 'Maishas Café').trim();
+            const bg = document.getElementById('ca-bg-hex').value || '#12100E';
+            const fg = document.getElementById('ca-fg-hex').value || '#F5F2EB';
+            const lbl = document.getElementById('ca-lbl-hex').value || '#D4AF37';
+            const goal = Math.max(4, Math.min(12, parseInt(document.getElementById('ca-stamp-goal').value || '10', 10)));
+            const rewardText = (document.getElementById('ca-reward-text').value || '1 Café Gratis').trim();
+            const menuUrl = (document.getElementById('ca-menu-url').value || '').trim();
+            const termsText = (document.getElementById('ca-terms-text').value || '').trim();
+            const lat = (document.getElementById('ca-lat').value || '').trim();
+            const lng = (document.getElementById('ca-lng').value || '').trim();
+            const relevantText = (document.getElementById('ca-relevant-text').value || '').trim();
+            const useCustomStrip = document.getElementById('ca-use-custom-strip').checked;
+
+            if (caPreviewStamps > goal) caPreviewStamps = goal;
+
+            const card = document.getElementById('ca-wallet-card');
+            card.style.background = bg;
+            card.style.color = fg;
+
+            document.getElementById('ca-prev-shop-name').textContent = shopName.toUpperCase();
+            document.getElementById('ca-prev-hdr-lbl').style.color = lbl;
+            document.getElementById('ca-prev-hdr-val').textContent = `${caPreviewStamps} / ${goal}`;
+
+            const stripBox = document.getElementById('ca-prev-strip-box');
+            if (useCustomStrip && caUploadedStripDataUrl) {
+                stripBox.style.backgroundImage = `linear-gradient(rgba(12,10,9,0.58), rgba(12,10,9,0.68)), url(${caUploadedStripDataUrl})`;
+            } else {
+                stripBox.style.backgroundImage = 'none';
+                stripBox.style.backgroundColor = 'rgba(0,0,0,0.28)';
+            }
+
+            document.getElementById('ca-prev-strip-title').style.color = lbl;
+            document.getElementById('ca-prev-strip-status').style.color = fg;
+            document.getElementById('ca-prev-strip-status').textContent = caPreviewStamps >= goal ? '¡META COMPLETADA! 🎉' : `${caPreviewStamps}/${goal} SELLOS`;
+            document.getElementById('ca-prev-strip-footer').style.color = lbl;
+            document.getElementById('ca-prev-strip-footer').textContent = `Premio: ${rewardText}`;
+
+            // Renderizar círculos dinámicos según la meta (4..12)
+            const grid = document.getElementById('ca-prev-stamps-grid');
+            const cols = goal <= 4 ? 4 : (goal <= 6 ? 3 : (goal <= 8 ? 4 : (goal === 9 ? 5 : (goal === 10 ? 5 : 6))));
+            grid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+            let dotsHtml = '';
+            for (let i = 1; i <= goal; i++) {
+                const filled = i <= caPreviewStamps;
+                const isLast = i === goal;
+                const borderCol = filled ? lbl : 'rgba(255,255,255,0.24)';
+                const bgCol = filled ? lbl : 'rgba(255,255,255,0.05)';
+                const txtCol = filled ? bg : 'rgba(255,255,255,0.45)';
+                const icon = filled ? '☕️' : (isLast ? '🎁' : i);
+                dotsHtml += `<div style="width:36px; height:36px; border-radius:50%; border:2px solid ${borderCol}; background:${bgCol}; color:${txtCol}; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:800; box-shadow:${filled ? '0 0 10px rgba(212,175,55,0.35)' : 'none'};">${icon}</div>`;
+            }
+            grid.innerHTML = dotsHtml;
+
+            document.getElementById('ca-prev-sec1-lbl').style.color = lbl;
+            document.getElementById('ca-prev-sec2-lbl').style.color = lbl;
+            document.getElementById('ca-prev-reward-val').textContent = rewardText;
+
+            // Reverso y pantalla bloqueo GPS
+            document.getElementById('ca-back-lbl-reward').style.color = lbl;
+            document.getElementById('ca-back-val-reward').textContent = `Meta de ${goal} sellos: ${rewardText}`;
+            document.getElementById('ca-back-lbl-menu').style.color = lbl;
+            document.getElementById('ca-back-val-menu').textContent = menuUrl || '—';
+            document.getElementById('ca-back-lbl-gps').style.color = lbl;
+            document.getElementById('ca-back-val-gps').textContent = `${relevantText} (${lat}, ${lng})`;
+            document.getElementById('ca-back-lbl-terms').style.color = lbl;
+            document.getElementById('ca-back-val-terms').textContent = termsText;
+
+            document.getElementById('ca-gps-lock-brand').textContent = `${shopName.toUpperCase()} · CERCA DE TI`;
+            document.getElementById('ca-gps-lock-msg').textContent = relevantText;
+        }
+
+        async function saveCampaignSettings() {
+            const btnTop = document.getElementById('btn-save-campaign-top');
+            const btnBot = document.getElementById('btn-save-campaign-bottom');
+            const banner = document.getElementById('ca-save-banner');
+            const payload = {
+                shopName: (document.getElementById('ca-shop-name').value || 'Maishas Café').trim(),
+                backgroundColor: (document.getElementById('ca-bg-hex').value || '#12100E').trim(),
+                foregroundColor: (document.getElementById('ca-fg-hex').value || '#F5F2EB').trim(),
+                labelColor: (document.getElementById('ca-lbl-hex').value || '#D4AF37').trim(),
+                stampGoal: Math.max(4, Math.min(12, parseInt(document.getElementById('ca-stamp-goal').value || '10', 10))),
+                rewardText: (document.getElementById('ca-reward-text').value || '1 Café Gratis de cualquier tamaño').trim(),
+                menuUrl: (document.getElementById('ca-menu-url').value || '').trim(),
+                termsText: (document.getElementById('ca-terms-text').value || '').trim(),
+                lat: parseFloat(document.getElementById('ca-lat').value || '27.0706'),
+                lng: parseFloat(document.getElementById('ca-lng').value || '-109.4437'),
+                relevantText: (document.getElementById('ca-relevant-text').value || '').trim(),
+                useCustomStrip: document.getElementById('ca-use-custom-strip').checked,
+                logoDataUrl: caUploadedLogoDataUrl.startsWith('data:image/') ? caUploadedLogoDataUrl : '',
+                stripDataUrl: caUploadedStripDataUrl.startsWith('data:image/') ? caUploadedStripDataUrl : ''
+            };
+
+            try {
+                if (btnTop) btnTop.textContent = '⏳ Guardando y sincronizando...';
+                if (btnBot) btnBot.textContent = '⏳ Guardando y sincronizando...';
+                const res = await fetch('/api/campaign-settings', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+                if (!res.ok || !data.ok) throw new Error(data.error || 'No se pudo guardar la configuración');
+
+                banner.style.display = 'block';
+                banner.style.background = 'rgba(48,209,88,0.16)';
+                banner.style.border = '1px solid rgba(48,209,88,0.45)';
+                banner.style.color = '#66F08B';
+                banner.textContent = data.message || '✅ Plantilla de campaña actualizada y sincronizada.';
+
+                const hdrName = document.getElementById('hdr-shop-name');
+                if (hdrName) hdrName.textContent = payload.shopName;
+                saveBaristaUiState();
+                setTimeout(() => { window.location.reload(); }, 1100);
+            } catch (err) {
+                banner.style.display = 'block';
+                banner.style.background = 'rgba(255,55,95,0.16)';
+                banner.style.border = '1px solid rgba(255,55,95,0.45)';
+                banner.style.color = '#FF6B88';
+                banner.textContent = '⚠️ Error: ' + err.message;
+            } finally {
+                if (btnTop) btnTop.textContent = '💾 Guardar y Actualizar Plantilla';
+                if (btnBot) btnBot.textContent = '💾 Guardar y Actualizar Plantilla de Campaña';
+            }
+        }
+
+        // Inicializar preview al cargar
+        setTimeout(renderCampaignLivePreview, 50);
+
         // Restaurar pestaña activa, filtro, búsqueda y posición de scroll tras enviar un formulario
         (function restoreBaristaUiState() {
             try {
@@ -3710,7 +4425,7 @@ BARISTA_HTML = """
                 sessionStorage.removeItem('maishas_barista_ui_state');
                 const state = JSON.parse(raw);
                 if (!state || (Date.now() - (state.ts || 0) > 30000)) return;
-                if (state.view && ['pos', 'bday', 'push', 'db'].includes(state.view)) {
+                if (state.view && ['pos', 'campaign', 'bday', 'push', 'db'].includes(state.view)) {
                     switchMainView(state.view);
                 }
                 const searchEl = document.getElementById('client-search');
@@ -3943,6 +4658,15 @@ BARISTA_HTML = """
 """
 
 
+def _active_logo_file_path():
+    if os.path.isfile(CUSTOM_LOGO_PATH):
+        return CUSTOM_LOGO_PATH
+    brand_logo = os.path.join(PASS_TEMPLATE_DIR, "brand_logo.png")
+    if os.path.isfile(brand_logo):
+        return brand_logo
+    return os.path.join(PASS_TEMPLATE_DIR, "icon@2x.png")
+
+
 def generate_signed_pkpass(
     serial_number,
     client_name,
@@ -3966,22 +4690,38 @@ def generate_signed_pkpass(
             if os.path.isfile(src):
                 shutil.copy2(src, dst)
 
-        stamps = max(0, min(10, int(stamps_count or 0)))
+        cfg = get_campaign_config()
+        goal = max(4, min(12, int(cfg.get("stampGoal") or 10)))
+        shop_name = (cfg.get("shopName") or "Maishas Café").strip()
+        reward_text = (cfg.get("rewardText") or "1 Café Gratis").strip()
+
+        # Si hay un logo personalizado subido en el Dashboard, aplicarlo también a icon.png y logo.png del .pkpass
+        if os.path.isfile(CUSTOM_LOGO_PATH):
+            try:
+                custom_logo_img = Image.open(CUSTOM_LOGO_PATH).convert("RGBA")
+                for fname, sz in [("icon.png", (29, 29)), ("icon@2x.png", (58, 58)), ("logo.png", (50, 50)), ("logo@2x.png", (100, 100))]:
+                    custom_logo_img.resize(sz, Image.Resampling.LANCZOS).save(os.path.join(temp_dir, fname), format="PNG")
+            except Exception:
+                pass
+
+        stamps = max(0, min(goal, int(stamps_count or 0)))
         visits = total_visits if total_visits is not None else stamps
         tier = get_vip_tier(visits)
         clean_visible_msg = (message or DEFAULT_MESSAGE).replace("\u200b", "")
 
-        render_dynamic_strip(stamps, temp_dir, total_visits=visits, message=clean_visible_msg)
+        render_dynamic_strip(stamps, temp_dir, total_visits=visits, message=clean_visible_msg, campaign=cfg)
 
         pass_json_path = os.path.join(temp_dir, "pass.json")
         with open(pass_json_path, "r", encoding="utf-8") as f:
             pass_data = json.load(f)
 
         pass_data["serialNumber"] = serial_number
-        pass_data["foregroundColor"] = "rgb(245, 242, 235)"
-        pass_data["backgroundColor"] = "rgb(18, 16, 14)"
-        pass_data["labelColor"] = "rgb(198, 166, 117)"
-        pass_data["logoText"] = "MAISHAS CAFÉ"
+        pass_data["description"] = f"Tarjeta de Fidelidad {shop_name}"
+        pass_data["organizationName"] = shop_name
+        pass_data["foregroundColor"] = _hex_to_passkit_rgb(cfg.get("foregroundColor"), (245, 242, 235))
+        pass_data["backgroundColor"] = _hex_to_passkit_rgb(cfg.get("backgroundColor"), (18, 16, 14))
+        pass_data["labelColor"] = _hex_to_passkit_rgb(cfg.get("labelColor"), (198, 166, 117))
+        pass_data["logoText"] = shop_name.upper()
 
         barcode_obj = {
             "format": "PKBarcodeFormatQR",
@@ -3992,27 +4732,27 @@ def generate_signed_pkpass(
         pass_data["barcode"] = barcode_obj
         pass_data["barcodes"] = [barcode_obj]
 
-        # Mensaje de notificación inteligente según la acción realizada (evita decir 'ganaste 1 sello' cuando se restó -1)
+        # Mensaje de notificación inteligente según la acción realizada
         if last_action == "sub":
-            stamp_change_msg = "☕️ Tu tarjeta Maishas Café está al día. Sellos acumulados: %@"
+            stamp_change_msg = f"☕️ Tu tarjeta {shop_name} está al día. Sellos acumulados: %@"
         elif last_action == "reset" or stamps == 0:
-            stamp_change_msg = "🎁 ¡Disfruta tu Café Gratis! Tu tarjeta Maishas Café está en: %@"
-        elif stamps >= 10:
-            stamp_change_msg = "🎉 ¡Felicidades! Completaste %@ sellos. ¡Tienes 1 Café Gratis en Maishas Café!"
+            stamp_change_msg = f"🎁 ¡Disfruta tu recompensa ({reward_text})! Tu tarjeta {shop_name} está en: %@"
+        elif stamps >= goal:
+            stamp_change_msg = f"🎉 ¡Felicidades! Completaste %@ sellos. ¡Tienes {reward_text} en {shop_name}!"
         else:
-            stamp_change_msg = "☕️ ¡Has ganado 1 nuevo sello en Maishas Café! Total: %@"
+            stamp_change_msg = f"☕️ ¡Has ganado 1 nuevo sello en {shop_name}! Total: %@"
 
         pass_data["storeCard"]["headerFields"] = [
             {
                 "key": "stamps",
                 "label": "SELLOS",
-                "value": f"{stamps} / 10",
+                "value": f"{stamps} / {goal}",
                 "textAlignment": "PKTextAlignmentRight",
                 "changeMessage": stamp_change_msg
             }
         ]
 
-        reward_status = "¡CAFÉ GRATIS! 🎉" if stamps >= 10 else f"Faltan {10 - stamps} sellos"
+        reward_status = "¡RECOMPENSA LISTA! 🎉" if stamps >= goal else f"Faltan {goal - stamps} sellos"
 
         if for_android:
             # Google Wallet y lectores .pkpass de Android requieren primaryFields y auxiliaryFields no vacíos
@@ -4020,7 +4760,7 @@ def generate_signed_pkpass(
                 {
                     "key": "points",
                     "label": "SELLOS ACUMULADOS",
-                    "value": f"{stamps} / 10"
+                    "value": f"{stamps} / {goal}"
                 }
             ]
             pass_data["storeCard"]["secondaryFields"] = [
@@ -4065,12 +4805,11 @@ def generate_signed_pkpass(
             ]
             pass_data["storeCard"]["auxiliaryFields"] = []
 
-        shop_loc = get_shop_location()
         pass_data["locations"] = [
             {
-                "latitude": shop_loc["lat"],
-                "longitude": shop_loc["lng"],
-                "relevantText": shop_loc["relevant_text"]
+                "latitude": cfg["lat"],
+                "longitude": cfg["lng"],
+                "relevantText": cfg["relevantText"]
             }
         ]
         pass_data["maxDistance"] = 150
@@ -4081,30 +4820,41 @@ def generate_signed_pkpass(
         pass_data["webServiceURL"] = f"{clean_host}/"
         pass_data["authenticationToken"] = AUTH_TOKEN
 
-        pass_data["storeCard"]["backFields"].insert(0, {
-            "key": "memberSerialId",
-            "label": "Código Único de Socio (ID)",
-            "value": serial_number
-        })
-
-        pass_data["storeCard"]["backFields"].insert(1, {
-            "key": "news",
-            "label": "Mensaje de Maishas Café",
-            "value": message or DEFAULT_MESSAGE,
-            "changeMessage": "📣 %@"
-        })
-
-        pass_data["storeCard"]["backFields"].insert(2, {
-            "key": "vipHistory",
-            "label": "Historial y Nivel de Socio",
-            "value": f"Nivel: {tier['name']} | Visitas históricas: {visits} | Cafés gratis canjeados: {redeemed_count} ({tier['next_goal']})"
-        })
-
-        pass_data["storeCard"]["backFields"].insert(3, {
-            "key": "liveCardLink",
-            "label": "Tarjeta Digital en Vivo (Sellos y Notificaciones)",
-            "value": f"{clean_host}/card/{serial_number}"
-        })
+        # Actualizar términos y enlace al menú en el reverso de la tarjeta
+        back_fields = [
+            {
+                "key": "memberSerialId",
+                "label": "Código Único de Socio (ID)",
+                "value": serial_number
+            },
+            {
+                "key": "news",
+                "label": f"Mensaje de {shop_name}",
+                "value": message or DEFAULT_MESSAGE,
+                "changeMessage": "📣 %@"
+            },
+            {
+                "key": "vipHistory",
+                "label": "Historial y Nivel de Socio",
+                "value": f"Nivel: {tier['name']} | Visitas históricas: {visits} | Canjes: {redeemed_count} ({tier['next_goal']})"
+            },
+            {
+                "key": "rewardInfo",
+                "label": "Premio del Programa",
+                "value": f"Al completar {goal} sellos: {reward_text}"
+            },
+            {
+                "key": "liveCardLink",
+                "label": "Tarjeta Digital en Vivo (Sellos y Notificaciones)",
+                "value": f"{clean_host}/card/{serial_number}"
+            }
+        ]
+        if cfg.get("menuUrl"):
+            back_fields.append({
+                "key": "menuLink",
+                "label": "Menú Digital / WhatsApp",
+                "value": cfg["menuUrl"]
+            })
 
         extra_info = []
         if phone:
@@ -4112,11 +4862,18 @@ def generate_signed_pkpass(
         if birthdate:
             extra_info.append(f"Cumpleaños: {birthdate}")
         if extra_info:
-            pass_data["storeCard"]["backFields"].insert(4, {
+            back_fields.append({
                 "key": "memberDetails",
                 "label": "Datos del Cliente",
                 "value": " | ".join(extra_info)
             })
+
+        back_fields.append({
+            "key": "terms",
+            "label": "Términos y Condiciones",
+            "value": cfg.get("termsText") or CampaignDefaults["termsText"]
+        })
+        pass_data["storeCard"]["backFields"] = back_fields
 
         with open(pass_json_path, "w", encoding="utf-8") as f:
             json.dump(pass_data, f, indent=2)
@@ -4165,7 +4922,7 @@ def generate_signed_pkpass(
 
 @app.route("/")
 def index():
-    return render_template_string(REGISTRATION_HTML)
+    return render_template_string(REGISTRATION_HTML, campaign=get_campaign_config())
 
 
 @app.route("/barista/login", methods=["GET", "POST"])
@@ -4263,6 +5020,9 @@ def barista():
 
     conn.close()
 
+    campaign_cfg = get_campaign_config()
+    stamp_goal = campaign_cfg["stampGoal"]
+
     clients = []
     upcoming_birthdays = []
     installed_count = 0
@@ -4280,7 +5040,7 @@ def barista():
         if is_installed:
             installed_count += 1
         stamps_val = r[3] or 0
-        if stamps_val >= 10:
+        if stamps_val >= stamp_goal:
             ready_to_redeem_count += 1
         visits_val = r[11] if r[11] is not None else stamps_val
         redeemed_val = r[12] or 0
@@ -4352,6 +5112,7 @@ def barista():
         silver_count=silver_count,
         total_redeemed=total_redeemed,
         shop_loc=get_shop_location(),
+        campaign=campaign_cfg,
         recent_transactions=recent_transactions,
         ok=request.args.get("ok"),
         updated_serial=request.args.get("updated")
@@ -4397,7 +5158,7 @@ def export_clients_csv():
         "Fecha de Nacimiento",
         "Fecha de Alta (Sonora)",
         "Dispositivo Activo",
-        "Sellos Actuales (de 10)",
+        "Sellos Actuales",
         "Visitas Históricas",
         "Cafés Gratis Canjeados",
         "Nivel VIP",
@@ -4573,11 +5334,13 @@ def android_card_view(serial_number):
     conn.commit()
     conn.close()
 
+    cfg = get_campaign_config()
+    goal = cfg["stampGoal"]
     stamps_val = row[3] or 0
     visits_val = row[7] if row[7] is not None else stamps_val
     redeemed_val = row[8] or 0
     tier = get_vip_tier(visits_val)
-    reward_status = "¡CAFÉ GRATIS! 🎉" if stamps_val >= 10 else f"Faltan {10 - stamps_val} sellos"
+    reward_status = "¡RECOMPENSA LISTA! 🎉" if stamps_val >= goal else f"Faltan {goal - stamps_val} sellos"
 
     client_data = {
         "serial": serial_id,
@@ -4604,6 +5367,7 @@ def android_card_view(serial_number):
         ANDROID_CARD_HTML,
         client=client_data,
         shop_loc=get_shop_location(),
+        campaign=cfg,
         vapid_public_key=VAPID_PUBLIC_KEY,
         gw_enabled=gw_enabled,
         gw_save_url=gw_save_url
@@ -4618,7 +5382,7 @@ def android_card_strip(serial_number):
     conn.close()
     stamps_val = row[0] if row else 0
     msg_val = row[1] if row else DEFAULT_MESSAGE
-    img = _create_dynamic_strip_pil(stamps_val, message=msg_val).resize((750, 250), Image.Resampling.LANCZOS)
+    img = _create_dynamic_strip_pil(stamps_val, message=msg_val, campaign=get_campaign_config()).resize((750, 250), Image.Resampling.LANCZOS)
     buf = io.BytesIO()
     img.save(buf, format="PNG", optimize=True)
     buf.seek(0)
@@ -4670,39 +5434,59 @@ def download_pkpass_direct(serial_number):
     return resp
 
 
-@app.route("/card/icon-192.png")
-def card_icon_192():
-    icon_path = os.path.join(PASS_TEMPLATE_DIR, "icon@2x.png")
-    img = Image.open(icon_path).resize((192, 192), Image.Resampling.LANCZOS)
+@app.route("/api/campaign/logo.png")
+def campaign_logo_png():
+    logo_path = _active_logo_file_path()
+    img = Image.open(logo_path).convert("RGBA").resize((320, 320), Image.Resampling.LANCZOS)
     buf = io.BytesIO()
     img.save(buf, format="PNG")
     buf.seek(0)
-    return send_file(buf, mimetype="image/png", max_age=86400)
+    resp = send_file(buf, mimetype="image/png", max_age=3600)
+    resp.headers["Cache-Control"] = "public, max-age=3600"
+    return resp
+
+
+@app.route("/api/campaign/strip-bg.png")
+def campaign_strip_bg_png():
+    if os.path.isfile(CUSTOM_STRIP_BG_PATH):
+        return send_file(CUSTOM_STRIP_BG_PATH, mimetype="image/png", max_age=0)
+    return "", 404
+
+
+@app.route("/card/icon-192.png")
+def card_icon_192():
+    icon_path = _active_logo_file_path()
+    img = Image.open(icon_path).convert("RGBA").resize((192, 192), Image.Resampling.LANCZOS)
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    buf.seek(0)
+    return send_file(buf, mimetype="image/png", max_age=3600)
 
 
 @app.route("/barista/icon-512.png")
 def barista_icon_512():
-    icon_path = os.path.join(PASS_TEMPLATE_DIR, "icon@2x.png")
-    img = Image.open(icon_path).resize((512, 512), Image.Resampling.LANCZOS)
+    icon_path = _active_logo_file_path()
+    img = Image.open(icon_path).convert("RGBA").resize((512, 512), Image.Resampling.LANCZOS)
     buf = io.BytesIO()
     img.save(buf, format="PNG")
     buf.seek(0)
-    return send_file(buf, mimetype="image/png", max_age=86400)
+    return send_file(buf, mimetype="image/png", max_age=3600)
 
 
 @app.route("/barista/manifest.webmanifest")
 def barista_manifest():
+    cfg = get_campaign_config()
     manifest_data = {
         "id": "/barista",
-        "name": "Maishas Café — Consola Barista POS",
-        "short_name": "Barista POS",
-        "description": "Consola de punto de venta, escáner QR y sellos de Maishas Café",
+        "name": f"{cfg['shopName']} — Consola Barista POS (DEMO)",
+        "short_name": "Barista DEMO",
+        "description": f"Consola de punto de venta, escáner QR y sellos de {cfg['shopName']}",
         "start_url": "/barista",
         "scope": "/",
         "display": "standalone",
         "orientation": "any",
-        "background_color": "#0D0C0B",
-        "theme_color": "#0D0C0B",
+        "background_color": cfg["backgroundColor"],
+        "theme_color": cfg["backgroundColor"],
         "icons": [
             {"src": "/card/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any"},
             {"src": "/barista/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable"}
@@ -4714,13 +5498,14 @@ def barista_manifest():
 @app.route("/card/<serial_number>/manifest.webmanifest")
 def android_manifest(serial_number):
     serial_clean = (serial_number or "").strip().upper()
+    cfg = get_campaign_config()
     manifest_data = {
-        "name": "Maishas Café — Tarjeta de Fidelidad",
-        "short_name": "Maishas Café",
+        "name": f"{cfg['shopName']} — Tarjeta de Fidelidad",
+        "short_name": cfg["shopName"],
         "start_url": f"/card/{serial_clean}",
         "display": "standalone",
-        "background_color": "#0D0C0B",
-        "theme_color": "#12100E",
+        "background_color": cfg["backgroundColor"],
+        "theme_color": cfg["backgroundColor"],
         "icons": [
             {"src": "/card/icon-192.png", "sizes": "192x192", "type": "image/png"},
             {"src": "/barista/icon-512.png", "sizes": "512x512", "type": "image/png"}
@@ -4866,21 +5651,24 @@ def android_card_state(serial_number):
     conn.commit()
     conn.close()
 
+    cfg = get_campaign_config()
+    goal = cfg["stampGoal"]
     stamps_val = row[2] or 0
     visits_val = row[4] if row[4] is not None else stamps_val
     redeemed_val = row[5] or 0
     tier = get_vip_tier(visits_val)
-    reward_status = "¡CAFÉ GRATIS! 🎉" if stamps_val >= 10 else f"Faltan {10 - stamps_val} sellos"
+    reward_status = "¡RECOMPENSA LISTA! 🎉" if stamps_val >= goal else f"Faltan {goal - stamps_val} sellos"
     clean_msg = (row[3] or DEFAULT_MESSAGE).replace("\u200b", "")
 
     return jsonify({
         "serial": row[0],
         "name": row[1],
         "stamps": stamps_val,
+        "stamp_goal": goal,
         "message": clean_msg,
         "tier_name": tier["name"],
         "reward_status": reward_status,
-        "history_text": f"Nivel: {tier['name']} | Visitas históricas: {visits_val} | Cafés gratis canjeados: {redeemed_val} ({tier['next_goal']})",
+        "history_text": f"Nivel: {tier['name']} | Visitas históricas: {visits_val} | Canjes: {redeemed_val} ({tier['next_goal']})",
         "updated_at": row[6] or ""
     })
 
@@ -4907,6 +5695,11 @@ def _perform_stamp_update(serial, action="add"):
         conn.close()
         return None, f"⚠️ Código QR / Cliente '{serial_clean}' no encontrado"
 
+    cfg = get_campaign_config()
+    goal = cfg["stampGoal"]
+    shop_name = cfg["shopName"]
+    reward_text = cfg["rewardText"]
+
     serial_id, client_name = client[0], client[1]
     current_stamps = client[2] or 0
     current_visits = client[3] if client[3] is not None else current_stamps
@@ -4922,30 +5715,30 @@ def _perform_stamp_update(serial, action="add"):
         new_stamps = max(0, current_stamps - 1)
         new_visits = max(0, current_visits - 1)
         new_redeemed = current_redeemed
-        action_label = f"Ajuste aplicado a {client_name} ({serial_id}): saldo actual {new_stamps}/10"
-        notif_body = f"☕️ Tu tarjeta Maishas Café está al día. Sellos acumulados: {new_stamps} / 10"
+        action_label = f"Ajuste aplicado a {client_name} ({serial_id}): saldo actual {new_stamps}/{goal}"
+        notif_body = f"☕️ Tu tarjeta {shop_name} está al día. Sellos acumulados: {new_stamps} / {goal}"
     elif action == "reset":
         new_stamps = 0
         new_visits = current_visits
         new_redeemed = current_redeemed + 1
-        action_label = f"🎁 Café Gratis canjeado para {client_name} ({serial_id}): reiniciado a 0/10 (Total canjes: {new_redeemed}){bday_alert}"
-        notif_body = "🎁 ¡Disfruta tu Café Gratis! Tu tarjeta se ha reiniciado a 0 / 10."
+        action_label = f"🎁 Recompensa canjeada para {client_name} ({serial_id}): reiniciado a 0/{goal} (Total canjes: {new_redeemed}){bday_alert}"
+        notif_body = f"🎁 ¡Disfruta tu recompensa ({reward_text})! Tu tarjeta se ha reiniciado a 0 / {goal}."
     else:
         action = "add"
-        if current_stamps >= 10:
+        if current_stamps >= goal:
             conn.close()
-            return serial_id, f"ℹ️ {client_name} ({serial_id}) ya tiene 10/10 sellos. Usa '🎁 Canjear' para entregar su café gratis.{bday_alert}"
+            return serial_id, f"ℹ️ {client_name} ({serial_id}) ya tiene {goal}/{goal} sellos. Usa '🎁 Canjear' para entregar su recompensa.{bday_alert}"
         new_stamps = current_stamps + 1
         new_visits = current_visits + 1
         new_redeemed = current_redeemed
         old_tier = get_vip_tier(current_visits)["name"]
         new_tier = get_vip_tier(new_visits)["name"]
         tier_note = f" — 🏆 ¡Subió a {new_tier}!" if new_tier != old_tier else ""
-        action_label = f"✅ Sello agregado a {client_name} ({serial_id}): ahora tiene {new_stamps}/10 ({new_visits} visitas){tier_note}{bday_alert}"
-        if new_stamps >= 10:
-            notif_body = "🎉 ¡Felicidades! Completaste 10/10 sellos. ¡Tienes 1 Café Gratis disponible en Maishas Café!"
+        action_label = f"✅ Sello agregado a {client_name} ({serial_id}): ahora tiene {new_stamps}/{goal} ({new_visits} visitas){tier_note}{bday_alert}"
+        if new_stamps >= goal:
+            notif_body = f"🎉 ¡Felicidades! Completaste {goal}/{goal} sellos. ¡Tienes {reward_text} disponible en {shop_name}!"
         else:
-            notif_body = f"☕️ ¡Has ganado 1 nuevo sello en Maishas Café! Total: {new_stamps} / 10"
+            notif_body = f"☕️ ¡Has ganado 1 nuevo sello en {shop_name}! Total: {new_stamps} / {goal}"
 
     now_ts = get_utc_timestamp()
     c.execute(
@@ -4983,6 +5776,109 @@ def scan_action():
     action = request.form.get("action", "add")
     serial_id, msg = _perform_stamp_update(serial, action)
     return redirect(url_for("barista", ok=f"📷 QR Escaneado: {msg}", updated=serial_id))
+
+
+def _decode_data_url_to_png(data_url, out_path, resize_max=None):
+    """Decodifica un data:image/...;base64 y lo guarda como PNG optimizado."""
+    if not data_url or not data_url.startswith("data:image/"):
+        return False
+    try:
+        _, b64_part = data_url.split(",", 1)
+        raw_bytes = base64.b64decode(b64_part)
+        img = Image.open(io.BytesIO(raw_bytes)).convert("RGBA")
+        if resize_max and (img.width > resize_max[0] or img.height > resize_max[1]):
+            img.thumbnail(resize_max, Image.Resampling.LANCZOS)
+        os.makedirs(os.path.dirname(out_path), exist_ok=True)
+        img.save(out_path, format="PNG", optimize=True)
+        return True
+    except Exception as e:
+        print(f"⚠️ Error guardando imagen de campaña: {e}")
+        return False
+
+
+@app.route("/api/campaign-settings", methods=["GET", "POST"])
+@requires_auth
+def api_campaign_settings():
+    """Obtiene o guarda la configuración completa de la plantilla de la campaña."""
+    if request.method == "GET":
+        return jsonify({"ok": True, "campaign": get_campaign_config()})
+
+    payload = request.get_json(force=True, silent=True) or {}
+    current = get_campaign_config()
+
+    shop_name = (payload.get("shopName") or current["shopName"] or "Maishas Café").strip()[:40]
+    bg_hex = (payload.get("backgroundColor") or current["backgroundColor"] or "#12100E").strip()
+    fg_hex = (payload.get("foregroundColor") or current["foregroundColor"] or "#F5F2EB").strip()
+    lbl_hex = (payload.get("labelColor") or current["labelColor"] or "#D4AF37").strip()
+    try:
+        stamp_goal = max(4, min(12, int(payload.get("stampGoal") or current["stampGoal"] or 10)))
+    except Exception:
+        stamp_goal = 10
+    reward_text = (payload.get("rewardText") or current["rewardText"]).strip()[:80]
+    terms_text = (payload.get("termsText") or current["termsText"]).strip()[:500]
+    menu_url = (payload.get("menuUrl") if "menuUrl" in payload else current["menuUrl"]).strip()[:200]
+    use_custom_strip = bool(payload.get("useCustomStrip", current.get("useCustomStrip", False)))
+
+    try:
+        lat = float(payload.get("lat", current["lat"]))
+        lng = float(payload.get("lng", current["lng"]))
+    except Exception:
+        lat, lng = current["lat"], current["lng"]
+    relevant_text = (payload.get("relevantText") or current["relevantText"] or DEFAULT_GEO_TEXT).strip()[:160]
+
+    logo_data_url = payload.get("logoDataUrl") or ""
+    strip_data_url = payload.get("stripDataUrl") or ""
+    if logo_data_url.startswith("data:image/"):
+        _decode_data_url_to_png(logo_data_url, CUSTOM_LOGO_PATH, resize_max=(660, 660))
+    if strip_data_url.startswith("data:image/"):
+        _decode_data_url_to_png(strip_data_url, CUSTOM_STRIP_BG_PATH, resize_max=(1125, 432))
+        use_custom_strip = True
+
+    updated_cfg = {
+        "shopName": shop_name,
+        "backgroundColor": bg_hex if re.fullmatch(r"#[0-9A-Fa-f]{6}", bg_hex) else "#12100E",
+        "foregroundColor": fg_hex if re.fullmatch(r"#[0-9A-Fa-f]{6}", fg_hex) else "#F5F2EB",
+        "labelColor": lbl_hex if re.fullmatch(r"#[0-9A-Fa-f]{6}", lbl_hex) else "#D4AF37",
+        "stampGoal": stamp_goal,
+        "rewardText": reward_text,
+        "termsText": terms_text,
+        "menuUrl": menu_url,
+        "lat": lat,
+        "lng": lng,
+        "relevantText": relevant_text,
+        "useCustomStrip": use_custom_strip,
+    }
+
+    now_ts = get_utc_timestamp()
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute("INSERT OR REPLACE INTO settings (key, value) VALUES ('campaign_config_json', ?)", (json.dumps(updated_cfg),))
+    c.execute("INSERT OR REPLACE INTO settings (key, value) VALUES ('shop_lat', ?)", (str(lat),))
+    c.execute("INSERT OR REPLACE INTO settings (key, value) VALUES ('shop_lng', ?)", (str(lng),))
+    c.execute("INSERT OR REPLACE INTO settings (key, value) VALUES ('shop_relevant_text', ?)", (relevant_text,))
+    c.execute("UPDATE clients SET updated_at = ?", (now_ts,))
+    serials = [r[0] for r in c.execute("SELECT serial FROM clients").fetchall()]
+    conn.commit()
+    conn.close()
+
+    # Sincronizar clase en Google Wallet con los nuevos colores, logo y nombre
+    if google_wallet_enabled():
+        try:
+            ensure_google_class(_public_base_url(), force_update=True)
+        except Exception:
+            pass
+
+    pushed = 0
+    for s in serials:
+        res = send_apns_push_for_serial(s, notification_body=f"✨ Tarjeta {shop_name} actualizada")
+        if "✅" in res:
+            pushed += 1
+
+    return jsonify({
+        "ok": True,
+        "message": f"✅ Plantilla '{shop_name}' guardada (Meta: {stamp_goal} sellos) y sincronizada con {pushed} dispositivo(s).",
+        "campaign": get_campaign_config()
+    })
 
 
 @app.route("/api/update-location", methods=["POST"])
@@ -5630,21 +6526,22 @@ def _gw_text(value):
 
 
 def build_google_loyalty_class(base_url):
-    loc = get_shop_location()
+    cfg = get_campaign_config()
+    shop_name = cfg["shopName"]
     return {
         "id": _gw_class_id(),
-        "issuerName": "Maishas Café",
-        "programName": "Maishas Café · Sellos",
+        "issuerName": shop_name,
+        "programName": f"{shop_name} · Sellos",
         "programLogo": {
-            "sourceUri": {"uri": f"{base_url}/card/icon-192.png"},
-            "contentDescription": _gw_text("Maishas Café")
+            "sourceUri": {"uri": f"{base_url}/api/campaign/logo.png?v={cfg['logoVersion']}"},
+            "contentDescription": _gw_text(shop_name)
         },
-        "hexBackgroundColor": "#12100E",
+        "hexBackgroundColor": cfg["backgroundColor"],
         "countryCode": "MX",
         "reviewStatus": "UNDER_REVIEW",
         "multipleDevicesAndHoldersAllowedStatus": "ONE_USER_ALL_DEVICES",
-        "homepageUri": {"uri": base_url, "description": "Maishas Café"},
-        "locations": [{"latitude": loc["lat"], "longitude": loc["lng"]}],
+        "homepageUri": {"uri": base_url, "description": shop_name},
+        "locations": [{"latitude": cfg["lat"], "longitude": cfg["lng"]}],
     }
 
 
@@ -5659,36 +6556,43 @@ def build_google_loyalty_object(serial, base_url):
     conn.close()
     if not row:
         return None
+    cfg = get_campaign_config()
+    goal = cfg["stampGoal"]
+    shop_name = cfg["shopName"]
+    reward_text = cfg["rewardText"]
     serial_id, name, stamps, message, visits, updated_at = row
-    stamps = max(0, min(10, stamps or 0))
+    stamps = max(0, min(goal, stamps or 0))
     tier = get_vip_tier(visits if visits is not None else stamps)
-    reward = "¡CAFÉ GRATIS DISPONIBLE! 🎉" if stamps >= 10 else f"Faltan {10 - stamps} sellos para tu café gratis"
+    reward = f"¡{reward_text.upper()} DISPONIBLE! 🎉" if stamps >= goal else f"Faltan {goal - stamps} sellos para: {reward_text}"
     clean_msg = (message or DEFAULT_MESSAGE).replace("\u200b", "")
     promo_balance = (message or DEFAULT_MESSAGE)[:90]
-    loc = get_shop_location()
-    version = urllib_quote(str(updated_at or ""))
+    version = urllib_quote(f"{updated_at}_{cfg['logoVersion']}_{cfg['stripVersion']}")
+    uris = [
+        {"id": "live", "uri": f"{base_url}/card/{serial_id}", "description": "Mi tarjeta en vivo"}
+    ]
+    if cfg.get("menuUrl"):
+        uris.append({"id": "menu", "uri": cfg["menuUrl"], "description": "Menú Digital / WhatsApp"})
     return {
         "id": _gw_object_id(serial_id),
         "classId": _gw_class_id(),
         "state": "ACTIVE",
         "accountId": serial_id,
         "accountName": name or "Cliente",
-        "loyaltyPoints": {"label": "SELLOS", "balance": {"string": f"{stamps} / 10"}},
-        "secondaryLoyaltyPoints": {"label": "AVISO MAISHAS", "balance": {"string": promo_balance}},
+        "loyaltyPoints": {"label": "SELLOS", "balance": {"string": f"{stamps} / {goal}"}},
+        "secondaryLoyaltyPoints": {"label": f"AVISO {shop_name.upper()[:14]}", "balance": {"string": promo_balance}},
         "barcode": {"type": "QR_CODE", "value": serial_id, "alternateText": serial_id},
         "heroImage": {
             "sourceUri": {"uri": f"{base_url}/card/{serial_id}/strip.png?v={version}"},
-            "contentDescription": _gw_text(f"{stamps} de 10 sellos")
+            "contentDescription": _gw_text(f"{stamps} de {goal} sellos")
         },
         "textModulesData": [
             {"id": "tier", "header": "NIVEL VIP", "body": tier["name"]},
             {"id": "reward", "header": "PREMIO", "body": reward},
-            {"id": "promo", "header": "AVISO MAISHAS", "body": clean_msg},
+            {"id": "promo", "header": f"AVISO {shop_name.upper()}", "body": clean_msg},
+            {"id": "terms", "header": "TÉRMINOS Y CONDICIONES", "body": cfg["termsText"]},
         ],
-        "linksModuleData": {"uris": [
-            {"id": "live", "uri": f"{base_url}/card/{serial_id}", "description": "Mi tarjeta en vivo"}
-        ]},
-        "locations": [{"latitude": loc["lat"], "longitude": loc["lng"]}],
+        "linksModuleData": {"uris": uris},
+        "locations": [{"latitude": cfg["lat"], "longitude": cfg["lng"]}],
     }
 
 
@@ -5821,7 +6725,7 @@ def google_wallet_setup_check():
         "habilitado": google_wallet_enabled(),
     }
     if info["habilitado"]:
-        ok, status, resp = ensure_google_class(_public_base_url())
+        ok, status, resp = ensure_google_class(_public_base_url(), force_update=True)
         info["clase_ok"] = ok
         info["clase_http"] = status
         info["clase_detalle"] = resp if not ok else {"id": _gw_class_id()}
