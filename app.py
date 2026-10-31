@@ -1415,8 +1415,11 @@ ANDROID_CARD_HTML = """
         .pass-fields-grid {
             padding: 15px 20px 10px;
             display: grid;
-            grid-template-columns: 1.25fr 1.1fr 1fr;
+            grid-template-columns: 1.25fr 1fr 1.15fr;
             gap: 10px;
+        }
+        .p-field {
+            min-width: 0;
         }
         .p-field .lbl {
             font-size: 9.5px;
@@ -1435,6 +1438,18 @@ ANDROID_CARD_HTML = """
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
+        }
+        @media (max-width: 430px) {
+            .pass-fields-grid {
+                grid-template-columns: 1.25fr 1fr;
+                row-gap: 12px;
+            }
+            .pass-fields-grid .p-field:last-child {
+                grid-column: 1 / -1;
+                text-align: left !important;
+                padding-top: 8px;
+                border-top: 1px solid rgba(255, 255, 255, 0.06);
+            }
         }
         .pass-promo-row {
             padding: 8px 20px 14px;
@@ -2585,6 +2600,8 @@ BARISTA_HTML = """
             grid-template-columns: 1.4fr 1.1fr 0.95fr auto;
             align-items: center;
             gap: 16px;
+            content-visibility: auto;
+            contain-intrinsic-size: auto 130px;
         }
         .client-card-row.highlight-row {
             background: rgba(48, 209, 88, 0.11);
@@ -2618,8 +2635,10 @@ BARISTA_HTML = """
             background: rgba(255, 255, 255, 0.04);
             padding: 2px 6px;
             border-radius: 5px;
+            white-space: nowrap;
+            display: inline-block;
         }
-        .vip-pill { font-size: 10.5px; font-weight: 700; padding: 2px 8px; border-radius: 99px; display: inline-block; }
+        .vip-pill { font-size: 10.5px; font-weight: 700; padding: 2px 8px; border-radius: 99px; display: inline-block; white-space: nowrap; }
         .client-meta { font-size: 12px; color: var(--text-secondary); margin-top: 4px; display: flex; flex-wrap: wrap; gap: 10px; }
         .client-msg-preview { font-size: 11.5px; color: var(--gold-light); margin-top: 4px; font-style: italic; }
 
@@ -2648,6 +2667,8 @@ BARISTA_HTML = """
             font-weight: 700;
             padding: 3px 9px;
             border-radius: 99px;
+            white-space: nowrap;
+            display: inline-block;
         }
         .status-pill-off {
             background: rgba(255, 255, 255, 0.05);
@@ -2656,6 +2677,8 @@ BARISTA_HTML = """
             font-size: 11px;
             padding: 3px 9px;
             border-radius: 99px;
+            white-space: nowrap;
+            display: inline-block;
         }
         .tele-line { font-size: 11px; color: var(--text-secondary); }
 
@@ -2781,24 +2804,31 @@ BARISTA_HTML = """
             border: 1px solid var(--border-subtle);
             border-radius: 20px;
             overflow-x: auto;
+            overflow-y: auto;
+            max-height: 580px;
+            -webkit-overflow-scrolling: touch;
             box-shadow: 0 14px 36px rgba(0, 0, 0, 0.45);
         }
         .db-table {
             width: 100%;
-            border-collapse: collapse;
+            border-collapse: separate;
+            border-spacing: 0;
             font-size: 13px;
             text-align: left;
             min-width: 980px;
         }
         .db-table th {
-            background: rgba(13, 12, 11, 0.85);
+            position: sticky;
+            top: 0;
+            z-index: 3;
+            background: #12100E;
             color: var(--gold-light);
             font-size: 11px;
             font-weight: 700;
             text-transform: uppercase;
             letter-spacing: 0.6px;
             padding: 14px 16px;
-            border-bottom: 1px solid rgba(212, 175, 55, 0.22);
+            border-bottom: 1px solid rgba(212, 175, 55, 0.28);
             white-space: nowrap;
         }
         .db-table td {
