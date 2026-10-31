@@ -752,7 +752,9 @@ def init_db():
             platform TEXT DEFAULT 'ios',
             android_active INTEGER DEFAULT 0,
             created_at TEXT,
-            last_action TEXT DEFAULT 'add'
+            last_action TEXT DEFAULT 'add',
+            status TEXT DEFAULT 'active',
+            deactivated_at TEXT DEFAULT ''
         )
     ''')
     cols = [r[1] for r in c.execute("PRAGMA table_info(clients)")]
@@ -768,6 +770,8 @@ def init_db():
         ("android_active", "ALTER TABLE clients ADD COLUMN android_active INTEGER DEFAULT 0"),
         ("created_at", "ALTER TABLE clients ADD COLUMN created_at TEXT"),
         ("last_action", "ALTER TABLE clients ADD COLUMN last_action TEXT DEFAULT 'add'"),
+        ("status", "ALTER TABLE clients ADD COLUMN status TEXT DEFAULT 'active'"),
+        ("deactivated_at", "ALTER TABLE clients ADD COLUMN deactivated_at TEXT DEFAULT ''"),
     ]
     for col_name, sql in migrations:
         if col_name not in cols:
@@ -777,6 +781,8 @@ def init_db():
     c.execute("UPDATE clients SET redeemed_count = 0 WHERE redeemed_count IS NULL")
     c.execute("UPDATE clients SET android_active = 0 WHERE android_active IS NULL")
     c.execute("UPDATE clients SET last_action = 'add' WHERE last_action IS NULL OR last_action = ''")
+    c.execute("UPDATE clients SET status = 'active' WHERE status IS NULL OR status = ''")
+    c.execute("UPDATE clients SET deactivated_at = '' WHERE deactivated_at IS NULL")
     c.execute("UPDATE clients SET updated_at = ? WHERE updated_at IS NULL OR updated_at = ''", (get_utc_timestamp(),))
     c.execute("UPDATE clients SET created_at = ? WHERE created_at IS NULL OR created_at = ''", (get_sonora_datetime_str(),))
     c.execute(
@@ -3339,7 +3345,8 @@ BARISTA_HTML = """
 
                         <form id="form-del-{{ client.serial }}" action="/api/delete-client" method="POST" style="margin:0;">
                             <input type="hidden" name="serial" value="{{ client.serial }}">
-                            <button type="button" class="btn-icon-sec btn-icon-del" title="Eliminar registro"
+                            <input type="hidden" name="mode" value="deactivate">
+                            <button type="button" class="btn-icon-sec btn-icon-del" title="Desactivar cliente (enviar a Papelera)"
                                     data-name="{{ client.name|e }}"
                                     onclick="openConfirmModal('delete', 'form-del-{{ client.serial }}', this.dataset.name, '{{ client.serial }}', {{ client.stamps }})">
                                 🗑️
@@ -3587,7 +3594,7 @@ BARISTA_HTML = """
                 </div>
             </div>
 
-            <div class="db-table-wrap">
+            <div class="db-table-wrap" tabindex="0" role="region" aria-label="Directorio de clientes activos">
                 <table class="db-table">
                     <thead>
                         <tr>
@@ -3603,7 +3610,7 @@ BARISTA_HTML = """
                             <th>Cafés Canjeados</th>
                             <th>Nivel VIP</th>
                             <th>Última Actividad</th>
-                            <th>Editar</th>
+                            <th>Acciones</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -3633,7 +3640,7 @@ BARISTA_HTML = """
                                     <span class="status-pill-off">⏳ Pendiente</span>
                                 {% endif %}
                             </td>
-                            <td><strong style="color:var(--gold-light);">{{ client.stamps }} / 10</strong></td>
+                            <td><strong style="color:var(--gold-light);">{{ client.stamps }} / {{ campaign.stampGoal }}</strong></td>
                             <td>{{ client.total_visits }}</td>
                             <td>{{ client.redeemed_count }}</td>
                             <td>
@@ -3645,19 +3652,108 @@ BARISTA_HTML = """
                                 {{ client.last_sync_clean if client.last_sync_clean else (client.last_push_clean if client.last_push_clean else '—') }}
                             </td>
                             <td>
-                                <button type="button" class="btn-icon-sec" title="Editar datos de {{ client.name }}"
-                                        data-serial="{{ client.serial }}"
-                                        data-name="{{ client.name|e }}"
-                                        data-phone="{{ client.phone|e }}"
-                                        data-email="{{ client.email|e }}"
-                                        data-birthdate="{{ client.birthdate|e }}"
-                                        onclick="openEditClientModal(this)">✏️</button>
+                                <div style="display:inline-flex; align-items:center; gap:6px;">
+                                    <button type="button" class="btn-icon-sec" title="Editar datos de {{ client.name }}"
+                                            data-serial="{{ client.serial }}"
+                                            data-name="{{ client.name|e }}"
+                                            data-phone="{{ client.phone|e }}"
+                                            data-email="{{ client.email|e }}"
+                                            data-birthdate="{{ client.birthdate|e }}"
+                                            onclick="openEditClientModal(this)">✏️</button>
+                                    <form id="form-db-del-{{ client.serial }}" action="/api/delete-client" method="POST" style="margin:0;">
+                                        <input type="hidden" name="serial" value="{{ client.serial }}">
+                                        <input type="hidden" name="mode" value="deactivate">
+                                        <button type="button" class="btn-icon-sec btn-del-subtle" title="Desactivar y enviar a Papelera a {{ client.name }}"
+                                                onclick="openConfirmModal('delete', 'form-db-del-{{ client.serial }}', {{ client.name|tojson|forceescape }}, '{{ client.serial }}', {{ client.stamps }})">🗑️</button>
+                                    </form>
+                                </div>
                             </td>
                         </tr>
                         {% else %}
                         <tr>
                             <td colspan="13" style="text-align:center; padding:32px; color:var(--text-secondary);">
-                                No hay clientes registrados todavía.
+                                No hay clientes activos registrados todavía.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- PAPELERA / CLIENTES DESACTIVADOS (SOFT-DELETE CON REACTIVACIÓN Y OCULTAMIENTO DEFINITIVO) -->
+            <div class="db-header-card" style="margin-top:22px; border-color:rgba(255,179,64,0.32);">
+                <div>
+                    <div style="display:inline-flex; align-items:center; gap:6px; background:rgba(255,179,64,0.12); border:1px solid rgba(255,179,64,0.35); color:#FFB340; padding:3px 10px; border-radius:99px; font-size:11px; font-weight:800; margin-bottom:6px;">
+                        📦 PAPELERA DE SEGURIDAD · HISTORIAL PRESERVADO EN BASE DE DATOS
+                    </div>
+                    <h2 style="margin:0; font-size:18px; font-weight:800; color:var(--text-primary);">
+                        Clientes Desactivados / Papelera ({{ (inactive_clients or [])|length }})
+                    </h2>
+                    <p style="margin:4px 0 0; font-size:12.5px; color:var(--text-secondary);">
+                        Los clientes desactivados no aparecen en el Mostrador POS ni reciben notificaciones Push, pero conservan sus sellos e historial. Puedes <strong>♻️ Reactivarlos</strong> con un clic o <strong>🗑️ Eliminarlos Definitivamente</strong> del sistema (su registro histórico permanecerá resguardado internamente en la base de datos como desactivado, sin ser visible en el panel).
+                    </p>
+                </div>
+            </div>
+
+            <div class="db-table-wrap" tabindex="0" role="region" aria-label="Clientes desactivados en papelera">
+                <table class="db-table">
+                    <thead>
+                        <tr>
+                            <th>Código Serial</th>
+                            <th>Nombre del Cliente</th>
+                            <th>Celular</th>
+                            <th>Correo Electrónico</th>
+                            <th>Sellos Guardados</th>
+                            <th>Visitas / Canjes</th>
+                            <th>Nivel VIP</th>
+                            <th>Fecha Desactivación (Sonora)</th>
+                            <th>Acciones de Papelera</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for ic in inactive_clients or [] %}
+                        <tr>
+                            <td><span class="serial-tag" style="opacity:0.75;">{{ ic.serial }}</span></td>
+                            <td>
+                                <strong>{{ ic.name }}</strong>
+                                <span class="status-pill-off" style="margin-left:6px; color:#FFB340; border-color:rgba(255,179,64,0.35);">Desactivado</span>
+                            </td>
+                            <td>{{ ic.phone if ic.phone else '—' }}</td>
+                            <td>{{ ic.email if ic.email else '—' }}</td>
+                            <td><strong style="color:var(--gold-light);">{{ ic.stamps }} / {{ campaign.stampGoal }}</strong></td>
+                            <td>{{ ic.total_visits }} visitas · {{ ic.redeemed_count }} canjes</td>
+                            <td>
+                                <span class="vip-pill" style="background:{{ ic.tier.bg }}; color:{{ ic.tier.fg }}; border:1px solid {{ ic.tier.border }};">
+                                    {{ ic.tier.badge }}
+                                </span>
+                            </td>
+                            <td style="font-size:12px; color:var(--text-secondary);">
+                                {{ ic.deactivated_at if ic.deactivated_at else '—' }}
+                            </td>
+                            <td>
+                                <div style="display:inline-flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                                    <form id="form-react-{{ ic.serial }}" action="/api/reactivate-client" method="POST" style="margin:0;">
+                                        <input type="hidden" name="serial" value="{{ ic.serial }}">
+                                        <button type="button" class="btn-export-csv" style="padding:6px 12px; font-size:11.5px; background:rgba(50,215,75,0.14); border-color:rgba(50,215,75,0.4); color:#32D74B;"
+                                                onclick="openConfirmModal('reactivate', 'form-react-{{ ic.serial }}', {{ ic.name|tojson|forceescape }}, '{{ ic.serial }}', {{ ic.stamps }})">
+                                            ♻️ Reactivar
+                                        </button>
+                                    </form>
+                                    <form id="form-purge-{{ ic.serial }}" action="/api/delete-client" method="POST" style="margin:0;">
+                                        <input type="hidden" name="serial" value="{{ ic.serial }}">
+                                        <input type="hidden" name="mode" value="purge">
+                                        <button type="button" class="btn-export-csv" style="padding:6px 12px; font-size:11.5px; background:rgba(255,69,58,0.13); border-color:rgba(255,69,58,0.4); color:#FF6961;"
+                                                onclick="openConfirmModal('purge', 'form-purge-{{ ic.serial }}', {{ ic.name|tojson|forceescape }}, '{{ ic.serial }}', {{ ic.stamps }})">
+                                            🗑️ Eliminar Definitivamente
+                                        </button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="9" style="text-align:center; padding:24px; color:var(--text-secondary);">
+                                La papelera está vacía. No hay clientes desactivados.
                             </td>
                         </tr>
                         {% endfor %}
@@ -3672,12 +3768,12 @@ BARISTA_HTML = """
                         📜 Bitácora Reciente de Sellos y Canjes (Auditoría de Turno)
                     </h2>
                     <p style="margin:4px 0 0; font-size:12.5px; color:var(--text-secondary);">
-                        Historial cronológico de los últimos movimientos de sellos (+1, -1 y canjes de café gratis) con hora local de Sonora.
+                        Historial cronológico de los últimos movimientos de sellos (+1, -1, canjes y estados de cuenta) con hora local de Sonora.
                     </p>
                 </div>
             </div>
 
-            <div class="db-table-wrap">
+            <div class="db-table-wrap" tabindex="0" role="region" aria-label="Bitácora reciente de sellos y canjes">
                 <table class="db-table">
                     <thead>
                         <tr>
@@ -3699,6 +3795,10 @@ BARISTA_HTML = """
                                     <span class="status-pill-on" style="background:rgba(212,175,55,0.16); color:var(--gold-light); border:1px solid rgba(212,175,55,0.4);">🎁 Canje Café Gratis</span>
                                 {% elif tx.action == 'sub' %}
                                     <span class="status-pill-off" style="color:#FFB340;">➖ Ajuste (-1 sello)</span>
+                                {% elif tx.action == 'deactivate' %}
+                                    <span class="status-pill-off" style="color:#FFB340; border-color:rgba(255,179,64,0.4);">📦 Desactivado</span>
+                                {% elif tx.action == 'reactivate' %}
+                                    <span class="status-pill-on" style="color:#32D74B;">♻️ Reactivado</span>
                                 {% else %}
                                     <span class="status-pill-on">☕️ +1 Sello</span>
                                 {% endif %}
@@ -4139,12 +4239,26 @@ BARISTA_HTML = """
             const confirmBtn = document.getElementById('cm-confirm-btn');
 
             if (actionType === 'delete') {
+                iconBox.className = 'cm-icon warn';
+                iconBox.textContent = '📦';
+                titleEl.textContent = '¿Desactivar cliente y enviar a Papelera?';
+                descEl.innerHTML = 'El cliente <strong>' + safeName + '</strong> (' + safeSerial + ') se ocultará del Mostrador POS y no recibirá notificaciones Push, pero <strong>conservará sus ' + currentStamps + ' sellos e historial</strong> en la sección <em>📦 Papelera</em> de Base de Datos por si deseas reactivarlo.';
+                confirmBtn.className = 'cm-btn-confirm warn';
+                confirmBtn.textContent = 'Sí, desactivar';
+            } else if (actionType === 'reactivate') {
+                iconBox.className = 'cm-icon success';
+                iconBox.textContent = '♻️';
+                titleEl.textContent = '¿Reactivar cliente?';
+                descEl.innerHTML = '<strong>' + safeName + '</strong> (' + safeSerial + ') volverá al Mostrador POS con sus <strong>' + currentStamps + ' / ' + CURRENT_STAMP_GOAL + '</strong> sellos intactos.';
+                confirmBtn.className = 'cm-btn-confirm success';
+                confirmBtn.textContent = 'Sí, reactivar';
+            } else if (actionType === 'purge') {
                 iconBox.className = 'cm-icon danger';
                 iconBox.textContent = '🗑️';
-                titleEl.textContent = '¿Eliminar cliente?';
-                descEl.innerHTML = 'Estás por eliminar permanentemente a <strong>' + safeName + '</strong> (' + safeSerial + '). Esta acción no se puede deshacer.';
+                titleEl.textContent = '¿Eliminar definitivamente del sistema?';
+                descEl.innerHTML = 'Estás por eliminar definitivamente de la vista del sistema a <strong>' + safeName + '</strong> (' + safeSerial + '). Ya no aparecerá en el Mostrador ni en la Papelera (su registro permanecerá resguardado internamente en la base de datos como desactivado).';
                 confirmBtn.className = 'cm-btn-confirm danger';
-                confirmBtn.textContent = 'Sí, eliminar';
+                confirmBtn.textContent = 'Sí, eliminar definitivamente';
             } else if (actionType === 'sub') {
                 const nextStamps = Math.max(0, currentStamps - 1);
                 iconBox.className = 'cm-icon warn';
@@ -4802,7 +4916,8 @@ def generate_signed_pkpass(
     total_visits=None,
     redeemed_count=0,
     last_action="add",
-    for_android=False
+    for_android=False,
+    is_voided=False
 ):
     temp_dir = tempfile.mkdtemp(prefix=f"pass_{serial_number}_")
     try:
@@ -4846,6 +4961,12 @@ def generate_signed_pkpass(
         pass_data["backgroundColor"] = _hex_to_passkit_rgb(cfg.get("backgroundColor"), (18, 16, 14))
         pass_data["labelColor"] = _hex_to_passkit_rgb(cfg.get("labelColor"), (198, 166, 117))
         pass_data["logoText"] = shop_name.upper()
+        if is_voided:
+            pass_data["voided"] = True
+            pass_data["expirationDate"] = "2000-01-01T00:00:00Z"
+        else:
+            pass_data.pop("voided", None)
+            pass_data.pop("expirationDate", None)
 
         barcode_obj = {
             "format": "PKBarcodeFormatQR",
@@ -5096,7 +5217,9 @@ def barista():
                (SELECT COUNT(*) FROM registrations r WHERE r.serial = c.serial) as reg_count,
                c.total_visits, c.redeemed_count, c.android_active,
                (SELECT COUNT(*) FROM android_subscriptions a WHERE a.serial = c.serial) as and_sub_count,
-               c.created_at
+               c.created_at,
+               COALESCE(c.status, 'active') as status,
+               COALESCE(c.deactivated_at, '') as deactivated_at
         FROM clients c
         ORDER BY c.rowid DESC
     """)
@@ -5118,12 +5241,14 @@ def barista():
     except Exception:
         pass
 
-    # Cargar últimos 50 movimientos de la bitácora de auditoría
+    # Cargar últimos 50 movimientos de la bitácora de auditoría (excluyendo clientes ocultos definitivamente)
     recent_transactions = []
     try:
         tx_rows = c.execute("""
             SELECT serial, client_name, action, stamps_before, stamps_after, visits_after, redeemed_after, created_at_sonora, detail
             FROM stamp_transactions
+            WHERE serial NOT IN (SELECT serial FROM clients WHERE COALESCE(status, 'active') = 'hidden')
+              AND action != 'purge'
             ORDER BY id DESC
             LIMIT 50
         """).fetchall()
@@ -5148,6 +5273,7 @@ def barista():
     stamp_goal = campaign_cfg["stampGoal"]
 
     clients = []
+    inactive_clients = []
     upcoming_birthdays = []
     installed_count = 0
     gold_count = 0
@@ -5157,23 +5283,20 @@ def barista():
     month_birthdays_count = 0
 
     for r in rows:
+        status_val = (r[16] or "active").strip().lower()
+        deactivated_at_val = format_sonora_time(r[17] or "")
+        # Si fue eliminado definitivamente de la vista del barista ('hidden'), permanece en SQLite pero no se muestra en ningún lado del sistema
+        if status_val == "hidden":
+            continue
+
         reg_count = r[10] or 0
         ios_installed = bool(r[4]) or reg_count > 0
         android_installed = bool(r[13]) or ((r[14] or 0) > 0)
         is_installed = ios_installed or android_installed
-        if is_installed:
-            installed_count += 1
         stamps_val = r[3] or 0
-        if stamps_val >= stamp_goal:
-            ready_to_redeem_count += 1
         visits_val = r[11] if r[11] is not None else stamps_val
         redeemed_val = r[12] or 0
-        total_redeemed += redeemed_val
         tier = get_vip_tier(visits_val)
-        if visits_val >= 25:
-            gold_count += 1
-        elif visits_val >= 10:
-            silver_count += 1
 
         full_name = (r[1] or "Cliente").strip()
         name_parts = [p for p in full_name.split() if p]
@@ -5186,9 +5309,6 @@ def barista():
         first_name = name_parts[0] if name_parts else full_name
 
         bday_info = calculate_birthday_info(r[7] or "")
-        if bday_info["is_this_month"]:
-            month_birthdays_count += 1
-
         created_at_clean = format_sonora_time(r[15] or "")
         last_push_clean = humanize_push_status(r[8] or "")
         last_sync_clean = format_sonora_time(r[9] or "")
@@ -5218,7 +5338,26 @@ def barista():
             "redeemed_count": redeemed_val,
             "tier": tier,
             "gw_pushes_24h": gw_push_counts.get(r[0], 0),
+            "status": status_val,
+            "deactivated_at": deactivated_at_val,
         }
+
+        if status_val == "inactive":
+            inactive_clients.append(client_obj)
+            continue
+
+        if is_installed:
+            installed_count += 1
+        if stamps_val >= stamp_goal:
+            ready_to_redeem_count += 1
+        total_redeemed += redeemed_val
+        if visits_val >= 25:
+            gold_count += 1
+        elif visits_val >= 10:
+            silver_count += 1
+        if bday_info["is_this_month"]:
+            month_birthdays_count += 1
+
         clients.append(client_obj)
         if bday_info["is_upcoming_week"]:
             upcoming_birthdays.append(client_obj)
@@ -5228,6 +5367,7 @@ def barista():
     html_out = render_template_string(
         BARISTA_HTML,
         clients=clients,
+        inactive_clients=inactive_clients,
         upcoming_birthdays=upcoming_birthdays,
         month_birthdays_count=month_birthdays_count,
         ready_to_redeem_count=ready_to_redeem_count,
@@ -5263,8 +5403,10 @@ def export_clients_csv():
                c.stamps, c.total_visits, c.redeemed_count, c.message,
                c.last_sync_at, c.last_push_status, c.push_token, c.android_active,
                (SELECT COUNT(*) FROM registrations r WHERE r.serial = c.serial) as reg_count,
-               (SELECT COUNT(*) FROM android_subscriptions a WHERE a.serial = c.serial) as and_sub_count
+               (SELECT COUNT(*) FROM android_subscriptions a WHERE a.serial = c.serial) as and_sub_count,
+               COALESCE(c.status, 'active') as status
         FROM clients c
+        WHERE COALESCE(c.status, 'active') != 'hidden'
         ORDER BY c.rowid DESC
     """)
     rows = c.fetchall()
@@ -5277,6 +5419,7 @@ def export_clients_csv():
     writer.writerow([
         "Código Serial",
         "Nombre del Cliente",
+        "Estado de Cuenta",
         "Número de Celular",
         "Correo Electrónico",
         "Fecha de Nacimiento",
@@ -5291,7 +5434,7 @@ def export_clients_csv():
     ])
 
     for r in rows:
-        serial, name, email, phone, bdate, created_at, stamps, visits, redeemed, msg, sync_at, push_st, p_tok, and_act, reg_c, and_c = r
+        serial, name, email, phone, bdate, created_at, stamps, visits, redeemed, msg, sync_at, push_st, p_tok, and_act, reg_c, and_c, status_val = r
         ios_on = bool(p_tok) or ((reg_c or 0) > 0)
         and_on = bool(and_act) or ((and_c or 0) > 0)
         if ios_on and and_on:
@@ -5310,10 +5453,12 @@ def export_clients_csv():
         clean_msg = (msg or DEFAULT_MESSAGE).replace("\u200b", "")
         created_clean = format_sonora_time(created_at or "")
         act_clean = format_sonora_time(sync_at or "") or humanize_push_status(push_st or "")
+        status_label = "Desactivado (Papelera)" if status_val == "inactive" else "Activo"
 
         writer.writerow([
             serial or "",
             name or "",
+            status_label,
             phone or "",
             email or "",
             bdate or "",
@@ -5360,17 +5505,17 @@ def register():
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
 
-    # Evitar duplicados: reutilizar ID MAISHAS-XXXXXX si coincide correo, celular (10 dígitos) o nombre
+    # Evitar duplicados: reutilizar ID MAISHAS-XXXXXX si coincide correo, celular (10 dígitos) o nombre (excepto registros ocultos/purgados)
     existing = None
     norm_phone = _normalize_phone_digits(phone)
     if email:
         existing = c.execute(
-            "SELECT serial, stamps, total_visits, redeemed_count, message, phone, birthdate, email FROM clients WHERE LOWER(TRIM(email)) = LOWER(?) ORDER BY rowid DESC LIMIT 1",
+            "SELECT serial, stamps, total_visits, redeemed_count, message, phone, birthdate, email FROM clients WHERE COALESCE(status, 'active') != 'hidden' AND LOWER(TRIM(email)) = LOWER(?) ORDER BY rowid DESC LIMIT 1",
             (email,)
         ).fetchone()
     if not existing and len(norm_phone) == 10:
         all_with_phone = c.execute(
-            "SELECT serial, stamps, total_visits, redeemed_count, message, phone, birthdate, email FROM clients WHERE phone IS NOT NULL AND TRIM(phone) != '' ORDER BY rowid DESC"
+            "SELECT serial, stamps, total_visits, redeemed_count, message, phone, birthdate, email FROM clients WHERE COALESCE(status, 'active') != 'hidden' AND phone IS NOT NULL AND TRIM(phone) != '' ORDER BY rowid DESC"
         ).fetchall()
         for row_p in all_with_phone:
             if _normalize_phone_digits(row_p[5]) == norm_phone:
@@ -5378,7 +5523,7 @@ def register():
                 break
     if not existing and name and not email and len(norm_phone) < 10:
         existing = c.execute(
-            "SELECT serial, stamps, total_visits, redeemed_count, message, phone, birthdate, email FROM clients WHERE LOWER(TRIM(name)) = LOWER(?) ORDER BY rowid DESC LIMIT 1",
+            "SELECT serial, stamps, total_visits, redeemed_count, message, phone, birthdate, email FROM clients WHERE COALESCE(status, 'active') != 'hidden' AND LOWER(TRIM(name)) = LOWER(?) ORDER BY rowid DESC LIMIT 1",
             (name,)
         ).fetchone()
 
@@ -5394,7 +5539,8 @@ def register():
         c.execute(
             """UPDATE clients
                SET name = ?, email = ?, phone = ?, birthdate = ?, updated_at = ?,
-                   platform = ?, android_active = CASE WHEN ? = 1 THEN 1 ELSE android_active END
+                   platform = ?, android_active = CASE WHEN ? = 1 THEN 1 ELSE android_active END,
+                   status = 'active', deactivated_at = ''
                WHERE serial = ?""",
             (name or "Cliente", final_email, final_phone, final_bdate, now_ts, platform, android_active, serial_number)
         )
@@ -5407,8 +5553,8 @@ def register():
         final_phone = phone
         final_bdate = birthdate
         c.execute(
-            """INSERT INTO clients (serial, name, email, phone, birthdate, stamps, total_visits, redeemed_count, message, updated_at, platform, android_active, created_at, last_action)
-               VALUES (?, ?, ?, ?, ?, 0, 0, 0, ?, ?, ?, ?, ?, 'add')""",
+            """INSERT INTO clients (serial, name, email, phone, birthdate, stamps, total_visits, redeemed_count, message, updated_at, platform, android_active, created_at, last_action, status, deactivated_at)
+               VALUES (?, ?, ?, ?, ?, 0, 0, 0, ?, ?, ?, ?, ?, 'add', 'active', '')""",
             (serial_number, name, email, final_phone, final_bdate, msg_val, now_ts, platform, android_active, created_sonora)
         )
 
@@ -5445,13 +5591,13 @@ def android_card_view(serial_number):
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     c.execute(
-        "SELECT serial, name, email, stamps, message, phone, birthdate, total_visits, redeemed_count, updated_at FROM clients WHERE UPPER(serial) = ?",
+        "SELECT serial, name, email, stamps, message, phone, birthdate, total_visits, redeemed_count, updated_at, COALESCE(status, 'active') FROM clients WHERE UPPER(serial) = ?",
         (serial_clean,)
     )
     row = c.fetchone()
-    if not row:
+    if not row or row[10] != "active":
         conn.close()
-        return "Tarjeta no encontrada", 404
+        return "Tarjeta no encontrada o desactivada", 404
 
     serial_id = row[0]
     c.execute("UPDATE clients SET android_active = 1, last_sync_at = ? WHERE serial = ?", (get_short_time(), serial_id))
@@ -5765,13 +5911,13 @@ def android_card_state(serial_number):
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     c.execute(
-        "SELECT serial, name, stamps, message, total_visits, redeemed_count, updated_at FROM clients WHERE UPPER(serial) = ?",
+        "SELECT serial, name, stamps, message, total_visits, redeemed_count, updated_at, COALESCE(status, 'active') FROM clients WHERE UPPER(serial) = ?",
         (serial_clean,)
     )
     row = c.fetchone()
-    if not row:
+    if not row or row[7] != "active":
         conn.close()
-        return jsonify({"error": "Not found"}), 404
+        return jsonify({"error": "Not found or inactive"}), 404
 
     # Registrar que el teléfono Android está sincronizado en vivo
     c.execute("UPDATE clients SET android_active = 1, last_sync_at = ? WHERE serial = ?", (get_short_time(), row[0]))
@@ -5813,14 +5959,18 @@ def _perform_stamp_update(serial, action="add"):
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     c.execute(
-        "SELECT serial, name, stamps, total_visits, redeemed_count, birthdate FROM clients WHERE UPPER(serial) = ?",
+        "SELECT serial, name, stamps, total_visits, redeemed_count, birthdate, COALESCE(status, 'active') FROM clients WHERE UPPER(serial) = ?",
         (serial_clean,)
     )
     client = c.fetchone()
 
-    if not client:
+    if not client or client[6] == "hidden":
         conn.close()
         return None, f"⚠️ Código QR / Cliente '{serial_clean}' no encontrado"
+
+    if client[6] == "inactive":
+        conn.close()
+        return None, f"📦 El cliente {client[1]} ({client[0]}) está desactivado en la Papelera. Reactívalo en '📊 Base de Datos' para sumarle sellos."
 
     cfg = get_campaign_config()
     goal = cfg["stampGoal"]
@@ -5983,8 +6133,8 @@ def api_campaign_settings():
     c.execute("INSERT OR REPLACE INTO settings (key, value) VALUES ('shop_lat', ?)", (str(lat),))
     c.execute("INSERT OR REPLACE INTO settings (key, value) VALUES ('shop_lng', ?)", (str(lng),))
     c.execute("INSERT OR REPLACE INTO settings (key, value) VALUES ('shop_relevant_text', ?)", (relevant_text,))
-    c.execute("UPDATE clients SET updated_at = ?", (now_ts,))
-    serials = [r[0] for r in c.execute("SELECT serial FROM clients").fetchall()]
+    c.execute("UPDATE clients SET updated_at = ? WHERE COALESCE(status, 'active') = 'active'", (now_ts,))
+    serials = [r[0] for r in c.execute("SELECT serial FROM clients WHERE COALESCE(status, 'active') = 'active'").fetchall()]
     conn.commit()
     conn.close()
 
@@ -6026,8 +6176,8 @@ def update_location():
     c.execute("INSERT OR REPLACE INTO settings (key, value) VALUES ('shop_lat', ?)", (str(lat),))
     c.execute("INSERT OR REPLACE INTO settings (key, value) VALUES ('shop_lng', ?)", (str(lng),))
     c.execute("INSERT OR REPLACE INTO settings (key, value) VALUES ('shop_relevant_text', ?)", (relevant_text,))
-    c.execute("UPDATE clients SET updated_at = ?", (now_ts,))
-    serials = [r[0] for r in c.execute("SELECT serial FROM clients").fetchall()]
+    c.execute("UPDATE clients SET updated_at = ? WHERE COALESCE(status, 'active') = 'active'", (now_ts,))
+    serials = [r[0] for r in c.execute("SELECT serial FROM clients WHERE COALESCE(status, 'active') = 'active'").fetchall()]
     conn.commit()
     conn.close()
 
@@ -6058,7 +6208,7 @@ def update_client():
     now_ts = get_utc_timestamp()
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
-    row = c.execute("SELECT serial FROM clients WHERE UPPER(serial) = ?", (serial,)).fetchone()
+    row = c.execute("SELECT serial FROM clients WHERE UPPER(serial) = ? AND COALESCE(status, 'active') != 'hidden'", (serial,)).fetchone()
     if not row:
         conn.close()
         return redirect(url_for("barista", ok=f"⚠️ Cliente {serial} no encontrado"))
@@ -6082,6 +6232,8 @@ def api_transactions():
     rows = conn.execute("""
         SELECT id, serial, client_name, action, stamps_before, stamps_after, visits_after, redeemed_after, created_at_sonora, detail
         FROM stamp_transactions
+        WHERE serial NOT IN (SELECT serial FROM clients WHERE COALESCE(status, 'active') = 'hidden')
+          AND action != 'purge'
         ORDER BY id DESC
         LIMIT 100
     """).fetchall()
@@ -6106,19 +6258,137 @@ def api_transactions():
 @app.route("/api/delete-client", methods=["POST"])
 @requires_auth
 def delete_client():
-    serial = request.form.get("serial")
+    """
+    Soft-Delete de 2 niveles (NUNCA ejecuta DELETE FROM clients ni DELETE FROM stamp_transactions):
+    - mode='deactivate' (por defecto): mueve al cliente a la Papelera (status='inactive'), ocultándolo del Mostrador POS y desactivando su pase en Wallet, pero permitiendo reactivarlo.
+    - mode='purge' ('Eliminar Definitivamente' desde Papelera): cambia status='hidden' y desvincula dispositivos Push. El registro y su historial quedan resguardados permanentemente en SQLite como desactivados, pero ya no son visibles en ninguna parte del panel de barista.
+    """
+    serial = (request.form.get("serial") or "").strip().upper()
+    mode = (request.form.get("mode") or "deactivate").strip().lower()
+    now_ts = get_utc_timestamp()
+    sonora_now = get_sonora_datetime_str()
+
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
-    c.execute("SELECT name FROM clients WHERE serial = ?", (serial,))
-    row = c.fetchone()
-    c.execute("DELETE FROM registrations WHERE serial = ?", (serial,))
-    c.execute("DELETE FROM android_subscriptions WHERE serial = ?", (serial,))
-    c.execute("DELETE FROM stamp_transactions WHERE serial = ?", (serial,))
-    c.execute("DELETE FROM clients WHERE serial = ?", (serial,))
+    row = c.execute(
+        "SELECT serial, name, stamps, total_visits, redeemed_count, COALESCE(status, 'active'), COALESCE(deactivated_at, '') FROM clients WHERE UPPER(serial) = ?",
+        (serial,)
+    ).fetchone()
+    if not row:
+        conn.close()
+        return redirect(url_for("barista", ok=f"⚠️ Cliente {serial} no encontrado"))
+
+    serial_id, name, stamps, visits, redeemed, _, prev_deact = row
+    stamps_val = stamps or 0
+    visits_val = visits if visits is not None else stamps_val
+    redeemed_val = redeemed or 0
+
+    if mode == "purge":
+        final_deact = prev_deact if prev_deact else sonora_now
+        c.execute(
+            """UPDATE clients
+               SET status = 'hidden', deactivated_at = ?, push_token = NULL, android_active = 0, updated_at = ?
+               WHERE serial = ?""",
+            (final_deact, now_ts, serial_id)
+        )
+        # Sólo desvinculamos los tokens de envío Push para que jamás reciba alertas, pero NUNCA borramos clients ni stamp_transactions
+        c.execute("DELETE FROM registrations WHERE UPPER(serial) = ?", (serial_id,))
+        c.execute("DELETE FROM android_subscriptions WHERE UPPER(serial) = ?", (serial_id,))
+        try:
+            c.execute(
+                """INSERT INTO stamp_transactions (serial, client_name, action, stamps_before, stamps_after, visits_after, redeemed_after, created_at_utc, created_at_sonora, detail)
+                   VALUES (?, ?, 'purge', ?, ?, ?, ?, ?, ?, ?)""",
+                (serial_id, name, stamps_val, stamps_val, visits_val, redeemed_val, now_ts, sonora_now, f"🗑️ Ocultado definitivamente del panel (resguardado en BD): {name} ({serial_id})")
+            )
+        except Exception:
+            pass
+        conn.commit()
+        conn.close()
+
+        if google_wallet_enabled():
+            try:
+                google_wallet_push_update(serial_id, _public_base_url(), notify=False)
+            except Exception:
+                pass
+
+        return redirect(url_for("barista", ok=f"🗑️ Cliente {name} ({serial_id}) eliminado definitivamente del sistema"))
+
+    # Nivel 1: Desactivar y enviar a la Papelera (status = 'inactive')
+    c.execute(
+        "UPDATE clients SET status = 'inactive', deactivated_at = ?, updated_at = ? WHERE serial = ?",
+        (sonora_now, now_ts, serial_id)
+    )
+    try:
+        c.execute(
+            """INSERT INTO stamp_transactions (serial, client_name, action, stamps_before, stamps_after, visits_after, redeemed_after, created_at_utc, created_at_sonora, detail)
+               VALUES (?, ?, 'deactivate', ?, ?, ?, ?, ?, ?, ?)""",
+            (serial_id, name, stamps_val, stamps_val, visits_val, redeemed_val, now_ts, sonora_now, f"📦 Cliente enviado a Papelera: {name} ({serial_id})")
+        )
+    except Exception:
+        pass
     conn.commit()
     conn.close()
-    name = row[0] if row else serial
-    return redirect(url_for("barista", ok=f"🗑️ Cliente {name} ({serial}) eliminado correctamente"))
+
+    # Notificar silenciosamente a Apple/Google Wallet para que el pase quede marcado como inactivo
+    try:
+        send_apns_push_for_serial(serial_id, notification_body="Tu tarjeta ha sido pausada temporalmente")
+    except Exception:
+        pass
+
+    return redirect(url_for(
+        "barista",
+        ok=f"📦 Cliente {name} ({serial_id}) desactivado y movido a la Papelera (conserva sus {stamps_val} sellos en Base de Datos)"
+    ))
+
+
+@app.route("/api/reactivate-client", methods=["POST"])
+@requires_auth
+def reactivate_client():
+    """Restaura un cliente de la Papelera (status='inactive') de vuelta al Mostrador POS activo (status='active')."""
+    serial = (request.form.get("serial") or "").strip().upper()
+    now_ts = get_utc_timestamp()
+    sonora_now = get_sonora_datetime_str()
+
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    row = c.execute(
+        "SELECT serial, name, stamps, total_visits, redeemed_count, COALESCE(status, 'active') FROM clients WHERE UPPER(serial) = ?",
+        (serial,)
+    ).fetchone()
+    if not row or row[5] == "hidden":
+        conn.close()
+        return redirect(url_for("barista", ok=f"⚠️ Cliente {serial} no encontrado"))
+
+    serial_id, name, stamps, visits, redeemed, _ = row
+    stamps_val = stamps or 0
+    visits_val = visits if visits is not None else stamps_val
+    redeemed_val = redeemed or 0
+
+    c.execute(
+        "UPDATE clients SET status = 'active', deactivated_at = '', updated_at = ? WHERE serial = ?",
+        (now_ts, serial_id)
+    )
+    try:
+        c.execute(
+            """INSERT INTO stamp_transactions (serial, client_name, action, stamps_before, stamps_after, visits_after, redeemed_after, created_at_utc, created_at_sonora, detail)
+               VALUES (?, ?, 'reactivate', ?, ?, ?, ?, ?, ?, ?)""",
+            (serial_id, name, stamps_val, stamps_val, visits_val, redeemed_val, now_ts, sonora_now, f"♻️ Cliente reactivado desde Papelera: {name} ({serial_id})")
+        )
+    except Exception:
+        pass
+    conn.commit()
+    conn.close()
+
+    try:
+        send_apns_push_for_serial(serial_id, notification_body="♻️ ¡Tu tarjeta de lealtad está activa de nuevo!")
+    except Exception:
+        pass
+
+    return redirect(url_for(
+        "barista",
+        ok=f"♻️ Cliente {name} ({serial_id}) reactivado en el Mostrador con sus {stamps_val} sellos intactos",
+        updated=serial_id
+    ))
 
 
 @app.route("/api/send-message", methods=["POST"])
@@ -6132,9 +6402,9 @@ def send_message():
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     if target == "all":
-        c.execute("SELECT serial, name, message FROM clients")
+        c.execute("SELECT serial, name, message FROM clients WHERE COALESCE(status, 'active') = 'active'")
     else:
-        c.execute("SELECT serial, name, message FROM clients WHERE serial = ?", (target,))
+        c.execute("SELECT serial, name, message FROM clients WHERE serial = ? AND COALESCE(status, 'active') = 'active'", (target,))
     rows = c.fetchall()
 
     now_ts = get_utc_timestamp()
@@ -6275,7 +6545,7 @@ def get_latest_pass(pass_type_id, serial_number):
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     c.execute(
-        "SELECT serial, name, stamps, message, phone, birthdate, total_visits, redeemed_count, updated_at, last_action FROM clients WHERE UPPER(serial) = ?",
+        "SELECT serial, name, stamps, message, phone, birthdate, total_visits, redeemed_count, updated_at, last_action, COALESCE(status, 'active') FROM clients WHERE UPPER(serial) = ?",
         (serial_clean,)
     )
     client = c.fetchone()
@@ -6283,7 +6553,7 @@ def get_latest_pass(pass_type_id, serial_number):
         conn.close()
         return "", 404
 
-    serial_id, name, stamps, message, phone, birthdate, total_visits, redeemed_count, updated_at_str, last_action = client
+    serial_id, name, stamps, message, phone, birthdate, total_visits, redeemed_count, updated_at_str, last_action, status_val = client
 
     try:
         dt_upd = datetime.strptime(updated_at_str, "%Y-%m-%d %H:%M:%S.%f").replace(tzinfo=timezone.utc)
@@ -6320,7 +6590,8 @@ def get_latest_pass(pass_type_id, serial_number):
         serial_id, name, stamps or 0, request.host_url, message,
         phone=phone, birthdate=birthdate, total_visits=total_visits, redeemed_count=redeemed_count or 0,
         last_action=last_action or "add",
-        for_android=is_android_wallet
+        for_android=is_android_wallet,
+        is_voided=(status_val != "active")
     )
     response = send_file(pkpass_path, mimetype="application/vnd.apple.pkpass", conditional=False, max_age=0)
     response.headers["Last-Modified"] = formatdate(timeval=float(upd_epoch_sec), localtime=False, usegmt=True)
@@ -6677,7 +6948,7 @@ def build_google_loyalty_object(serial, base_url):
     serial_clean = (serial or "").strip().upper()
     conn = sqlite3.connect(DB_PATH, timeout=20.0)
     row = conn.execute(
-        "SELECT serial, name, stamps, message, total_visits, updated_at FROM clients WHERE UPPER(serial) = ?",
+        "SELECT serial, name, stamps, message, total_visits, updated_at, COALESCE(status, 'active') FROM clients WHERE UPPER(serial) = ?",
         (serial_clean,)
     ).fetchone()
     conn.close()
@@ -6687,7 +6958,7 @@ def build_google_loyalty_object(serial, base_url):
     goal = cfg.get("stampGoal") or 10
     shop_name = cfg.get("shopName") or "Maishas Café"
     reward_text = cfg.get("rewardText") or "¡1 Café Gratis!"
-    serial_id, name, stamps, message, visits, updated_at = row
+    serial_id, name, stamps, message, visits, updated_at, status_val = row
     stamps = max(0, min(goal, stamps or 0))
     tier = get_vip_tier(visits if visits is not None else stamps)
     reward = f"¡{reward_text.upper()} DISPONIBLE! 🎉" if stamps >= goal else f"Faltan {goal - stamps} sellos para: {reward_text}"
@@ -6702,7 +6973,7 @@ def build_google_loyalty_object(serial, base_url):
     return {
         "id": _gw_object_id(serial_id),
         "classId": _gw_class_id(),
-        "state": "ACTIVE",
+        "state": "ACTIVE" if status_val == "active" else "INACTIVE",
         "accountId": serial_id,
         "accountName": name or "Cliente",
         "loyaltyPoints": {"label": "SELLOS", "balance": {"string": f"{stamps} / {goal}"}},
