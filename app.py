@@ -243,6 +243,29 @@ DB_PATH = os.path.join(DATA_DIR, "loyalty.db")
 VAPID_FILE = os.path.join(DATA_DIR, "vapid_keys.json")
 
 
+AUTH_TOKEN = os.environ.get("AUTH_TOKEN", "MaishasSecretAuthToken2026")
+
+# Cargar bóveda cifrada local (vault.enc) si no se definieron variables manuales en Railway
+_VAULT_PATH = os.path.join(BASE_DIR, "vault.enc")
+if os.path.isfile(_VAULT_PATH):
+    try:
+        from cryptography.fernet import Fernet
+        _vkey = base64.urlsafe_b64encode(hashlib.sha256(f"{AUTH_TOKEN}:replica-vault-v1".encode("utf-8")).digest())
+        with open(_VAULT_PATH, "rb") as _vf:
+            _vdata = json.loads(Fernet(_vkey).decrypt(_vf.read().strip()).decode("utf-8"))
+        if not os.environ.get("ENV_CERT_PEM") and _vdata.get("cert_pem"):
+            os.environ["ENV_CERT_PEM"] = _vdata["cert_pem"]
+        if not os.environ.get("ENV_KEY_PEM") and _vdata.get("key_pem"):
+            os.environ["ENV_KEY_PEM"] = _vdata["key_pem"]
+        if not os.environ.get("ENV_WWDR_PEM") and _vdata.get("wwdr_pem"):
+            os.environ["ENV_WWDR_PEM"] = _vdata["wwdr_pem"]
+        if not os.environ.get("GOOGLE_WALLET_ISSUER_ID") and _vdata.get("gw_issuer_id"):
+            os.environ["GOOGLE_WALLET_ISSUER_ID"] = _vdata["gw_issuer_id"]
+        if not os.environ.get("GOOGLE_WALLET_SERVICE_ACCOUNT_JSON") and _vdata.get("gw_sa_json"):
+            os.environ["GOOGLE_WALLET_SERVICE_ACCOUNT_JSON"] = _vdata["gw_sa_json"]
+    except Exception as _ve:
+        print(f"⚠️ No se pudo abrir vault.enc: {_ve}")
+
 # Auto-inyectar certificados Apple desde Variables de Entorno en Railway
 for env_var, file_path in [("ENV_KEY_PEM", KEY_PEM), ("ENV_CERT_PEM", CERT_PEM), ("ENV_WWDR_PEM", WWDR_PEM)]:
     val = os.environ.get(env_var)
@@ -251,7 +274,6 @@ for env_var, file_path in [("ENV_KEY_PEM", KEY_PEM), ("ENV_CERT_PEM", CERT_PEM),
         with open(file_path, 'w') as f:
             f.write(val)
 
-AUTH_TOKEN = os.environ.get("AUTH_TOKEN", "MaishasSecretAuthToken2026")
 PASS_TYPE_ID = "pass.com.maishascafe.loyalty"
 DEFAULT_MESSAGE = "¡Bienvenido a Maishas Café! ☕️"
 DEFAULT_LAT = 27.0706
@@ -5494,7 +5516,7 @@ GW_SCOPE = "https://www.googleapis.com/auth/wallet_object.issuer"
 _RAILWAY_DOMAIN = (os.environ.get("RAILWAY_PUBLIC_DOMAIN") or "").strip()
 PUBLIC_BASE_URL = (
     os.environ.get("PUBLIC_BASE_URL")
-    or (f"https://{_RAILWAY_DOMAIN}" if _RAILWAY_DOMAIN else "")
+    or (f"https://{_RAILWAY_DOMAIN}" if _RAILWAY_DOMAIN else "https://web-production-f7cd4.up.railway.app")
 ).rstrip("/")
 _gw_token_cache = {"token": None, "exp": 0}
 _gw_class_ready = {"ok": False}
