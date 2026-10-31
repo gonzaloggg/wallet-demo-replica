@@ -3,3 +3,5 @@
 workers = 1
 threads = 16
 timeout = 120
+graceful_timeout = 10
+keepalive = 2
