@@ -274,10 +274,13 @@ export const CampaignAdminDashboard: React.FC<{
 
         {/* PESTAÑA 1: MARCA Y DISEÑO */}
         {activeTab === "brand" && (
-          <div className="c-tab-pane">
+          <div className="c-tab-pane" style={{ accentColor: config.labelColor }}>
             <div className="c-field-block">
-              <label className="c-label">Nombre de la Cafetería / Negocio</label>
+              <label htmlFor="cad-shop-name" className="c-label">
+                Nombre de la Cafetería / Negocio
+              </label>
               <input
+                id="cad-shop-name"
                 type="text"
                 className="input-dark"
                 value={config.shopName}
@@ -290,17 +293,22 @@ export const CampaignAdminDashboard: React.FC<{
 
             <div className="c-colors-row">
               <div className="c-color-card">
-                <label className="c-label">Color de Fondo</label>
+                <label htmlFor="cad-bg-hex" className="c-label">
+                  Color de Fondo
+                </label>
                 <div className="c-color-input-wrap">
                   <input
                     type="color"
+                    aria-label="Selector de color de fondo"
                     value={config.backgroundColor}
                     onChange={(e) =>
                       updateField("backgroundColor", e.target.value)
                     }
                   />
                   <input
+                    id="cad-bg-hex"
                     type="text"
+                    pattern="^#[0-9A-Fa-f]{6}$"
                     className="input-dark"
                     value={config.backgroundColor}
                     onChange={(e) =>
@@ -311,17 +319,22 @@ export const CampaignAdminDashboard: React.FC<{
               </div>
 
               <div className="c-color-card">
-                <label className="c-label">Color de Texto</label>
+                <label htmlFor="cad-fg-hex" className="c-label">
+                  Color de Texto
+                </label>
                 <div className="c-color-input-wrap">
                   <input
                     type="color"
+                    aria-label="Selector de color de texto"
                     value={config.foregroundColor}
                     onChange={(e) =>
                       updateField("foregroundColor", e.target.value)
                     }
                   />
                   <input
+                    id="cad-fg-hex"
                     type="text"
+                    pattern="^#[0-9A-Fa-f]{6}$"
                     className="input-dark"
                     value={config.foregroundColor}
                     onChange={(e) =>
@@ -332,15 +345,20 @@ export const CampaignAdminDashboard: React.FC<{
               </div>
 
               <div className="c-color-card">
-                <label className="c-label">Color Acento / Sellos</label>
+                <label htmlFor="cad-lbl-hex" className="c-label">
+                  Color Acento / Sellos
+                </label>
                 <div className="c-color-input-wrap">
                   <input
                     type="color"
+                    aria-label="Selector de color de acento"
                     value={config.labelColor}
                     onChange={(e) => updateField("labelColor", e.target.value)}
                   />
                   <input
+                    id="cad-lbl-hex"
                     type="text"
+                    pattern="^#[0-9A-Fa-f]{6}$"
                     className="input-dark"
                     value={config.labelColor}
                     onChange={(e) => updateField("labelColor", e.target.value)}
@@ -351,7 +369,7 @@ export const CampaignAdminDashboard: React.FC<{
 
             {/* Dropzone Logo */}
             <div className="c-field-block">
-              <label className="c-label">
+              <label htmlFor="cad-logo-file" className="c-label">
                 Logo del Comercio (Recomendado: 660×660 px · Relación 1:1)
               </label>
               <div
@@ -360,7 +378,9 @@ export const CampaignAdminDashboard: React.FC<{
                 onDrop={(e) => onDropFile(e, "logo")}
               >
                 <input
+                  id="cad-logo-file"
                   type="file"
+                  className="visually-hidden"
                   accept="image/png,image/jpeg,image/webp"
                   onChange={(e) => onSelectFile(e, "logo")}
                 />
@@ -384,7 +404,7 @@ export const CampaignAdminDashboard: React.FC<{
 
             {/* Dropzone Banner / Strip */}
             <div className="c-field-block">
-              <label className="c-label">
+              <label htmlFor="cad-strip-file" className="c-label">
                 Banner / Fondo de Tira de Sellos (Proporción ~3:1 · 750×250 o
                 1125×432 px)
               </label>
@@ -394,7 +414,9 @@ export const CampaignAdminDashboard: React.FC<{
                 onDrop={(e) => onDropFile(e, "strip")}
               >
                 <input
+                  id="cad-strip-file"
                   type="file"
+                  className="visually-hidden"
                   accept="image/png,image/jpeg,image/webp"
                   onChange={(e) => onSelectFile(e, "strip")}
                 />
@@ -415,12 +437,13 @@ export const CampaignAdminDashboard: React.FC<{
 
         {/* PESTAÑA 2: REGLAS DEL PROGRAMA */}
         {activeTab === "rules" && (
-          <div className="c-tab-pane">
+          <div className="c-tab-pane" style={{ accentColor: config.labelColor }}>
             <div className="c-field-block">
-              <label className="c-label">
+              <label htmlFor="cad-stamp-goal" className="c-label">
                 Meta de Sellos para Premio ({config.stampGoal} sellos)
               </label>
               <input
+                id="cad-stamp-goal"
                 type="number"
                 min={4}
                 max={12}
@@ -433,8 +456,11 @@ export const CampaignAdminDashboard: React.FC<{
             </div>
 
             <div className="c-field-block">
-              <label className="c-label">Texto del Premio / Recompensa</label>
+              <label htmlFor="cad-reward-text" className="c-label">
+                Texto del Premio / Recompensa
+              </label>
               <input
+                id="cad-reward-text"
                 type="text"
                 className="input-dark"
                 value={config.rewardText}
@@ -445,8 +471,11 @@ export const CampaignAdminDashboard: React.FC<{
             </div>
 
             <div className="c-field-block">
-              <label className="c-label">Enlace al Menú Digital o WhatsApp</label>
+              <label htmlFor="cad-menu-url" className="c-label">
+                Enlace al Menú Digital o WhatsApp
+              </label>
               <input
+                id="cad-menu-url"
                 type="url"
                 className="input-dark"
                 value={config.menuUrl}
@@ -456,10 +485,11 @@ export const CampaignAdminDashboard: React.FC<{
             </div>
 
             <div className="c-field-block">
-              <label className="c-label">
+              <label htmlFor="cad-terms-text" className="c-label">
                 Textos Legales y Términos (Reverso de la Tarjeta)
               </label>
               <textarea
+                id="cad-terms-text"
                 rows={4}
                 className="input-dark"
                 value={config.termsText}
@@ -471,11 +501,14 @@ export const CampaignAdminDashboard: React.FC<{
 
         {/* PESTAÑA 3: UBICACIÓN GPS */}
         {activeTab === "location" && (
-          <div className="c-tab-pane">
+          <div className="c-tab-pane" style={{ accentColor: config.labelColor }}>
             <div className="c-gps-grid">
               <div>
-                <label className="c-label">Latitud GPS</label>
+                <label htmlFor="cad-lat" className="c-label">
+                  Latitud GPS
+                </label>
                 <input
+                  id="cad-lat"
                   type="number"
                   step="any"
                   className="input-dark"
@@ -486,8 +519,11 @@ export const CampaignAdminDashboard: React.FC<{
                 />
               </div>
               <div>
-                <label className="c-label">Longitud GPS</label>
+                <label htmlFor="cad-lng" className="c-label">
+                  Longitud GPS
+                </label>
                 <input
+                  id="cad-lng"
                   type="number"
                   step="any"
                   className="input-dark"
@@ -507,11 +543,12 @@ export const CampaignAdminDashboard: React.FC<{
             </div>
 
             <div className="c-field-block">
-              <label className="c-label">
+              <label htmlFor="cad-relevant-text" className="c-label">
                 Mensaje de Notificación por Proximidad (~150m en Pantalla de
                 Bloqueo)
               </label>
               <input
+                id="cad-relevant-text"
                 type="text"
                 className="input-dark"
                 maxLength={160}

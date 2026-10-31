@@ -2901,6 +2901,29 @@ BARISTA_HTML = """
             background: linear-gradient(135deg, #30D158 0%, #229E42 100%);
             color: #08130B;
         }
+        .visually-hidden {
+            position: absolute;
+            clip-path: inset(50%);
+            overflow: hidden;
+            width: 1px;
+            height: 1px;
+            margin: -1px;
+            padding: 0;
+            border: 0;
+            white-space: nowrap;
+        }
+        input[type="checkbox"],
+        input[type="radio"],
+        input[type="range"] {
+            accent-color: var(--gold);
+        }
+        .input-dark:user-invalid {
+            border-color: #FF453A;
+            box-shadow: 0 0 0 2px rgba(255, 69, 58, 0.2);
+        }
+        .input-dark:user-valid {
+            border-color: rgba(48, 209, 88, 0.45);
+        }
     </style>
 </head>
 <body>
@@ -3640,35 +3663,35 @@ BARISTA_HTML = """
                         <!-- SUB-PESTAÑA 1: MARCA Y DISEÑO -->
                         <div id="ca-pane-brand">
                             <div style="margin-bottom:16px;">
-                                <label style="font-size:11.5px; color:var(--gold-light); font-weight:700; display:block; margin-bottom:6px; text-transform:uppercase; letter-spacing:0.5px;">
+                                <label for="ca-shop-name" style="font-size:11.5px; color:var(--gold-light); font-weight:700; display:block; margin-bottom:6px; text-transform:uppercase; letter-spacing:0.5px;">
                                     ☕️ Nombre de la Cafetería / Marca
                                 </label>
-                                <input type="text" id="ca-shop-name" class="input-dark" maxlength="40" value="{{ campaign.shopName }}" placeholder="Ej. Maishas Café" oninput="onCampaignFieldInput()">
+                                <input type="text" id="ca-shop-name" class="input-dark" maxlength="40" required value="{{ campaign.shopName }}" placeholder="Ej. Maishas Café" oninput="onCampaignFieldInput()">
                             </div>
 
                             <!-- Selectores de Color -->
                             <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(155px, 1fr)); gap:12px; margin-bottom:18px;">
                                 <div style="background:rgba(0,0,0,0.3); border:1px solid var(--border-subtle); border-radius:12px; padding:10px 12px;">
-                                    <label style="font-size:11px; color:var(--text-secondary); font-weight:700; display:block; margin-bottom:6px;">Color de Fondo</label>
+                                    <label for="ca-bg-hex" style="font-size:11px; color:var(--text-secondary); font-weight:700; display:block; margin-bottom:6px;">Color de Fondo</label>
                                     <div style="display:flex; align-items:center; gap:8px;">
-                                        <input type="color" id="ca-bg-picker" value="{{ campaign.backgroundColor }}" style="width:36px; height:34px; border:none; border-radius:8px; background:transparent; cursor:pointer;" oninput="syncColorPair('bg', this.value)">
-                                        <input type="text" id="ca-bg-hex" class="input-dark" value="{{ campaign.backgroundColor }}" maxlength="7" style="font-family:monospace; font-size:12.5px; padding:7px 9px;" oninput="syncColorPair('bg', this.value)">
+                                        <input type="color" id="ca-bg-picker" aria-label="Selector de color de fondo" value="{{ campaign.backgroundColor }}" style="width:36px; height:34px; border:none; border-radius:8px; background:transparent; cursor:pointer;" oninput="syncColorPair('bg', this.value)">
+                                        <input type="text" id="ca-bg-hex" class="input-dark" pattern="^#[0-9A-Fa-f]{6}$" value="{{ campaign.backgroundColor }}" maxlength="7" style="font-family:monospace; font-size:12.5px; padding:7px 9px;" oninput="syncColorPair('bg', this.value)">
                                     </div>
                                 </div>
 
                                 <div style="background:rgba(0,0,0,0.3); border:1px solid var(--border-subtle); border-radius:12px; padding:10px 12px;">
-                                    <label style="font-size:11px; color:var(--text-secondary); font-weight:700; display:block; margin-bottom:6px;">Color de Texto</label>
+                                    <label for="ca-fg-hex" style="font-size:11px; color:var(--text-secondary); font-weight:700; display:block; margin-bottom:6px;">Color de Texto</label>
                                     <div style="display:flex; align-items:center; gap:8px;">
-                                        <input type="color" id="ca-fg-picker" value="{{ campaign.foregroundColor }}" style="width:36px; height:34px; border:none; border-radius:8px; background:transparent; cursor:pointer;" oninput="syncColorPair('fg', this.value)">
-                                        <input type="text" id="ca-fg-hex" class="input-dark" value="{{ campaign.foregroundColor }}" maxlength="7" style="font-family:monospace; font-size:12.5px; padding:7px 9px;" oninput="syncColorPair('fg', this.value)">
+                                        <input type="color" id="ca-fg-picker" aria-label="Selector de color de texto" value="{{ campaign.foregroundColor }}" style="width:36px; height:34px; border:none; border-radius:8px; background:transparent; cursor:pointer;" oninput="syncColorPair('fg', this.value)">
+                                        <input type="text" id="ca-fg-hex" class="input-dark" pattern="^#[0-9A-Fa-f]{6}$" value="{{ campaign.foregroundColor }}" maxlength="7" style="font-family:monospace; font-size:12.5px; padding:7px 9px;" oninput="syncColorPair('fg', this.value)">
                                     </div>
                                 </div>
 
                                 <div style="background:rgba(0,0,0,0.3); border:1px solid var(--border-subtle); border-radius:12px; padding:10px 12px;">
-                                    <label style="font-size:11px; color:var(--text-secondary); font-weight:700; display:block; margin-bottom:6px;">Color Acento / Sellos</label>
+                                    <label for="ca-lbl-hex" style="font-size:11px; color:var(--text-secondary); font-weight:700; display:block; margin-bottom:6px;">Color Acento / Sellos</label>
                                     <div style="display:flex; align-items:center; gap:8px;">
-                                        <input type="color" id="ca-lbl-picker" value="{{ campaign.labelColor }}" style="width:36px; height:34px; border:none; border-radius:8px; background:transparent; cursor:pointer;" oninput="syncColorPair('lbl', this.value)">
-                                        <input type="text" id="ca-lbl-hex" class="input-dark" value="{{ campaign.labelColor }}" maxlength="7" style="font-family:monospace; font-size:12.5px; padding:7px 9px;" oninput="syncColorPair('lbl', this.value)">
+                                        <input type="color" id="ca-lbl-picker" aria-label="Selector de color de acento" value="{{ campaign.labelColor }}" style="width:36px; height:34px; border:none; border-radius:8px; background:transparent; cursor:pointer;" oninput="syncColorPair('lbl', this.value)">
+                                        <input type="text" id="ca-lbl-hex" class="input-dark" pattern="^#[0-9A-Fa-f]{6}$" value="{{ campaign.labelColor }}" maxlength="7" style="font-family:monospace; font-size:12.5px; padding:7px 9px;" oninput="syncColorPair('lbl', this.value)">
                                     </div>
                                 </div>
                             </div>
@@ -3680,10 +3703,10 @@ BARISTA_HTML = """
                                      ondragover="event.preventDefault(); this.style.borderColor='#38BDF8';"
                                      ondragleave="this.style.borderColor='rgba(212,175,55,0.45)';"
                                      ondrop="handleCampaignDrop(event, 'logo')">
-                                    <div style="font-size:12px; font-weight:800; color:var(--gold-light); margin-bottom:4px;">🖼️ Logotipo de la Marca</div>
+                                    <label for="ca-logo-file" style="font-size:12px; font-weight:800; color:var(--gold-light); margin-bottom:4px; display:block; cursor:pointer;">🖼️ Logotipo de la Marca</label>
                                     <div style="font-size:11px; color:var(--text-secondary); margin-bottom:10px;">Proporción recomendada: <strong>1:1 cuadrada</strong> (ej. 660×660 px, PNG/JPG)</div>
                                     <img id="ca-logo-thumb" src="/api/campaign/logo.png?v={{ campaign.logoVersion }}" alt="Logo actual" style="width:60px; height:60px; border-radius:50%; object-fit:cover; border:2px solid var(--gold); margin:0 auto 10px; display:block;">
-                                    <input type="file" id="ca-logo-file" accept="image/png,image/jpeg,image/webp" style="display:none;" onchange="handleCampaignFileSelect(this.files[0], 'logo')">
+                                    <input type="file" id="ca-logo-file" class="visually-hidden" accept="image/png,image/jpeg,image/webp" onchange="handleCampaignFileSelect(this.files[0], 'logo')">
                                     <button type="button" class="btn-gold-sm" style="width:100%;" onclick="document.getElementById('ca-logo-file').click()">
                                         📤 Subir / Arrastrar Logo
                                     </button>
@@ -3695,16 +3718,16 @@ BARISTA_HTML = """
                                      ondragover="event.preventDefault(); this.style.borderColor='#38BDF8';"
                                      ondragleave="this.style.borderColor='rgba(212,175,55,0.45)';"
                                      ondrop="handleCampaignDrop(event, 'strip')">
-                                    <div style="font-size:12px; font-weight:800; color:var(--gold-light); margin-bottom:4px;">🎞️ Fondo de Tira / Strip Banner</div>
+                                    <label for="ca-strip-file" style="font-size:12px; font-weight:800; color:var(--gold-light); margin-bottom:4px; display:block; cursor:pointer;">🎞️ Fondo de Tira / Strip Banner</label>
                                     <div style="font-size:11px; color:var(--text-secondary); margin-bottom:10px;">Proporción recomendada: <strong>~3:1 panorámica</strong> (1125×432 o 1032×336 px)</div>
                                     <div style="display:flex; gap:6px; justify-content:center; margin-bottom:8px;">
-                                        <input type="file" id="ca-strip-file" accept="image/png,image/jpeg,image/webp" style="display:none;" onchange="handleCampaignFileSelect(this.files[0], 'strip')">
+                                        <input type="file" id="ca-strip-file" class="visually-hidden" accept="image/png,image/jpeg,image/webp" onchange="handleCampaignFileSelect(this.files[0], 'strip')">
                                         <button type="button" class="btn-gold-sm" style="flex:1;" onclick="document.getElementById('ca-strip-file').click()">
                                             📤 Subir Fondo Strip
                                         </button>
                                         <button type="button" class="btn-icon-sec" title="Usar fondo automático sin imagen" onclick="clearCustomStripBg()">↺ Auto</button>
                                     </div>
-                                    <label style="display:inline-flex; align-items:center; gap:6px; font-size:11.5px; color:var(--text-secondary); cursor:pointer;">
+                                    <label for="ca-use-custom-strip" style="display:inline-flex; align-items:center; gap:6px; font-size:11.5px; color:var(--text-secondary); cursor:pointer;">
                                         <input type="checkbox" id="ca-use-custom-strip" {% if campaign.useCustomStrip %}checked{% endif %} onchange="onCampaignFieldInput()">
                                         Usar imagen de fondo en la tira de sellos
                                     </label>
@@ -3716,7 +3739,7 @@ BARISTA_HTML = """
                         <!-- SUB-PESTAÑA 2: REGLAS DEL PROGRAMA -->
                         <div id="ca-pane-rules" style="display:none;">
                             <div style="margin-bottom:16px;">
-                                <label style="font-size:11.5px; color:var(--gold-light); font-weight:700; display:block; margin-bottom:6px; text-transform:uppercase; letter-spacing:0.5px;">
+                                <label for="ca-stamp-goal" style="font-size:11.5px; color:var(--gold-light); font-weight:700; display:block; margin-bottom:6px; text-transform:uppercase; letter-spacing:0.5px;">
                                     🎯 Meta de Sellos para Canje (4 a 12 sellos)
                                 </label>
                                 <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
@@ -3730,21 +3753,21 @@ BARISTA_HTML = """
                             </div>
 
                             <div style="margin-bottom:16px;">
-                                <label style="font-size:11.5px; color:var(--gold-light); font-weight:700; display:block; margin-bottom:6px; text-transform:uppercase; letter-spacing:0.5px;">
+                                <label for="ca-reward-text" style="font-size:11.5px; color:var(--gold-light); font-weight:700; display:block; margin-bottom:6px; text-transform:uppercase; letter-spacing:0.5px;">
                                     🎁 Texto del Premio / Recompensa
                                 </label>
-                                <input type="text" id="ca-reward-text" class="input-dark" maxlength="80" value="{{ campaign.rewardText }}" placeholder="Ej. 1 Café Gratis de cualquier tamaño" oninput="onCampaignFieldInput()">
+                                <input type="text" id="ca-reward-text" class="input-dark" maxlength="80" required value="{{ campaign.rewardText }}" placeholder="Ej. 1 Café Gratis de cualquier tamaño" oninput="onCampaignFieldInput()">
                             </div>
 
                             <div style="margin-bottom:16px;">
-                                <label style="font-size:11.5px; color:var(--gold-light); font-weight:700; display:block; margin-bottom:6px; text-transform:uppercase; letter-spacing:0.5px;">
+                                <label for="ca-menu-url" style="font-size:11.5px; color:var(--gold-light); font-weight:700; display:block; margin-bottom:6px; text-transform:uppercase; letter-spacing:0.5px;">
                                     🔗 Enlace al Menú Digital o WhatsApp
                                 </label>
                                 <input type="url" id="ca-menu-url" class="input-dark" maxlength="200" value="{{ campaign.menuUrl }}" placeholder="https://wa.me/526421234567 o link de Instagram/Menú" oninput="onCampaignFieldInput()">
                             </div>
 
                             <div style="margin-bottom:8px;">
-                                <label style="font-size:11.5px; color:var(--gold-light); font-weight:700; display:block; margin-bottom:6px; text-transform:uppercase; letter-spacing:0.5px;">
+                                <label for="ca-terms-text" style="font-size:11.5px; color:var(--gold-light); font-weight:700; display:block; margin-bottom:6px; text-transform:uppercase; letter-spacing:0.5px;">
                                     📜 Textos Legales y Términos (Reverso de la Tarjeta)
                                 </label>
                                 <textarea id="ca-terms-text" class="input-dark" rows="4" maxlength="500" placeholder="Condiciones de uso del programa de lealtad..." oninput="onCampaignFieldInput()">{{ campaign.termsText }}</textarea>
@@ -3755,11 +3778,11 @@ BARISTA_HTML = """
                         <div id="ca-pane-location" style="display:none;">
                             <div style="display:grid; grid-template-columns:1fr 1fr auto; gap:10px; margin-bottom:16px;">
                                 <div>
-                                    <label style="font-size:11.5px; color:var(--gold-light); font-weight:700; display:block; margin-bottom:6px;">Latitud (GPS)</label>
+                                    <label for="ca-lat" style="font-size:11.5px; color:var(--gold-light); font-weight:700; display:block; margin-bottom:6px;">Latitud (GPS)</label>
                                     <input type="text" id="ca-lat" class="input-dark" value="{{ campaign.lat }}" oninput="onCampaignFieldInput()">
                                 </div>
                                 <div>
-                                    <label style="font-size:11.5px; color:var(--gold-light); font-weight:700; display:block; margin-bottom:6px;">Longitud (GPS)</label>
+                                    <label for="ca-lng" style="font-size:11.5px; color:var(--gold-light); font-weight:700; display:block; margin-bottom:6px;">Longitud (GPS)</label>
                                     <input type="text" id="ca-lng" class="input-dark" value="{{ campaign.lng }}" oninput="onCampaignFieldInput()">
                                 </div>
                                 <div style="display:flex; align-items:flex-end;">
@@ -3768,7 +3791,7 @@ BARISTA_HTML = """
                             </div>
 
                             <div style="margin-bottom:16px;">
-                                <label style="font-size:11.5px; color:var(--gold-light); font-weight:700; display:block; margin-bottom:6px;">
+                                <label for="ca-relevant-text" style="font-size:11.5px; color:var(--gold-light); font-weight:700; display:block; margin-bottom:6px;">
                                     📲 Mensaje de Notificación por Proximidad (~150m en Apple Wallet)
                                 </label>
                                 <input type="text" id="ca-relevant-text" class="input-dark" maxlength="160" value="{{ campaign.relevantText }}" oninput="onCampaignFieldInput()">
