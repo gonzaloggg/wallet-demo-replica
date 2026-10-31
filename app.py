@@ -544,12 +544,12 @@ def _hex_to_passkit_rgb(hex_str, default="rgb(18, 16, 14)"):
     return f"rgb({r}, {g}, {b})"
 
 
-def _create_dynamic_strip_pil(stamps_count, message=None):
+def _create_dynamic_strip_pil(stamps_count, message=None, campaign=None):
     """
     Crea el objeto PIL Image (1500x500 super-sampled) adaptándose dinámicamente
     a la configuración de campaña (meta de sellos ej. 8 o 10, colores, premio y banner opcional).
     """
-    cfg = get_campaign_config()
+    cfg = campaign if isinstance(campaign, dict) else get_campaign_config()
     goal = max(4, min(12, int(cfg.get("stampGoal") or 10)))
     stamps = max(0, min(goal, int(stamps_count or 0)))
     W, H = 1500, 500
@@ -560,7 +560,7 @@ def _create_dynamic_strip_pil(stamps_count, message=None):
 
     img = Image.new("RGB", (W, H), bg_rgb)
 
-    if cfg.get("useCustomStripBg") and os.path.isfile(CUSTOM_STRIP_BG_PATH):
+    if (cfg.get("useCustomStrip") or cfg.get("useCustomStripBg")) and os.path.isfile(CUSTOM_STRIP_BG_PATH):
         try:
             bg_img = Image.open(CUSTOM_STRIP_BG_PATH).convert("RGB").resize((W, H), Image.Resampling.LANCZOS)
             overlay = Image.new("RGB", (W, H), bg_rgb)
@@ -719,11 +719,11 @@ def _create_dynamic_strip_pil(stamps_count, message=None):
     return img
 
 
-def render_dynamic_strip(stamps_count, output_dir, total_visits=0, message=None):
+def render_dynamic_strip(stamps_count, output_dir, total_visits=0, message=None, campaign=None):
     """
     Guarda strip.png (375x125) y strip@2x.png (750x250) para Apple Wallet .pkpass.
     """
-    img = _create_dynamic_strip_pil(stamps_count, message=message)
+    img = _create_dynamic_strip_pil(stamps_count, message=message, campaign=campaign)
     img_2x = img.resize((750, 250), Image.Resampling.LANCZOS)
     img_1x = img.resize((375, 125), Image.Resampling.LANCZOS)
     img_2x.save(os.path.join(output_dir, "strip@2x.png"), format="PNG", optimize=True)
@@ -873,14 +873,19 @@ def get_shop_location():
 def get_campaign_config():
     """Obtiene la configuración integral de la Tarjeta/Campaña (Marca, Reglas y Ubicación)."""
     loc = get_shop_location()
+    has_custom_strip = os.path.isfile(CUSTOM_STRIP_BG_PATH)
+    logo_ver = str(int(os.path.getmtime(CUSTOM_LOGO_PATH))) if os.path.isfile(CUSTOM_LOGO_PATH) else "1"
+    strip_ver = str(int(os.path.getmtime(CUSTOM_STRIP_BG_PATH))) if has_custom_strip else "1"
     defaults = {
         "shopName": "Maishas Café",
         "backgroundColor": "#12100E",
         "foregroundColor": "#F5F2EB",
         "labelColor": "#D4AF37",
         "logoDataUrl": "/api/campaign/logo.png",
-        "stripDataUrl": "/api/campaign/strip-bg.png" if os.path.isfile(CUSTOM_STRIP_BG_PATH) else "",
-        "useCustomStripBg": os.path.isfile(CUSTOM_STRIP_BG_PATH),
+        "stripDataUrl": f"/api/campaign/strip-bg.png?v={strip_ver}" if has_custom_strip else "",
+        "hasCustomStrip": has_custom_strip,
+        "useCustomStrip": has_custom_strip,
+        "useCustomStripBg": has_custom_strip,
         "stampGoal": 10,
         "rewardText": "¡1 Café Gratis!",
         "termsText": (
@@ -892,7 +897,8 @@ def get_campaign_config():
         "lat": loc["lat"],
         "lng": loc["lng"],
         "relevantText": loc["relevant_text"],
-        "logoVersion": "1",
+        "logoVersion": logo_ver,
+        "stripVersion": strip_ver,
     }
     try:
         conn = sqlite3.connect(DB_PATH)
@@ -908,6 +914,12 @@ def get_campaign_config():
     defaults["lng"] = loc["lng"]
     defaults["relevantText"] = loc["relevant_text"]
     defaults["stampGoal"] = max(4, min(12, int(defaults.get("stampGoal") or 10)))
+    defaults["logoVersion"] = logo_ver
+    defaults["stripVersion"] = strip_ver
+    defaults["hasCustomStrip"] = has_custom_strip
+    use_strip_flag = bool(defaults.get("useCustomStrip", defaults.get("useCustomStripBg", has_custom_strip)))
+    defaults["useCustomStrip"] = use_strip_flag
+    defaults["useCustomStripBg"] = use_strip_flag
     return defaults
 
 
@@ -2924,6 +2936,95 @@ BARISTA_HTML = """
         .input-dark:user-valid {
             border-color: rgba(48, 209, 88, 0.45);
         }
+
+        /* Layout Responsivo para Dashboard de Campaña (Desktop 2 columnas vs Celular 1 columna sin empalmes) */
+        .campaign-layout-grid {
+            display: grid;
+            grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.95fr);
+            gap: 20px;
+            align-items: start;
+        }
+        .campaign-editor-card {
+            padding: 20px;
+            min-width: 0;
+        }
+        .campaign-preview-card {
+            padding: 20px;
+            position: sticky;
+            top: 92px;
+            min-width: 0;
+        }
+        .campaign-subtabs-bar {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 8px;
+            background: rgba(0, 0, 0, 0.38);
+            padding: 6px;
+            border-radius: 14px;
+            border: 1px solid var(--border-subtle);
+            margin-bottom: 18px;
+        }
+        .campaign-colors-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 12px;
+            margin-bottom: 18px;
+        }
+        .campaign-dropzones-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 14px;
+        }
+        .campaign-gps-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr auto;
+            gap: 10px;
+            margin-bottom: 16px;
+        }
+        .campaign-gps-btn-col {
+            display: flex;
+            align-items: flex-end;
+        }
+
+        @media (max-width: 960px) {
+            .campaign-layout-grid {
+                grid-template-columns: minmax(0, 1fr);
+                gap: 16px;
+            }
+            .campaign-preview-card {
+                position: static;
+                top: auto;
+                padding: 16px;
+            }
+            .campaign-editor-card {
+                padding: 16px;
+            }
+        }
+
+        @media (max-width: 600px) {
+            .campaign-subtabs-bar {
+                grid-template-columns: 1fr;
+                gap: 6px;
+            }
+            .campaign-colors-grid {
+                grid-template-columns: 1fr;
+                gap: 10px;
+            }
+            .campaign-dropzones-grid {
+                grid-template-columns: 1fr;
+                gap: 12px;
+            }
+            .campaign-gps-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+            .campaign-gps-btn-col {
+                grid-column: 1 / -1;
+            }
+            .campaign-gps-btn-col button {
+                width: 100%;
+                justify-content: center;
+            }
+        }
     </style>
 </head>
 <body>
@@ -3643,12 +3744,12 @@ BARISTA_HTML = """
 
             <div id="ca-save-banner" style="display:none; margin-bottom:16px; padding:13px 16px; border-radius:14px; font-size:13.5px; font-weight:700;"></div>
 
-            <div style="display:grid; grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.95fr); gap:20px; align-items:start;">
+            <div class="campaign-layout-grid">
                 <!-- PANEL IZQUIERDO: 3 PESTAÑAS DE CONFIGURACIÓN -->
-                <div class="bento-card" style="padding:20px;">
+                <div class="bento-card campaign-editor-card">
                     <div>
                         <!-- Sub-navegación de las 3 pestañas del configurador -->
-                        <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:8px; background:rgba(0,0,0,0.38); padding:6px; border-radius:14px; border:1px solid var(--border-subtle); margin-bottom:18px;">
+                        <div class="campaign-subtabs-bar">
                             <button type="button" id="ca-tab-btn-brand" class="nav-tab-btn active" style="justify-content:center; padding:10px 8px;" onclick="switchCampaignSubTab('brand')">
                                 🎨 1. Marca y Diseño
                             </button>
@@ -3670,7 +3771,7 @@ BARISTA_HTML = """
                             </div>
 
                             <!-- Selectores de Color -->
-                            <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(155px, 1fr)); gap:12px; margin-bottom:18px;">
+                            <div class="campaign-colors-grid">
                                 <div style="background:rgba(0,0,0,0.3); border:1px solid var(--border-subtle); border-radius:12px; padding:10px 12px;">
                                     <label for="ca-bg-hex" style="font-size:11px; color:var(--text-secondary); font-weight:700; display:block; margin-bottom:6px;">Color de Fondo</label>
                                     <div style="display:flex; align-items:center; gap:8px;">
@@ -3697,7 +3798,7 @@ BARISTA_HTML = """
                             </div>
 
                             <!-- Dropzones para Logo y Banner/Strip con validación de proporciones -->
-                            <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(230px, 1fr)); gap:14px;">
+                            <div class="campaign-dropzones-grid">
                                 <!-- Dropzone Logo -->
                                 <div style="background:rgba(0,0,0,0.28); border:1.5px dashed rgba(212,175,55,0.45); border-radius:14px; padding:14px; text-align:center;"
                                      ondragover="event.preventDefault(); this.style.borderColor='#38BDF8';"
@@ -3776,7 +3877,7 @@ BARISTA_HTML = """
 
                         <!-- SUB-PESTAÑA 3: UBICACIÓN Y PROXIMIDAD -->
                         <div id="ca-pane-location" style="display:none;">
-                            <div style="display:grid; grid-template-columns:1fr 1fr auto; gap:10px; margin-bottom:16px;">
+                            <div class="campaign-gps-grid">
                                 <div>
                                     <label for="ca-lat" style="font-size:11.5px; color:var(--gold-light); font-weight:700; display:block; margin-bottom:6px;">Latitud (GPS)</label>
                                     <input type="text" id="ca-lat" class="input-dark" value="{{ campaign.lat }}" oninput="onCampaignFieldInput()">
@@ -3785,7 +3886,7 @@ BARISTA_HTML = """
                                     <label for="ca-lng" style="font-size:11.5px; color:var(--gold-light); font-weight:700; display:block; margin-bottom:6px;">Longitud (GPS)</label>
                                     <input type="text" id="ca-lng" class="input-dark" value="{{ campaign.lng }}" oninput="onCampaignFieldInput()">
                                 </div>
-                                <div style="display:flex; align-items:flex-end;">
+                                <div class="campaign-gps-btn-col">
                                     <button type="button" class="btn-gold-sm" onclick="detectCampaignGPS()">📍 Usar mi GPS</button>
                                 </div>
                             </div>
@@ -3814,7 +3915,7 @@ BARISTA_HTML = """
                             <span style="font-size:12px; color:var(--text-secondary);">
                                 Al guardar se actualiza la plantilla para nuevos registros y pases activos.
                             </span>
-                            <button type="button" id="btn-save-campaign-bottom" class="btn-cam-launch" onclick="saveCampaignSettings()">
+                            <button type="button" id="btn-save-campaign-bottom" class="btn-cam-launch" style="width:100%; max-width:340px; justify-content:center;" onclick="saveCampaignSettings()">
                                 💾 Guardar y Actualizar Plantilla de Campaña
                             </button>
                         </div>
@@ -3822,7 +3923,7 @@ BARISTA_HTML = """
                 </div>
 
                 <!-- PANEL LATERAL DERECHO: PREVIEW EN TIEMPO REAL ESTILO APPLE WALLET -->
-                <div class="bento-card" style="padding:20px; position:sticky; top:92px;">
+                <div class="bento-card campaign-preview-card">
                     <div>
                         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; flex-wrap:wrap; gap:8px;">
                             <div>
@@ -5382,9 +5483,12 @@ def android_card_view(serial_number):
     gw_enabled = google_wallet_enabled()
     gw_save_url = f"/card/{serial_id}/google-wallet"
     if gw_enabled:
-        direct_url, _ = google_wallet_save_url(serial_id, _public_base_url())
-        if direct_url:
-            gw_save_url = direct_url
+        try:
+            direct_url, _ = google_wallet_save_url(serial_id, _public_base_url())
+            if direct_url:
+                gw_save_url = direct_url
+        except Exception as gw_err:
+            _log_wallet_event(f"⚠️ Google Wallet save_url error ({serial_id}): {str(gw_err)[:200]}")
 
     return render_template_string(
         ANDROID_CARD_HTML,
@@ -6550,21 +6654,21 @@ def _gw_text(value):
 
 def build_google_loyalty_class(base_url):
     cfg = get_campaign_config()
-    shop_name = cfg["shopName"]
+    shop_name = cfg.get("shopName") or "Maishas Café"
     return {
         "id": _gw_class_id(),
         "issuerName": shop_name,
         "programName": f"{shop_name} · Sellos",
         "programLogo": {
-            "sourceUri": {"uri": f"{base_url}/api/campaign/logo.png?v={cfg['logoVersion']}"},
+            "sourceUri": {"uri": f"{base_url}/api/campaign/logo.png?v={cfg.get('logoVersion', '1')}"},
             "contentDescription": _gw_text(shop_name)
         },
-        "hexBackgroundColor": cfg["backgroundColor"],
+        "hexBackgroundColor": cfg.get("backgroundColor") or "#12100E",
         "countryCode": "MX",
         "reviewStatus": "UNDER_REVIEW",
         "multipleDevicesAndHoldersAllowedStatus": "ONE_USER_ALL_DEVICES",
         "homepageUri": {"uri": base_url, "description": shop_name},
-        "locations": [{"latitude": cfg["lat"], "longitude": cfg["lng"]}],
+        "locations": [{"latitude": cfg.get("lat", DEFAULT_LAT), "longitude": cfg.get("lng", DEFAULT_LNG)}],
     }
 
 
@@ -6580,16 +6684,16 @@ def build_google_loyalty_object(serial, base_url):
     if not row:
         return None
     cfg = get_campaign_config()
-    goal = cfg["stampGoal"]
-    shop_name = cfg["shopName"]
-    reward_text = cfg["rewardText"]
+    goal = cfg.get("stampGoal") or 10
+    shop_name = cfg.get("shopName") or "Maishas Café"
+    reward_text = cfg.get("rewardText") or "¡1 Café Gratis!"
     serial_id, name, stamps, message, visits, updated_at = row
     stamps = max(0, min(goal, stamps or 0))
     tier = get_vip_tier(visits if visits is not None else stamps)
     reward = f"¡{reward_text.upper()} DISPONIBLE! 🎉" if stamps >= goal else f"Faltan {goal - stamps} sellos para: {reward_text}"
     clean_msg = (message or DEFAULT_MESSAGE).replace("\u200b", "")
     promo_balance = (message or DEFAULT_MESSAGE)[:90]
-    version = urllib_quote(f"{updated_at}_{cfg['logoVersion']}_{cfg['stripVersion']}")
+    version = urllib_quote(f"{updated_at}_{cfg.get('logoVersion', '1')}_{cfg.get('stripVersion', '1')}")
     uris = [
         {"id": "live", "uri": f"{base_url}/card/{serial_id}", "description": "Mi tarjeta en vivo"}
     ]
