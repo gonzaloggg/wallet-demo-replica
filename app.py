@@ -4,7 +4,7 @@ from functools import wraps
 from datetime import datetime, timezone, date, timedelta
 from email.utils import formatdate, parsedate_to_datetime
 from PIL import Image, ImageDraw, ImageFont
-import os, io, csv, re, json, base64, hashlib, zipfile, subprocess, uuid, httpx, ssl, sqlite3, tempfile, shutil, math
+import os, io, csv, re, json, base64, hashlib, zipfile, subprocess, uuid, httpx, ssl, sqlite3, tempfile, shutil, math, time, threading
 import qrcode
 from py_vapid import Vapid01, Vapid02
 from pywebpush import webpush, WebPushException
@@ -7854,19 +7854,29 @@ def diagnostics():
     return jsonify(report)
 
 
-def _start_birthday_auto_worker():
-    def _worker():
-        while True:
-            try:
-                run_auto_birthday_dispatch(force_now=False)
-            except Exception as e:
-                print(f"⚠️ Error en worker de cumpleaños automático: {e}")
-            time.sleep(60)
-    t = threading.Thread(target=_worker, daemon=True, name="bday-auto-worker")
-    t.start()
+_bday_worker_started = False
+_bday_worker_lock = threading.Lock()
 
 
-_start_birthday_auto_worker()
+@app.before_request
+def _ensure_birthday_auto_worker():
+    global _bday_worker_started
+    if _bday_worker_started:
+        return
+    with _bday_worker_lock:
+        if _bday_worker_started:
+            return
+        _bday_worker_started = True
+        def _worker():
+            time.sleep(5)
+            while True:
+                try:
+                    run_auto_birthday_dispatch(force_now=False)
+                except Exception as e:
+                    print(f"⚠️ Error en worker de cumpleaños automático: {e}")
+                time.sleep(60)
+        t = threading.Thread(target=_worker, daemon=True, name="bday-auto-worker")
+        t.start()
 
 
 if __name__ == "__main__":
