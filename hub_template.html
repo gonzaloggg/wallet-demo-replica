@@ -78,12 +78,20 @@
             transition: transform 0.16s cubic-bezier(0.32, 0.72, 0, 1), background-color 0.16s ease;
             cursor: pointer;
             user-select: none;
+            touch-action: manipulation;
         }
         .action-card:active {
             transform: scale(0.98);
             background-color: #E1D3C8;
         }
         /* Native <dialog> bottom sheets following prevent-page-scroll-under-modal-dialog */
+        dialog.bottom-sheet:not([open]) {
+            display: none !important;
+        }
+        @keyframes sheetSlideUp {
+            from { transform: translateY(100%); }
+            to { transform: translateY(0); }
+        }
         dialog.bottom-sheet {
             overscroll-behavior: contain;
             background: #FAF6F3;
@@ -95,11 +103,9 @@
             margin: auto auto 0 auto;
             padding: 0;
             box-shadow: 0 -12px 44px rgba(0, 0, 0, 0.22);
-            transform: translateY(100%);
-            transition: transform 0.34s cubic-bezier(0.32, 0.72, 0, 1);
         }
         dialog.bottom-sheet[open] {
-            transform: translateY(0);
+            animation: sheetSlideUp 0.32s cubic-bezier(0.32, 0.72, 0, 1) forwards;
         }
         dialog.bottom-sheet::backdrop {
             overflow: hidden;
@@ -107,6 +113,9 @@
             background: rgba(18, 18, 18, 0.48);
             backdrop-filter: blur(4px);
             -webkit-backdrop-filter: blur(4px);
+        }
+        .safe-bottom {
+            padding-bottom: max(1.25rem, env(safe-area-inset-bottom));
         }
         .no-scrollbar::-webkit-scrollbar {
             display: none;
@@ -124,11 +133,18 @@
             font-size: 1.15rem;
             cursor: pointer;
             user-select: none;
+            touch-action: manipulation;
             transition: background-color 0.1s ease;
         }
     </style>
 </head>
 <body>
+    <!-- TOAST FLOTANTE DE CONFIRMACIÓN -->
+    <div id="hub-toast" class="fixed top-4 left-1/2 -translate-x-1/2 z-50 hidden max-w-[390px] w-[92%] px-4 py-3 rounded-2xl bg-[#121212] text-white text-[13px] font-bold shadow-xl items-center justify-between gap-2 transition-all">
+        <span id="hub-toast-text">Listo</span>
+        <button type="button" onclick="hideHubToast()" class="text-white/70 hover:text-white text-xs font-extrabold px-1">✕</button>
+    </div>
+
     <div class="app-shell">
         <!-- HEADER VISUAL (HERO BANNER + AVATAR + ESLOGAN) -->
         <header class="relative">
@@ -143,7 +159,7 @@
                 </button>
 
                 <!-- Botón Superior Derecho: Listo (Done) -->
-                <button type="button" onclick="handleTopDone()" class="absolute top-3.5 right-3.5 z-10 px-3.5 py-1.5 rounded-full bg-white/80 text-[#121212] text-xs font-bold backdrop-blur-md shadow-sm active:scale-95 transition">
+                <button type="button" onclick="handleTopDone()" class="absolute top-3.5 right-3.5 z-10 px-3.5 py-1.5 rounded-full bg-white/85 text-[#121212] text-xs font-bold backdrop-blur-md shadow-sm active:scale-95 transition">
                     Listo
                 </button>
             </div>
@@ -180,10 +196,10 @@
         </header>
 
         <!-- LISTA DE TARJETAS DE ACCIÓN (STACK VERTICAL CON GAP 12PX) -->
-        <main class="px-4 pt-4 pb-10 flex flex-col gap-[12px] flex-1">
+        <main class="px-4 pt-4 pb-8 flex flex-col gap-[12px] flex-1">
 
-            <!-- TARJETA 1: DINÁMICA - LEALTAD (ESTADO A: NO REGISTRADO / ESTADO B: REGISTRADO) -->
-            <div id="loyalty-card-unregistered" class="action-card p-4" onclick="openLoyaltyRegisterModal()">
+            <!-- TARJETA 1: DINÁMICA - LEALTAD (ESTADO A: NO REGISTRADO) -->
+            <div id="loyalty-card-unregistered" class="action-card p-4" onclick="openLoyaltyRegisterModal('register')">
                 <div class="flex items-center justify-between">
                     <div class="flex items-center gap-3.5">
                         <div class="w-11 h-11 rounded-full bg-[#E86C78]/15 text-[#E86C78] flex items-center justify-center shrink-0">
@@ -194,7 +210,7 @@
                             <div class="text-[12.5px] text-[#6E655F]">Acumula <span class="stamp-goal-label">{{ campaign.stampGoal }}</span> sellos para ganar 1 café gratis</div>
                         </div>
                     </div>
-                    <svg class="w-5 h-5 text-[#6E655F]" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+                    <svg class="w-5 h-5 text-[#6E655F] shrink-0" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
                 </div>
             </div>
 
@@ -214,13 +230,13 @@
                             </div>
                         </div>
                     </div>
-                    <button type="button" onclick="resetLocalMember()" title="Cambiar de cuenta" class="text-[11px] font-semibold text-[#6E655F] hover:text-[#121212] underline px-1 py-0.5">
+                    <button type="button" onclick="resetLocalMember()" title="Cambiar de cuenta" class="text-[11px] font-semibold text-[#6E655F] hover:text-[#121212] underline px-1.5 py-1">
                         Cambiar
                     </button>
                 </div>
 
                 <!-- Fila de círculos indicadores de sellos -->
-                <div id="hub-stamp-circles" class="grid grid-cols-5 gap-2 my-3.5 p-3 rounded-xl bg-[#FAF6F3]/80 border border-black/5">
+                <div id="hub-stamp-circles" class="grid grid-cols-5 gap-2 my-3.5 p-3 rounded-xl bg-[#FAF6F3]/85 border border-black/5">
                     <!-- Renderizado dinámico por JS -->
                 </div>
 
@@ -230,13 +246,13 @@
                         <span>Mostrar mi código QR</span>
                     </button>
                     <div class="grid grid-cols-2 gap-2">
-                        <a id="hub-apple-wallet-link" href="#" class="py-2.5 px-3 rounded-[12px] bg-[#FAF6F3] text-[#121212] font-bold text-[12.5px] border border-black/10 flex items-center justify-center gap-1.5 active:scale-[0.98] transition text-center">
+                        <a id="hub-apple-wallet-link" href="#" class="py-2.5 px-3 rounded-[12px] bg-[#FAF6F3] text-[#121212] font-bold text-[12.5px] border border-black/10 flex items-center justify-center gap-1.5 active:scale-[0.98] transition text-center no-underline">
                             <span>🍎</span>
                             <span>Apple Wallet</span>
                         </a>
-                        <a id="hub-google-wallet-link" href="#" class="py-2.5 px-3 rounded-[12px] bg-[#FAF6F3] text-[#121212] font-bold text-[12.5px] border border-black/10 flex items-center justify-center gap-1.5 active:scale-[0.98] transition text-center">
+                        <a id="hub-google-wallet-link" href="#" class="py-2.5 px-3 rounded-[12px] bg-[#FAF6F3] text-[#121212] font-bold text-[12.5px] border border-black/10 flex items-center justify-center gap-1.5 active:scale-[0.98] transition text-center no-underline">
                             <span>📲</span>
-                            <span>Tarjeta en Vivo</span>
+                            <span>Abrir en Wallet</span>
                         </a>
                     </div>
                 </div>
@@ -247,7 +263,6 @@
                 <div class="flex items-center justify-between">
                     <div class="flex items-center gap-3.5">
                         <div class="w-11 h-11 rounded-full bg-white flex items-center justify-center shrink-0 shadow-xs">
-                            <!-- Ícono oficial de Google multicolor -->
                             <svg class="w-5 h-5" viewBox="0 0 24 24">
                                 <path fill="#EA4335" d="M12 5c1.6 0 3 .6 4.1 1.7l3.1-3.1C17.3 1.8 14.8 1 12 1 7.4 1 3.5 3.6 1.6 7.4l3.7 2.8C6.2 7.2 8.9 5 12 5z"/>
                                 <path fill="#4285F4" d="M23.5 12.3c0-.8-.1-1.6-.2-2.3H12v4.5h6.5c-.3 1.5-1.1 2.8-2.4 3.6l3.7 2.9c2.2-2 3.7-5 3.7-8.7z"/>
@@ -260,7 +275,7 @@
                             <div class="text-[12.5px] text-[#6E655F]">Tu calificación nos ayuda a seguir creciendo</div>
                         </div>
                     </div>
-                    <svg class="w-5 h-5 text-[#6E655F]" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+                    <svg class="w-5 h-5 text-[#6E655F] shrink-0" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
                 </div>
             </div>
 
@@ -276,7 +291,7 @@
                             <div class="text-[12.5px] text-[#6E655F]">Bebidas calientes, frappés, sodas y postres</div>
                         </div>
                     </div>
-                    <svg class="w-5 h-5 text-[#6E655F]" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+                    <svg class="w-5 h-5 text-[#6E655F] shrink-0" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
                 </div>
             </div>
 
@@ -292,7 +307,7 @@
                             <div class="text-[12.5px] text-[#6E655F]">Red: <span class="font-semibold">{{ hub.wifi_ssid }}</span></div>
                         </div>
                     </div>
-                    <svg class="w-5 h-5 text-[#6E655F]" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+                    <svg class="w-5 h-5 text-[#6E655F] shrink-0" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
                 </div>
             </div>
 
@@ -308,7 +323,7 @@
                             <div class="text-[12.5px] text-[#6E655F]">Comentarios 100% anónimos para mejorar</div>
                         </div>
                     </div>
-                    <svg class="w-5 h-5 text-[#6E655F]" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+                    <svg class="w-5 h-5 text-[#6E655F] shrink-0" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
                 </div>
             </div>
 
@@ -324,7 +339,7 @@
                             <div class="text-[12.5px] text-[#6E655F]">Entretente mientras preparamos tu café</div>
                         </div>
                     </div>
-                    <svg class="w-5 h-5 text-[#6E655F]" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+                    <svg class="w-5 h-5 text-[#6E655F] shrink-0" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
                 </div>
             </div>
 
@@ -340,7 +355,7 @@
                             <div class="text-[12.5px] text-[#6E655F]">{{ hub.instagram_handle }}</div>
                         </div>
                     </div>
-                    <svg class="w-5 h-5 text-[#6E655F]" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+                    <svg class="w-5 h-5 text-[#6E655F] shrink-0" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
                 </div>
             </a>
         </main>
@@ -354,7 +369,7 @@
          MÓDULO 1: FLUJO DE REGISTRO DE LEALTAD Y PASE DIGITAL
          ========================================================= -->
     <dialog id="modal-loyalty" class="bottom-sheet max-h-[92dvh] overflow-y-auto">
-        <div class="p-5">
+        <div class="p-5 safe-bottom">
             <div class="w-10 h-1.5 bg-black/15 rounded-full mx-auto mb-4"></div>
 
             <!-- VISTA 1A: FORMULARIO DE REGISTRO -->
@@ -363,14 +378,27 @@
                     <div class="w-12 h-12 rounded-full bg-[#121212] text-white flex items-center justify-center">
                         <svg class="w-6 h-6 fill-current" viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
                     </div>
-                    <button type="button" onclick="closeModal('modal-loyalty')" class="px-3 py-1 rounded-full bg-[#EADFD7] text-xs font-bold text-[#121212]">Cerrar</button>
+                    <button type="button" onclick="closeModal('modal-loyalty')" class="px-3 py-1.5 rounded-full bg-[#EADFD7] text-xs font-bold text-[#121212]">Cerrar</button>
                 </div>
 
                 <h2 class="text-[22px] font-bold tracking-[-0.02em] text-[#121212]">Gana Recompensas</h2>
-                <p class="text-[14px] text-[#6E655F] mt-0.5 mb-4">
+                <p class="text-[14px] text-[#6E655F] mt-0.5 mb-3">
                     Acumula {{ campaign.stampGoal }} sellos para ganar 1 café o bebida gratis en {{ campaign.shopName }}.
                 </p>
 
+                <!-- Pestaña rápida: Nuevo Socio vs Ya tengo tarjeta -->
+                <div class="grid grid-cols-2 gap-1.5 p-1 rounded-xl bg-[#EADFD7] mb-4">
+                    <button type="button" id="tab-loyalty-new" onclick="switchLoyaltySubTab('new')"
+                            class="py-2 rounded-lg text-xs font-bold bg-[#121212] text-white transition">
+                        ✨ Crear mi tarjeta
+                    </button>
+                    <button type="button" id="tab-loyalty-recover" onclick="switchLoyaltySubTab('recover')"
+                            class="py-2 rounded-lg text-xs font-bold text-[#6E655F] transition">
+                        🔑 Ya tengo tarjeta
+                    </button>
+                </div>
+
+                <!-- SUB-VISTA: NUEVO REGISTRO -->
                 <form id="hub-loyalty-form" onsubmit="submitLoyaltyForm(event)" class="space-y-3.5">
                     <div>
                         <label for="hub-reg-name" class="block text-[12.5px] font-bold text-[#121212] mb-1">Tu nombre completo</label>
@@ -442,6 +470,23 @@
                         <span>Obtener mi tarjeta de lealtad</span>
                     </button>
                 </form>
+
+                <!-- SUB-VISTA: RECUPERAR TARJETA EXISTENTE -->
+                <form id="hub-recover-form" onsubmit="submitRecoverCardForm(event)" class="hidden space-y-3.5">
+                    <div>
+                        <label for="hub-recover-input" class="block text-[12.5px] font-bold text-[#121212] mb-1">
+                            Ingresa tu celular (10 dígitos), correo o código MAISHAS
+                        </label>
+                        <input id="hub-recover-input" type="text" required enterkeyhint="search"
+                               placeholder="Ej. 642 101 4512 o tu@correo.com"
+                               class="w-full px-3.5 py-3 rounded-[12px] bg-white border border-black/15 text-[15px] text-[#121212] focus:outline-none focus:border-[#121212]" />
+                    </div>
+                    <p id="hub-recover-error" class="hidden text-xs font-bold text-[#E86C78]"></p>
+                    <button id="hub-recover-submit-btn" type="submit"
+                            class="w-full py-3.5 px-4 rounded-[14px] bg-[#121212] text-white font-bold text-[15px] active:scale-[0.98] transition">
+                        Recuperar mis sellos y código QR
+                    </button>
+                </form>
             </div>
 
             <!-- VISTA 1B: ÉXITO (¡YA ESTÁS INSCRITO!) -->
@@ -475,7 +520,7 @@
          PREVISUALIZACIÓN NATIVA DE APPLE WALLET (.PKPASS SIMULATOR + REAL DOWNLOAD)
          ========================================================= -->
     <dialog id="modal-passkit" class="bottom-sheet max-h-[95dvh] overflow-y-auto">
-        <div class="bg-[#F2F2F7] text-[#121212] rounded-t-[28px] overflow-hidden">
+        <div class="bg-[#F2F2F7] text-[#121212] rounded-t-[28px] overflow-hidden safe-bottom">
             <!-- Barra superior estilo iOS PassKit -->
             <div class="flex items-center justify-between px-4 py-3.5 bg-[#F2F2F7]/95 border-b border-black/10 sticky top-0 z-10 backdrop-blur-md">
                 <button type="button" onclick="closeModal('modal-passkit')" class="text-[15px] font-medium text-[#007AFF] active:opacity-70">
@@ -537,8 +582,8 @@
                                 MAISHAS-000000
                             </div>
                         </div>
-                        <div class="text-[11px] font-semibold text-black/70 mt-2.5">
-                            Muestra este código QR al barista en mostrador · Impulsado por {{ campaign.shopName }}
+                        <div class="text-[11px] font-semibold text-black/70 mt-2.5 text-center">
+                            Muestra este código QR al barista en mostrador · {{ campaign.shopName }}
                         </div>
                     </div>
                 </div>
@@ -547,12 +592,17 @@
                 <div class="mt-4 space-y-2">
                     <a id="pkpass-direct-download-btn" href="#"
                        class="w-full py-3.5 px-4 rounded-[14px] bg-[#121212] text-white font-bold text-[14.5px] flex items-center justify-center gap-2 active:scale-[0.98] transition no-underline shadow-md">
+                        <span>🍎</span>
+                        <span>Instalar archivo .pkpass en Apple Wallet</span>
+                    </a>
+                    <a id="pkpass-android-live-btn" href="#"
+                       class="w-full py-3 px-4 rounded-[14px] bg-[#EADFD7] text-[#121212] font-bold text-[13.5px] flex items-center justify-center gap-2 active:scale-[0.98] transition no-underline">
                         <span>📲</span>
-                        <span>Descargar archivo .pkpass en Apple Wallet</span>
+                        <span>Abrir Tarjeta Digital en Vivo (Android / Web)</span>
                     </a>
                     <button type="button" onclick="closeModal('modal-passkit')"
-                            class="w-full py-2.5 text-[13px] font-semibold text-[#6E655F]">
-                        Volver al Hub de {{ campaign.shopName }}
+                            class="w-full py-2 text-[13px] font-semibold text-[#6E655F]">
+                        Cerrar vista previa
                     </button>
                 </div>
             </div>
@@ -562,97 +612,120 @@
     <!-- =========================================================
          MÓDULO 2: MENÚ DIGITAL INTERACTIVO (92DVH + SCROLL-SPY + BUSCADOR)
          ========================================================= -->
-    <dialog id="modal-menu" class="bottom-sheet h-[92dvh] max-h-[92dvh] flex flex-col overflow-hidden">
-        <!-- Sticky Header -->
-        <div class="bg-[#FAF6F3] border-b border-black/10 px-4 pt-3.5 pb-3 shrink-0 z-10">
-            <div class="w-10 h-1.5 bg-black/15 rounded-full mx-auto mb-3"></div>
-            <div class="flex items-center justify-between mb-3">
-                <div>
-                    <h2 class="text-[21px] font-bold tracking-[-0.02em] text-[#121212]">Nuestro Menú</h2>
-                    <p class="text-[12px] text-[#6E655F]">Precios en MXN · {{ campaign.shopName }}</p>
+    <dialog id="modal-menu" class="bottom-sheet overflow-hidden">
+        <div class="flex flex-col h-[92dvh] max-h-[92dvh] overflow-hidden relative">
+            <!-- Sticky Header -->
+            <div class="bg-[#FAF6F3] border-b border-black/10 px-4 pt-3.5 pb-3 shrink-0 z-10">
+                <div class="w-10 h-1.5 bg-black/15 rounded-full mx-auto mb-3"></div>
+                <div class="flex items-center justify-between mb-3">
+                    <div>
+                        <h2 class="text-[21px] font-bold tracking-[-0.02em] text-[#121212]">Nuestro Menú</h2>
+                        <p class="text-[12px] text-[#6E655F]">Precios en MXN · {{ campaign.shopName }}</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button type="button" onclick="openModal('modal-printed-menu')" class="px-3 py-1.5 rounded-full bg-[#EADFD7] text-[#4A5D23] text-xs font-bold active:scale-95 transition">
+                            🖼️ Carta Impresa
+                        </button>
+                        <button type="button" onclick="closeModal('modal-menu')" class="px-3.5 py-1.5 rounded-full bg-[#121212] text-white text-xs font-bold active:scale-95 transition">
+                            Listo
+                        </button>
+                    </div>
                 </div>
-                <div class="flex items-center gap-2">
-                    <a href="/api/hub/menu-oficial.png" target="_blank" class="px-3 py-1.5 rounded-full bg-[#EADFD7] text-[#4A5D23] text-xs font-bold no-underline">
-                        🖼️ Carta Impresa
-                    </a>
-                    <button type="button" onclick="closeModal('modal-menu')" class="px-3.5 py-1.5 rounded-full bg-[#121212] text-white text-xs font-bold">
-                        Listo
+
+                <!-- Nivel 1: Píldoras principales (CALIENTES, FRÍAS Y FRAPPÉS, POSTRES Y PANINI, EXTRAS) -->
+                <div class="flex gap-2 overflow-x-auto no-scrollbar pb-2">
+                    <button type="button" onclick="selectMainMenuTab('CALIENTES')" data-main-tab="CALIENTES"
+                            class="menu-main-pill px-3.5 py-1.5 rounded-full text-xs font-bold whitespace-nowrap bg-[#121212] text-white transition">
+                        ☕️ CALIENTES
+                    </button>
+                    <button type="button" onclick="selectMainMenuTab('FRIAS')" data-main-tab="FRIAS"
+                            class="menu-main-pill px-3.5 py-1.5 rounded-full text-xs font-bold whitespace-nowrap bg-[#EADFD7] text-[#121212] transition">
+                        🧊 FRÍAS Y FRAPPÉS
+                    </button>
+                    <button type="button" onclick="selectMainMenuTab('ALIMENTOS')" data-main-tab="ALIMENTOS"
+                            class="menu-main-pill px-3.5 py-1.5 rounded-full text-xs font-bold whitespace-nowrap bg-[#EADFD7] text-[#121212] transition">
+                        🍰 POSTRES Y PANINI
+                    </button>
+                    <button type="button" onclick="selectMainMenuTab('EXTRAS')" data-main-tab="EXTRAS"
+                            class="menu-main-pill px-3.5 py-1.5 rounded-full text-xs font-bold whitespace-nowrap bg-[#EADFD7] text-[#121212] transition">
+                        ➕ EXTRAS
+                    </button>
+                </div>
+
+                <!-- Nivel 2: Sub-categorías horizontales desplazables con Scroll-Spy -->
+                <div id="menu-sub-pills" class="flex gap-1.5 overflow-x-auto no-scrollbar pt-1">
+                    <button type="button" onclick="scrollToMenuSection('sec-calientes')" data-sub-sec="sec-calientes"
+                            class="menu-sub-pill px-3 py-1 rounded-lg text-[11.5px] font-semibold whitespace-nowrap bg-[#4A5D23] text-white">
+                        Bebidas Calientes
+                    </button>
+                    <button type="button" onclick="scrollToMenuSection('sec-rocas')" data-sub-sec="sec-rocas"
+                            class="menu-sub-pill px-3 py-1 rounded-lg text-[11.5px] font-semibold whitespace-nowrap bg-[#EADFD7]/70 text-[#6E655F]">
+                        En las Rocas
+                    </button>
+                    <button type="button" onclick="scrollToMenuSection('sec-frappes')" data-sub-sec="sec-frappes"
+                            class="menu-sub-pill px-3 py-1 rounded-lg text-[11.5px] font-semibold whitespace-nowrap bg-[#EADFD7]/70 text-[#6E655F]">
+                        Frappés
+                    </button>
+                    <button type="button" onclick="scrollToMenuSection('sec-sodas')" data-sub-sec="sec-sodas"
+                            class="menu-sub-pill px-3 py-1 rounded-lg text-[11.5px] font-semibold whitespace-nowrap bg-[#EADFD7]/70 text-[#6E655F]">
+                        Sodas Italianas
+                    </button>
+                    <button type="button" onclick="scrollToMenuSection('sec-especialidad')" data-sub-sec="sec-especialidad"
+                            class="menu-sub-pill px-3 py-1 rounded-lg text-[11.5px] font-semibold whitespace-nowrap bg-[#EADFD7]/70 text-[#6E655F]">
+                        Especialidad de la Casa
+                    </button>
+                    <button type="button" onclick="scrollToMenuSection('sec-postres')" data-sub-sec="sec-postres"
+                            class="menu-sub-pill px-3 py-1 rounded-lg text-[11.5px] font-semibold whitespace-nowrap bg-[#EADFD7]/70 text-[#6E655F]">
+                        Postres
+                    </button>
+                    <button type="button" onclick="scrollToMenuSection('sec-extras')" data-sub-sec="sec-extras"
+                            class="menu-sub-pill px-3 py-1 rounded-lg text-[11.5px] font-semibold whitespace-nowrap bg-[#EADFD7]/70 text-[#6E655F]">
+                        Extras
                     </button>
                 </div>
             </div>
 
-            <!-- Nivel 1: Píldoras principales (CALIENTES, FRÍAS Y FRAPPÉS, POSTRES Y PANINI, EXTRAS) -->
-            <div class="flex gap-2 overflow-x-auto no-scrollbar pb-2">
-                <button type="button" onclick="selectMainMenuTab('CALIENTES')" data-main-tab="CALIENTES"
-                        class="menu-main-pill px-3.5 py-1.5 rounded-full text-xs font-bold whitespace-nowrap bg-[#121212] text-white transition">
-                    ☕️ CALIENTES
-                </button>
-                <button type="button" onclick="selectMainMenuTab('FRIAS')" data-main-tab="FRIAS"
-                        class="menu-main-pill px-3.5 py-1.5 rounded-full text-xs font-bold whitespace-nowrap bg-[#EADFD7] text-[#121212] transition">
-                    🧊 FRÍAS Y FRAPPÉS
-                </button>
-                <button type="button" onclick="selectMainMenuTab('ALIMENTOS')" data-main-tab="ALIMENTOS"
-                        class="menu-main-pill px-3.5 py-1.5 rounded-full text-xs font-bold whitespace-nowrap bg-[#EADFD7] text-[#121212] transition">
-                    🍰 POSTRES Y PANINI
-                </button>
-                <button type="button" onclick="selectMainMenuTab('EXTRAS')" data-main-tab="EXTRAS"
-                        class="menu-main-pill px-3.5 py-1.5 rounded-full text-xs font-bold whitespace-nowrap bg-[#EADFD7] text-[#121212] transition">
-                    ➕ EXTRAS
-                </button>
+            <!-- Contenido desplazable del Menú -->
+            <div id="menu-scroll-container" onscroll="handleMenuScrollSpy()" class="flex-1 overflow-y-auto px-4 pt-3 pb-28 space-y-6">
+                <!-- Caja de nota destacada -->
+                <div class="p-3.5 rounded-2xl bg-[#EADFD7] text-[12.5px] text-[#121212] leading-relaxed">
+                    ☕️ <strong>Nos especializamos en café, frappés y postres caseros.</strong> Si deseas personalizar tu bebida (por ejemplo con <strong>Leche Vegetal +$15</strong>) o tienes algún antojo especial, pregúntanos en barra y con gusto te atendemos.
+                </div>
+
+                <div id="menu-sections-wrapper" class="space-y-6">
+                    <!-- Renderizado dinámico por JS con todos los productos oficiales de Maisha's Café -->
+                </div>
             </div>
 
-            <!-- Nivel 2: Sub-categorías horizontales desplazables con Scroll-Spy -->
-            <div id="menu-sub-pills" class="flex gap-1.5 overflow-x-auto no-scrollbar pt-1">
-                <button type="button" onclick="scrollToMenuSection('sec-calientes')" data-sub-sec="sec-calientes"
-                        class="menu-sub-pill px-3 py-1 rounded-lg text-[11.5px] font-semibold whitespace-nowrap bg-[#4A5D23] text-white">
-                    Bebidas Calientes
-                </button>
-                <button type="button" onclick="scrollToMenuSection('sec-rocas')" data-sub-sec="sec-rocas"
-                        class="menu-sub-pill px-3 py-1 rounded-lg text-[11.5px] font-semibold whitespace-nowrap bg-[#EADFD7]/70 text-[#6E655F]">
-                    En las Rocas
-                </button>
-                <button type="button" onclick="scrollToMenuSection('sec-frappes')" data-sub-sec="sec-frappes"
-                        class="menu-sub-pill px-3 py-1 rounded-lg text-[11.5px] font-semibold whitespace-nowrap bg-[#EADFD7]/70 text-[#6E655F]">
-                    Frappés
-                </button>
-                <button type="button" onclick="scrollToMenuSection('sec-sodas')" data-sub-sec="sec-sodas"
-                        class="menu-sub-pill px-3 py-1 rounded-lg text-[11.5px] font-semibold whitespace-nowrap bg-[#EADFD7]/70 text-[#6E655F]">
-                    Sodas Italianas
-                </button>
-                <button type="button" onclick="scrollToMenuSection('sec-especialidad')" data-sub-sec="sec-especialidad"
-                        class="menu-sub-pill px-3 py-1 rounded-lg text-[11.5px] font-semibold whitespace-nowrap bg-[#EADFD7]/70 text-[#6E655F]">
-                    Especialidad de la Casa
-                </button>
-                <button type="button" onclick="scrollToMenuSection('sec-postres')" data-sub-sec="sec-postres"
-                        class="menu-sub-pill px-3 py-1 rounded-lg text-[11.5px] font-semibold whitespace-nowrap bg-[#EADFD7]/70 text-[#6E655F]">
-                    Postres
-                </button>
-                <button type="button" onclick="scrollToMenuSection('sec-extras')" data-sub-sec="sec-extras"
-                        class="menu-sub-pill px-3 py-1 rounded-lg text-[11.5px] font-semibold whitespace-nowrap bg-[#EADFD7]/70 text-[#6E655F]">
-                    Extras
-                </button>
+            <!-- Buscador Inferior Flotante -->
+            <div class="absolute bottom-0 inset-x-0 p-3 safe-bottom bg-gradient-to-t from-[#FAF6F3] via-[#FAF6F3] to-transparent">
+                <div class="relative flex items-center">
+                    <svg class="w-4 h-4 text-[#6E655F] absolute left-3.5 pointer-events-none" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                    <input id="menu-search-input" type="search" enterkeyhint="search" oninput="renderMenuItems()"
+                           placeholder="Buscar bebida o postre (ej. Matcha, Coyota)..."
+                           class="w-full pl-9 pr-9 py-3 rounded-full bg-white border border-black/15 shadow-lg text-[14px] text-[#121212] focus:outline-none focus:border-[#121212]" />
+                    <button id="menu-search-clear" type="button" onclick="clearMenuSearch()"
+                            class="hidden absolute right-3 w-6 h-6 rounded-full bg-[#EADFD7] text-[#121212] text-xs font-bold items-center justify-center">
+                        ✕
+                    </button>
+                </div>
             </div>
         </div>
+    </dialog>
 
-        <!-- Contenido desplazable del Menú -->
-        <div id="menu-scroll-container" onscroll="handleMenuScrollSpy()" class="flex-1 overflow-y-auto px-4 pt-3 pb-24 space-y-6">
-            <!-- Caja de nota destacada -->
-            <div class="p-3.5 rounded-2xl bg-[#EADFD7] text-[12.5px] text-[#121212] leading-relaxed">
-                ☕️ <strong>Nos especializamos en café, frappés y postres caseros.</strong> Si deseas personalizar tu bebida (por ejemplo con <strong>Leche Vegetal +$15</strong>) o tienes algún antojo especial, pregúntanos en barra y con gusto te atendemos.
+    <!-- =========================================================
+         MODAL DE CARTA IMPRESA ORIGINAL (LIGHTBOX DENTRO DE LA APP)
+         ========================================================= -->
+    <dialog id="modal-printed-menu" class="bottom-sheet max-h-[94dvh] overflow-y-auto">
+        <div class="p-4 safe-bottom">
+            <div class="flex items-center justify-between mb-3">
+                <h3 class="text-[17px] font-bold text-[#121212]">Carta Oficial · {{ campaign.shopName }}</h3>
+                <button type="button" onclick="closeModal('modal-printed-menu')" class="px-3.5 py-1.5 rounded-full bg-[#121212] text-white text-xs font-bold">
+                    Cerrar
+                </button>
             </div>
-
-            <div id="menu-sections-wrapper" class="space-y-6">
-                <!-- Renderizado dinámico por JS con todos los productos oficiales de Maisha's Café -->
-            </div>
-        </div>
-
-        <!-- Buscador Inferior Flotante -->
-        <div class="absolute bottom-0 inset-x-0 p-3 bg-gradient-to-t from-[#FAF6F3] via-[#FAF6F3] to-transparent">
-            <div class="relative flex items-center">
-                <svg class="w-4 h-4 text-[#6E655F] absolute left-3.5 pointer-events-none" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-                <input id="menu-search-input" type="search" enterkeyhint="search" oninput="renderMenuItems()"
-                       placeholder="Buscar en el menú (ej. Matcha, Taro, Coyota, Panini)..."
-                       class="w-full pl-9 pr-4 py-3 rounded-full bg-white border border-black/15 shadow-lg text-[14px] text-[#121212] focus:outline-none focus:border-[#121212]" />
+            <div class="rounded-2xl overflow-hidden border border-black/10 bg-white">
+                <img src="/api/hub/menu-oficial.png" alt="Menú Impreso {{ campaign.shopName }}" class="w-full h-auto block" />
             </div>
         </div>
     </dialog>
@@ -661,7 +734,7 @@
          MÓDULO 3: CONEXIÓN WI-FI INSTANTÁNEA
          ========================================================= -->
     <dialog id="modal-wifi" class="bottom-sheet">
-        <div class="p-5">
+        <div class="p-5 safe-bottom">
             <div class="w-10 h-1.5 bg-black/15 rounded-full mx-auto mb-4"></div>
             <div class="flex items-center justify-between mb-3">
                 <div class="flex items-center gap-2.5">
@@ -673,7 +746,7 @@
                         <p class="text-[12px] text-[#6E655F]">Conexión gratuita en {{ campaign.shopName }}</p>
                     </div>
                 </div>
-                <button type="button" onclick="closeModal('modal-wifi')" class="px-3 py-1 rounded-full bg-[#EADFD7] text-xs font-bold">Listo</button>
+                <button type="button" onclick="closeModal('modal-wifi')" class="px-3 py-1.5 rounded-full bg-[#EADFD7] text-xs font-bold">Listo</button>
             </div>
 
             <div class="p-4 rounded-2xl bg-[#EADFD7] space-y-2.5 mb-4">
@@ -701,16 +774,16 @@
     </dialog>
 
     <!-- =========================================================
-         MÓDULO 4: BUZÓN DE SUGERENCIAS CON FILTRO INTELIGENTE
+         MÓDULO 4: BUZÓN DE SUGERENCIAS
          ========================================================= -->
     <dialog id="modal-feedback" class="bottom-sheet max-h-[92dvh] overflow-y-auto">
-        <div class="p-5">
+        <div class="p-5 safe-bottom">
             <div class="w-10 h-1.5 bg-black/15 rounded-full mx-auto mb-4"></div>
 
             <div id="feedback-step-form">
                 <div class="flex justify-between items-start mb-2">
                     <h3 class="text-[21px] font-bold tracking-[-0.02em] text-[#121212]">Tu Opinión Sincera</h3>
-                    <button type="button" onclick="closeModal('modal-feedback')" class="px-3 py-1 rounded-full bg-[#EADFD7] text-xs font-bold">Cerrar</button>
+                    <button type="button" onclick="closeModal('modal-feedback')" class="px-3 py-1.5 rounded-full bg-[#EADFD7] text-xs font-bold">Cerrar</button>
                 </div>
                 <p class="text-[13.5px] text-[#6E655F] mb-3.5">
                     Habla con total confianza — tus comentarios son completamente anónimos.
@@ -724,13 +797,9 @@
                                   class="w-full p-3.5 rounded-2xl bg-white border border-black/15 text-[14.5px] text-[#121212] focus:outline-none focus:border-[#121212]"></textarea>
                     </div>
 
-                    <div class="p-3 rounded-xl bg-[#EADFD7]/80 text-[11.5px] text-[#6E655F] leading-relaxed">
-                        💡 Analizamos automáticamente si tu comentario es positivo mediante lenguaje natural para saber si invitarte a compartir tu reseña en Google o atender tu reporte directamente en gerencia.
-                    </div>
-
                     <!-- Adjuntar Foto con previsualización real -->
                     <div>
-                        <label for="feedback-photo-input" class="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-[#EADFD7] text-[#121212] text-xs font-bold cursor-pointer active:scale-95 transition">
+                        <label for="feedback-photo-input" class="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-[#EADFD7] text-[#121212] text-xs font-bold cursor-pointer active:scale-95 transition">
                             <span>📷</span>
                             <span>Adjuntar Foto (Opcional)</span>
                         </label>
@@ -748,7 +817,7 @@
                 </form>
             </div>
 
-            <!-- Resultado del filtro inteligente de sentimiento -->
+            <!-- Resultado después de enviar -->
             <div id="feedback-step-result" class="hidden text-center py-4">
                 <div id="feedback-result-icon" class="w-14 h-14 rounded-full mx-auto mb-3 flex items-center justify-center text-2xl bg-[#34C759]/15">
                     ❤️
@@ -772,7 +841,7 @@
          MODAL DE RESEÑA EN GOOGLE (TARJETA 2)
          ========================================================= -->
     <dialog id="modal-google-review" class="bottom-sheet">
-        <div class="p-5 text-center">
+        <div class="p-5 safe-bottom text-center">
             <div class="w-10 h-1.5 bg-black/15 rounded-full mx-auto mb-4"></div>
             <div class="w-14 h-14 rounded-full bg-white shadow-sm flex items-center justify-center mx-auto mb-3 text-2xl">
                 ⭐🌟⭐
@@ -798,11 +867,11 @@
     <!-- =========================================================
          MÓDULO 5: MOTOR DE JUEGO SUDOKU COMPLETO (9x9 INTERACTIVO)
          ========================================================= -->
-    <dialog id="modal-sudoku" class="bottom-sheet h-[94dvh] max-h-[94dvh] overflow-y-auto">
-        <div class="p-4 flex flex-col h-full">
+    <dialog id="modal-sudoku" class="bottom-sheet max-h-[95dvh] overflow-y-auto">
+        <div class="p-4 safe-bottom flex flex-col">
             <!-- Barra Superior -->
             <div class="flex items-center justify-between pb-3 border-b border-black/10">
-                <button type="button" onclick="closeSudokuModal()" class="px-3 py-1.5 rounded-full bg-[#EADFD7] text-xs font-bold text-[#121212] flex items-center gap-1">
+                <button type="button" onclick="closeSudokuModal()" class="px-3 py-1.5 rounded-full bg-[#EADFD7] text-xs font-bold text-[#121212] flex items-center gap-1 active:scale-95 transition">
                     <span>‹</span> Volver
                 </button>
                 <div class="flex bg-[#EADFD7] p-1 rounded-full gap-1">
@@ -810,8 +879,13 @@
                     <button type="button" onclick="startSudoku('medium')" data-diff="medium" class="sudoku-diff-btn px-3 py-1 rounded-full text-xs font-bold text-[#6E655F]">Medio</button>
                     <button type="button" onclick="startSudoku('hard')" data-diff="hard" class="sudoku-diff-btn px-3 py-1 rounded-full text-xs font-bold text-[#6E655F]">Difícil</button>
                 </div>
-                <div id="sudoku-timer" class="font-mono text-xs font-bold px-2.5 py-1 rounded-full bg-[#EADFD7] text-[#121212]">
-                    00:00
+                <div class="flex items-center gap-1.5">
+                    <div id="sudoku-timer" class="font-mono text-xs font-bold px-2.5 py-1 rounded-full bg-[#EADFD7] text-[#121212]">
+                        00:00
+                    </div>
+                    <button type="button" onclick="startSudoku(sudokuState.diff)" title="Reiniciar tablero" class="w-7 h-7 rounded-full bg-[#EADFD7] text-[#121212] text-xs font-bold flex items-center justify-center active:scale-90 transition">
+                        🔄
+                    </button>
                 </div>
             </div>
 
@@ -847,10 +921,10 @@
             </div>
 
             <!-- Teclado numérico del 1 al 9 -->
-            <div class="grid grid-cols-9 gap-1.5 max-w-[360px] mx-auto w-full">
+            <div id="sudoku-numpad" class="grid grid-cols-9 gap-1.5 max-w-[360px] mx-auto w-full">
                 {% for n in range(1, 10) %}
-                <button type="button" onclick="inputSudokuNumber({{ n }})"
-                        class="py-3 rounded-xl bg-[#121212] text-white font-extrabold text-[17px] active:scale-90 transition shadow-xs">
+                <button type="button" data-num="{{ n }}" onclick="inputSudokuNumber({{ n }})"
+                        class="sudoku-num-btn py-3 rounded-xl bg-[#121212] text-white font-extrabold text-[17px] active:scale-90 transition shadow-xs">
                     {{ n }}
                 </button>
                 {% endfor %}
@@ -862,36 +936,47 @@
          MÓDULO G: MODO CAJERO / STAFF POS SIMULATOR (CONECTADO A BD REAL)
          ========================================================= -->
     <dialog id="modal-staff" class="bottom-sheet max-h-[90dvh] overflow-y-auto">
-        <div class="p-5">
+        <div class="p-5 safe-bottom">
             <div class="w-10 h-1.5 bg-black/15 rounded-full mx-auto mb-4"></div>
             <div class="flex items-center justify-between mb-2">
                 <div>
                     <span class="text-[10.5px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded bg-[#4A5D23] text-white">Simulador en Vivo</span>
                     <h3 class="text-[20px] font-bold text-[#121212] mt-1">Modo Cajero / Staff POS</h3>
                 </div>
-                <button type="button" onclick="closeModal('modal-staff')" class="px-3 py-1 rounded-full bg-[#EADFD7] text-xs font-bold">Cerrar</button>
+                <button type="button" onclick="closeModal('modal-staff')" class="px-3 py-1.5 rounded-full bg-[#EADFD7] text-xs font-bold">Cerrar</button>
             </div>
-            <p class="text-[13px] text-[#6E655F] mb-4">
+            <p class="text-[13px] text-[#6E655F] mb-3.5">
                 Simula el escaneo del QR del cliente desde aquí para ver cómo se actualizan sus círculos en vivo y en la consola <strong>/barista</strong>.
             </p>
 
-            <div class="p-4 rounded-2xl bg-[#EADFD7] mb-4">
-                <div class="text-xs font-bold text-[#6E655F] uppercase">Cliente Activo en este Teléfono</div>
-                <div id="staff-client-summary" class="text-[15px] font-bold text-[#121212] mt-1">
+            <div class="p-4 rounded-2xl bg-[#EADFD7] mb-3">
+                <div class="flex items-center justify-between gap-2">
+                    <div class="text-xs font-bold text-[#6E655F] uppercase">Cliente Activo en este Teléfono</div>
+                    <button type="button" onclick="staffLoadDemoClient()" class="text-[11px] font-bold text-[#4A5D23] underline">
+                        ⚡ Cargar Socio Demo
+                    </button>
+                </div>
+                <div id="staff-client-summary" class="text-[14.5px] font-bold text-[#121212] mt-1">
                     Ningún cliente registrado aún en este navegador
                 </div>
+                <div id="staff-action-feedback" class="hidden mt-2 p-2 rounded-lg bg-[#FAF6F3] text-xs font-bold text-[#4A5D23]"></div>
             </div>
 
-            <div class="grid grid-cols-2 gap-2.5 mb-4">
+            <div class="grid grid-cols-3 gap-2 mb-4">
                 <button type="button" onclick="staffSimulateStamp('add')"
-                        class="py-3.5 px-3 rounded-[14px] bg-[#121212] text-white font-bold text-[14px] active:scale-95 transition flex items-center justify-center gap-1.5">
+                        class="py-3.5 px-2 rounded-[14px] bg-[#121212] text-white font-bold text-[13px] active:scale-95 transition flex items-center justify-center gap-1">
                     <span>☕️</span>
-                    <span>Sumar +1 Sello</span>
+                    <span>+1 Sello</span>
+                </button>
+                <button type="button" onclick="staffSimulateStamp('sub')"
+                        class="py-3.5 px-2 rounded-[14px] bg-[#EADFD7] text-[#121212] font-bold text-[13px] active:scale-95 transition flex items-center justify-center gap-1 border border-black/10">
+                    <span>➖</span>
+                    <span>-1 Sello</span>
                 </button>
                 <button type="button" onclick="staffSimulateStamp('reset')"
-                        class="py-3.5 px-3 rounded-[14px] bg-[#E86C78] text-white font-bold text-[14px] active:scale-95 transition flex items-center justify-center gap-1.5">
+                        class="py-3.5 px-2 rounded-[14px] bg-[#E86C78] text-white font-bold text-[13px] active:scale-95 transition flex items-center justify-center gap-1">
                     <span>🎁</span>
-                    <span>Canjear / Reiniciar</span>
+                    <span>Canjear</span>
                 </button>
             </div>
 
@@ -1044,6 +1129,25 @@
         let currentMember = null;
         let avatarTapCount = 0;
         let avatarTapTimer = null;
+        let toastTimer = null;
+
+        function showHubToast(msg) {
+            const el = document.getElementById('hub-toast');
+            const txt = document.getElementById('hub-toast-text');
+            if (!el || !txt) return;
+            txt.textContent = msg;
+            el.classList.remove('hidden');
+            el.classList.add('flex');
+            clearTimeout(toastTimer);
+            toastTimer = setTimeout(hideHubToast, 4000);
+        }
+
+        function hideHubToast() {
+            const el = document.getElementById('hub-toast');
+            if (!el) return;
+            el.classList.add('hidden');
+            el.classList.remove('flex');
+        }
 
         function openModal(id) {
             const dlg = document.getElementById(id);
@@ -1057,18 +1161,25 @@
             if (dlg && dlg.open) dlg.close();
         }
 
-        // Cerrar modal al tocar el backdrop
+        // Cerrar modal al tocar el backdrop y pausar el cronómetro de Sudoku si se cierra
         document.querySelectorAll('dialog.bottom-sheet').forEach(dlg => {
             dlg.addEventListener('click', (e) => {
                 if (e.target === dlg) dlg.close();
             });
+            if (dlg.id === 'modal-sudoku') {
+                dlg.addEventListener('close', () => {
+                    if (sudokuState && sudokuState.timerId) {
+                        clearInterval(sudokuState.timerId);
+                    }
+                });
+            }
         });
 
         function handleTopDone() {
             if (currentMember) {
                 openPassPreviewModal();
             } else {
-                openLoyaltyRegisterModal();
+                openLoyaltyRegisterModal('register');
             }
         }
 
@@ -1088,10 +1199,17 @@
         // =========================================================
         function loadMemberFromStorage() {
             try {
+                const params = new URLSearchParams(window.location.search);
+                const urlSerial = (params.get('serial') || '').trim().toUpperCase();
                 const raw = localStorage.getItem(STORAGE_KEY);
                 if (raw) {
                     currentMember = JSON.parse(raw);
                     renderLoyaltyHubState();
+                }
+                if (urlSerial && (!currentMember || currentMember.serial !== urlSerial)) {
+                    currentMember = { serial: urlSerial, name: 'Socio', stamps: 0, stamp_goal: STAMP_GOAL };
+                }
+                if (currentMember && currentMember.serial) {
                     syncMemberWithServer();
                 }
             } catch (e) {
@@ -1109,7 +1227,7 @@
             localStorage.removeItem(STORAGE_KEY);
             currentMember = null;
             renderLoyaltyHubState();
-            openLoyaltyRegisterModal();
+            openLoyaltyRegisterModal('recover');
         }
 
         async function syncMemberWithServer() {
@@ -1118,13 +1236,29 @@
                 const res = await fetch('/api/android/state/' + encodeURIComponent(currentMember.serial));
                 if (res.ok) {
                     const data = await res.json();
+                    const prevStamps = currentMember.stamps;
                     currentMember.name = data.name || currentMember.name;
                     currentMember.stamps = data.stamps || 0;
                     currentMember.stamp_goal = data.stamp_goal || STAMP_GOAL;
                     saveMemberToStorage(currentMember);
+                    if (typeof prevStamps === 'number' && data.stamps !== prevStamps) {
+                        showHubToast(`☕️ Tarjeta actualizada: ${data.stamps}/${currentMember.stamp_goal} sellos`);
+                    }
                 }
             } catch (e) {}
         }
+
+        // Sincronizar automáticamente cuando el usuario vuelve a la pestaña o cada 10s
+        document.addEventListener('visibilitychange', () => {
+            if (!document.hidden && currentMember && currentMember.serial) {
+                syncMemberWithServer();
+            }
+        });
+        setInterval(() => {
+            if (!document.hidden && currentMember && currentMember.serial) {
+                syncMemberWithServer();
+            }
+        }, 10000);
 
         function renderLoyaltyHubState() {
             const unregEl = document.getElementById('loyalty-card-unregistered');
@@ -1168,13 +1302,67 @@
             document.getElementById('hub-google-wallet-link').href = `/card/${currentMember.serial}`;
         }
 
-        function openLoyaltyRegisterModal() {
+        function switchLoyaltySubTab(mode) {
+            const newForm = document.getElementById('hub-loyalty-form');
+            const recForm = document.getElementById('hub-recover-form');
+            const btnNew = document.getElementById('tab-loyalty-new');
+            const btnRec = document.getElementById('tab-loyalty-recover');
+            document.getElementById('hub-recover-error').classList.add('hidden');
+            if (mode === 'recover') {
+                newForm.classList.add('hidden');
+                recForm.classList.remove('hidden');
+                btnRec.className = 'py-2 rounded-lg text-xs font-bold bg-[#121212] text-white transition';
+                btnNew.className = 'py-2 rounded-lg text-xs font-bold text-[#6E655F] transition';
+            } else {
+                recForm.classList.add('hidden');
+                newForm.classList.remove('hidden');
+                btnNew.className = 'py-2 rounded-lg text-xs font-bold bg-[#121212] text-white transition';
+                btnRec.className = 'py-2 rounded-lg text-xs font-bold text-[#6E655F] transition';
+            }
+        }
+
+        function openLoyaltyRegisterModal(mode) {
             document.getElementById('loyalty-step-form').classList.remove('hidden');
             document.getElementById('loyalty-step-success').classList.add('hidden');
             const btn = document.getElementById('hub-loyalty-submit-btn');
             btn.disabled = false;
             btn.innerHTML = '<span>Obtener mi tarjeta de lealtad</span>';
+            switchLoyaltySubTab(mode === 'recover' ? 'recover' : 'new');
             openModal('modal-loyalty');
+        }
+
+        async function submitRecoverCardForm(e) {
+            e.preventDefault();
+            const q = document.getElementById('hub-recover-input').value.trim();
+            const errEl = document.getElementById('hub-recover-error');
+            const btn = document.getElementById('hub-recover-submit-btn');
+            if (!q) return;
+            errEl.classList.add('hidden');
+            btn.disabled = true;
+            btn.textContent = 'Buscando tu tarjeta...';
+            try {
+                const res = await fetch('/api/hub/lookup', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ query: q })
+                });
+                const data = await res.json();
+                btn.disabled = false;
+                btn.textContent = 'Recuperar mis sellos y código QR';
+                if (res.ok && data.ok) {
+                    saveMemberToStorage(data);
+                    closeModal('modal-loyalty');
+                    showHubToast(`✅ ¡Bienvenido de nuevo, ${data.name}! (${data.stamps}/${data.stamp_goal} sellos)`);
+                } else {
+                    errEl.textContent = data.error || 'No encontramos una tarjeta con ese dato.';
+                    errEl.classList.remove('hidden');
+                }
+            } catch (err) {
+                btn.disabled = false;
+                btn.textContent = 'Recuperar mis sellos y código QR';
+                errEl.textContent = 'Error de conexión. Intenta nuevamente.';
+                errEl.classList.remove('hidden');
+            }
         }
 
         async function submitLoyaltyForm(e) {
@@ -1215,13 +1403,13 @@
             } else {
                 btn.disabled = false;
                 btn.innerHTML = '<span>Obtener mi tarjeta de lealtad</span>';
-                alert('No se pudo completar el registro. Intenta de nuevo.');
+                showHubToast('⚠️ No se pudo completar el registro. Intenta de nuevo.');
             }
         }
 
         function openPassPreviewModal() {
             if (!currentMember || !currentMember.serial) {
-                openLoyaltyRegisterModal();
+                openLoyaltyRegisterModal('register');
                 return;
             }
             const goal = currentMember.stamp_goal || STAMP_GOAL;
@@ -1233,6 +1421,7 @@
             document.getElementById('pkpass-serial-code').textContent = currentMember.serial;
             document.getElementById('pkpass-qr-img').src = `/card/${currentMember.serial}/qr.png`;
             document.getElementById('pkpass-direct-download-btn').href = `/card/${currentMember.serial}/download.pkpass`;
+            document.getElementById('pkpass-android-live-btn').href = `/card/${currentMember.serial}`;
 
             const grid = document.getElementById('pkpass-circles-grid');
             grid.innerHTML = '';
@@ -1254,7 +1443,12 @@
             closeModal('modal-passkit');
             renderLoyaltyHubState();
             if (currentMember && currentMember.serial) {
-                window.location.href = `/card/${currentMember.serial}/download.pkpass`;
+                const isAndroid = /android/i.test(navigator.userAgent || '');
+                if (isAndroid) {
+                    window.location.href = `/card/${currentMember.serial}?autowallet=1`;
+                } else {
+                    window.location.href = `/card/${currentMember.serial}/download.pkpass`;
+                }
             }
         }
 
@@ -1267,10 +1461,26 @@
             openModal('modal-menu');
         }
 
+        function clearMenuSearch() {
+            document.getElementById('menu-search-input').value = '';
+            renderMenuItems();
+        }
+
         function renderMenuItems() {
-            const q = (document.getElementById('menu-search-input').value || '').trim().toLowerCase();
+            const rawQ = document.getElementById('menu-search-input').value || '';
+            const q = rawQ.trim().toLowerCase();
+            const clearBtn = document.getElementById('menu-search-clear');
+            if (q.length > 0) {
+                clearBtn.classList.remove('hidden');
+                clearBtn.classList.add('flex');
+            } else {
+                clearBtn.classList.add('hidden');
+                clearBtn.classList.remove('flex');
+            }
+
             const wrap = document.getElementById('menu-sections-wrapper');
             wrap.innerHTML = '';
+            let totalFound = 0;
 
             MAISHA_MENU.forEach(sec => {
                 const filtered = sec.items.filter(it =>
@@ -1279,6 +1489,7 @@
                     it.allergen.toLowerCase().includes(q)
                 );
                 if (filtered.length === 0) return;
+                totalFound += filtered.length;
 
                 const secEl = document.createElement('section');
                 secEl.id = sec.id;
@@ -1304,6 +1515,19 @@
                 `;
                 wrap.appendChild(secEl);
             });
+
+            if (totalFound === 0) {
+                wrap.innerHTML = `
+                    <div class="text-center py-10 px-4">
+                        <div class="text-3xl mb-2">☕️</div>
+                        <div class="text-[15px] font-bold text-[#121212]">No encontramos "${rawQ}" en el menú</div>
+                        <p class="text-xs text-[#6E655F] mt-1 mb-3">Prueba buscando otra bebida o pregúntanos directamente en barra.</p>
+                        <button type="button" onclick="clearMenuSearch()" class="px-4 py-2 rounded-full bg-[#121212] text-white text-xs font-bold">
+                            Ver todo el menú
+                        </button>
+                    </div>
+                `;
+            }
         }
 
         function selectMainMenuTab(tabKey) {
@@ -1373,13 +1597,14 @@
                 temp.remove();
             }
             txtEl.textContent = '¡Contraseña copiada al portapapeles! ✅';
+            showHubToast('📋 Contraseña Wi-Fi copiada');
             setTimeout(() => {
                 txtEl.textContent = 'Copiar contraseña y conectar';
             }, 2600);
         }
 
         // =========================================================
-        // MÓDULO 4: BUZÓN DE SUGERENCIAS CON FILTRO INTELIGENTE
+        // MÓDULO 4: BUZÓN DE SUGERENCIAS
         // =========================================================
         function openGoogleReviewModal() {
             openModal('modal-google-review');
@@ -1449,9 +1674,9 @@
                 googleBtn.classList.add('flex');
             } else {
                 document.getElementById('feedback-result-icon').textContent = '💌';
-                document.getElementById('feedback-result-title').textContent = 'Gracias por tu honestidad';
+                document.getElementById('feedback-result-title').textContent = 'Gracias por ayudarnos a mejorar';
                 document.getElementById('feedback-result-desc').textContent =
-                    'Tu mensaje fue enviado de forma privada a la gerencia de Maisha\'s Café para revisarlo de inmediato y mejorar.';
+                    'Tu comentario ha sido recibido de forma privada por la gerencia de Maisha\'s Café para atenderlo de inmediato.';
                 googleBtn.classList.add('hidden');
                 googleBtn.classList.remove('flex');
             }
@@ -1583,6 +1808,7 @@
             sudokuState.selected = [0, 2];
             sudokuState.seconds = 0;
             document.getElementById('sudoku-timer').textContent = '00:00';
+            document.getElementById('sudoku-status-msg').textContent = 'Selecciona una casilla para empezar';
 
             document.querySelectorAll('.sudoku-diff-btn').forEach(b => {
                 const active = b.dataset.diff === diff;
@@ -1599,10 +1825,14 @@
             board.innerHTML = '';
             const [selR, selC] = sudokuState.selected;
             const selVal = sudokuState.grid[selR] ? sudokuState.grid[selR][selC] : 0;
+            const counts = {1:0, 2:0, 3:0, 4:0, 5:0, 6:0, 7:0, 8:0, 9:0};
 
             for (let r = 0; r < 9; r++) {
                 for (let c = 0; c < 9; c++) {
                     const val = sudokuState.grid[r][c];
+                    if (val >= 1 && val <= 9 && val === sudokuState.solution[r][c]) {
+                        counts[val]++;
+                    }
                     const isFixed = sudokuState.fixed[r][c] !== 0;
                     const isSel = (r === selR && c === selC);
                     const sameRowColBox = (r === selR || c === selC || (Math.floor(r/3) === Math.floor(selR/3) && Math.floor(c/3) === Math.floor(selC/3)));
@@ -1635,6 +1865,15 @@
                     board.appendChild(cell);
                 }
             }
+
+            // Actualizar teclado numérico cuando un dígito ya está completo 9 veces
+            document.querySelectorAll('.sudoku-num-btn').forEach(btn => {
+                const n = parseInt(btn.dataset.num, 10);
+                const done = counts[n] >= 9;
+                btn.className = `sudoku-num-btn py-3 rounded-xl font-extrabold text-[17px] active:scale-90 transition shadow-xs ${
+                    done ? 'bg-[#EADFD7] text-[#6E655F]/50' : 'bg-[#121212] text-white'
+                }`;
+            });
         }
 
         function inputSudokuNumber(n) {
@@ -1657,7 +1896,6 @@
             delete sudokuState.notes[key];
             renderSudokuBoard();
 
-            // Verificar si completó el tablero
             let completed = true;
             for (let i = 0; i < 9; i++) {
                 for (let j = 0; j < 9; j++) {
@@ -1670,15 +1908,20 @@
             if (completed) {
                 clearInterval(sudokuState.timerId);
                 document.getElementById('sudoku-status-msg').textContent = '🎉 ¡Felicidades! Completaste el Sudoku de Maisha\'s Café';
+                showHubToast('🏆 ¡Completaste el Sudoku de Maisha\'s Café!');
             }
         }
 
         function toggleSudokuNotes() {
             sudokuState.notesMode = !sudokuState.notesMode;
             const badge = document.getElementById('sudoku-notes-badge');
+            const btn = document.getElementById('btn-sudoku-notes');
             badge.textContent = `Modo Lápiz: ${sudokuState.notesMode ? 'ON' : 'OFF'}`;
             badge.className = `text-[11px] font-bold px-2 py-0.5 rounded-full ${
                 sudokuState.notesMode ? 'bg-[#121212] text-white' : 'bg-[#EADFD7] text-[#6E655F]'
+            }`;
+            btn.className = `flex flex-col items-center py-2 rounded-xl active:scale-95 transition ${
+                sudokuState.notesMode ? 'bg-[#121212] text-white' : 'bg-[#EADFD7] text-[#121212]'
             }`;
         }
 
@@ -1712,17 +1955,34 @@
         function refreshStaffSummary() {
             const el = document.getElementById('staff-client-summary');
             if (!currentMember || !currentMember.serial) {
-                el.textContent = 'Ningún cliente activo aún. Regístrate primero en "Empieza a ganar recompensas".';
+                el.textContent = 'Ningún cliente activo. Pulsa "⚡ Cargar Socio Demo" o regístrate primero.';
                 return;
             }
             el.textContent = `${currentMember.name} (${currentMember.serial}) · ${currentMember.stamps || 0}/${currentMember.stamp_goal || STAMP_GOAL} sellos`;
         }
 
+        async function staffLoadDemoClient() {
+            try {
+                const res = await fetch('/api/hub/lookup', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ demo_first: true })
+                });
+                const data = await res.json();
+                if (res.ok && data.ok) {
+                    saveMemberToStorage(data);
+                    refreshStaffSummary();
+                    const fb = document.getElementById('staff-action-feedback');
+                    fb.textContent = `✅ Socio cargado: ${data.name} (${data.serial}) con ${data.stamps}/${data.stamp_goal} sellos`;
+                    fb.classList.remove('hidden');
+                }
+            } catch (e) {}
+        }
+
         async function staffSimulateStamp(action) {
             if (!currentMember || !currentMember.serial) {
-                closeModal('modal-staff');
-                openLoyaltyRegisterModal();
-                return;
+                await staffLoadDemoClient();
+                if (!currentMember || !currentMember.serial) return;
             }
             try {
                 const res = await fetch('/api/hub/staff-stamp', {
@@ -1731,16 +1991,21 @@
                     body: JSON.stringify({ serial: currentMember.serial, action })
                 });
                 const data = await res.json();
+                const fb = document.getElementById('staff-action-feedback');
                 if (data && data.ok) {
                     currentMember.stamps = data.stamps;
                     currentMember.stamp_goal = data.stamp_goal || STAMP_GOAL;
                     saveMemberToStorage(currentMember);
                     refreshStaffSummary();
+                    fb.textContent = data.message || `✅ Ahora tiene ${data.stamps}/${currentMember.stamp_goal} sellos`;
+                    fb.classList.remove('hidden');
+                    showHubToast(`☕️ ${currentMember.name}: ${data.stamps}/${currentMember.stamp_goal} sellos`);
                 } else if (data && data.error) {
-                    alert(data.error);
+                    fb.textContent = data.error;
+                    fb.classList.remove('hidden');
                 }
             } catch (e) {
-                alert('Error al conectar con el servidor DEMO.');
+                showHubToast('⚠️ Error al conectar con el servidor DEMO.');
             }
         }
 

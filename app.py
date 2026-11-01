@@ -5856,6 +5856,56 @@ def api_hub_register():
     })
 
 
+@app.route("/api/hub/lookup", methods=["POST"])
+def api_hub_lookup():
+    data = request.get_json(force=True, silent=True) or {}
+    query = (data.get("query") or "").strip()
+    demo_first = bool(data.get("demo_first"))
+
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    found = None
+
+    if demo_first and not query:
+        found = c.execute(
+            "SELECT serial, name, email, phone, birthdate, stamps FROM clients WHERE COALESCE(status, 'active') = 'active' ORDER BY rowid ASC LIMIT 1"
+        ).fetchone()
+    elif query:
+        q_up = query.upper()
+        norm_p = _normalize_phone_digits(query)
+        found = c.execute(
+            "SELECT serial, name, email, phone, birthdate, stamps FROM clients WHERE COALESCE(status, 'active') = 'active' AND (UPPER(serial) = ? OR LOWER(TRIM(email)) = LOWER(?)) ORDER BY rowid DESC LIMIT 1",
+            (q_up if q_up.startswith("MAISHAS-") else f"MAISHAS-{q_up}", query)
+        ).fetchone()
+        if not found and len(norm_p) == 10:
+            rows = c.execute(
+                "SELECT serial, name, email, phone, birthdate, stamps FROM clients WHERE COALESCE(status, 'active') = 'active' AND phone IS NOT NULL AND TRIM(phone) != '' ORDER BY rowid DESC"
+            ).fetchall()
+            for r in rows:
+                if _normalize_phone_digits(r[3]) == norm_p:
+                    found = r
+                    break
+    conn.close()
+
+    if not found:
+        return jsonify({"ok": False, "error": "No encontramos una tarjeta activa con ese dato."}), 404
+
+    cfg = get_campaign_config()
+    return jsonify({
+        "ok": True,
+        "serial": found[0],
+        "name": found[1] or "Cliente",
+        "email": found[2] or "",
+        "phone": found[3] or "",
+        "birthdate": found[4] or "",
+        "stamps": found[5] or 0,
+        "stamp_goal": cfg["stampGoal"],
+        "pkpass_url": f"/card/{found[0]}/download.pkpass",
+        "android_card_url": f"/card/{found[0]}?autowallet=1",
+        "qr_url": f"/card/{found[0]}/qr.png",
+    })
+
+
 @app.route("/api/hub/staff-stamp", methods=["POST"])
 def api_hub_staff_stamp():
     data = request.get_json(force=True, silent=True) or {}
