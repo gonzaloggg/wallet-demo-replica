@@ -848,6 +848,17 @@ def init_db():
     ''')
 
     c.execute('''
+        CREATE TABLE IF NOT EXISTS hub_feedback (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            serial TEXT,
+            message TEXT,
+            sentiment TEXT,
+            has_photo INTEGER DEFAULT 0,
+            created_at_sonora TEXT
+        )
+    ''')
+
+    c.execute('''
         CREATE TABLE IF NOT EXISTS settings (
             key TEXT PRIMARY KEY,
             value TEXT
@@ -860,6 +871,14 @@ def init_db():
         "bday_auto_enabled": "1",
         "bday_auto_hour": "08:00",
         "bday_auto_template": "🎂 ¡Feliz cumpleaños, {nombre}! Hoy tienes una bebida o postre de cortesía en Maishas Café ☕️✨",
+        "hub_slogan": "Tu rincón favorito de café en Navojoa",
+        "hub_wifi_ssid": "Maishas_Cafe",
+        "hub_wifi_pass": "cafemaishas",
+        "hub_google_review_url": "https://www.google.com/maps/search/?api=1&query=Maishas+Cafe+Matamoros+220+Navojoa+Sonora",
+        "hub_instagram_url": "https://www.instagram.com/maishascafe/",
+        "hub_instagram_handle": "@maishascafe",
+        "hub_address": "Matamoros entre No Reelección y Pesqueira #220",
+        "hub_phone": "642 113 8069",
     }
     for k, v in default_settings.items():
         c.execute("INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)", (k, v))
@@ -869,6 +888,26 @@ def init_db():
 
 
 init_db()
+
+
+def get_hub_config():
+    """Obtiene los ajustes del Hub de Experiencia en Mesa (Wi-Fi, Google Reviews, Eslogan, Instagram, Dirección)."""
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    rows = dict(c.execute(
+        "SELECT key, value FROM settings WHERE key LIKE 'hub_%'"
+    ).fetchall())
+    conn.close()
+    return {
+        "slogan": (rows.get("hub_slogan") or "Tu rincón favorito de café en Navojoa").strip(),
+        "wifi_ssid": (rows.get("hub_wifi_ssid") or "Maishas_Cafe").strip(),
+        "wifi_pass": (rows.get("hub_wifi_pass") or "cafemaishas").strip(),
+        "google_review_url": (rows.get("hub_google_review_url") or "https://www.google.com/maps/search/?api=1&query=Maishas+Cafe+Matamoros+220+Navojoa+Sonora").strip(),
+        "instagram_url": (rows.get("hub_instagram_url") or "https://www.instagram.com/maishascafe/").strip(),
+        "instagram_handle": (rows.get("hub_instagram_handle") or "@maishascafe").strip(),
+        "address": (rows.get("hub_address") or "Matamoros entre No Reelección y Pesqueira #220").strip(),
+        "phone": (rows.get("hub_phone") or "642 113 8069").strip(),
+    }
 
 
 DEFAULT_BDAY_AUTO_TEMPLATE = "🎂 ¡Feliz cumpleaños, {nombre}! Hoy tienes una bebida o postre de cortesía en Maishas Café ☕️✨"
@@ -4442,6 +4481,46 @@ BARISTA_HTML = """
                     </div>
                 </div>
             </div>
+
+            <!-- CONFIGURACIÓN DEL HUB DE EXPERIENCIA EN MESA (WI-FI, GOOGLE REVIEWS, ESLOGAN, INSTAGRAM) -->
+            <div class="bento-card" style="margin-top:16px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:14px;">
+                    <div>
+                        <span style="font-size:11px; font-weight:800; color:var(--gold-light); text-transform:uppercase; letter-spacing:0.6px;">📱 Hub de Experiencia en Mesa (Estilo Candour)</span>
+                        <h3 style="margin:2px 0 0; font-size:17px; font-weight:800;">Ajustes de Wi-Fi, Google Reviews y Portada del Cliente</h3>
+                    </div>
+                    <a href="/" target="_blank" class="action-chip" style="text-decoration:none; border-color:rgba(212,175,55,0.45); color:var(--gold-light);">
+                        🔗 Ver Hub del Cliente (/) ↗
+                    </a>
+                </div>
+                <form action="/api/hub/settings" method="POST" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:12px;">
+                    <div>
+                        <label style="font-size:11.5px; color:var(--gold-light); font-weight:700; display:block; margin-bottom:5px;">Eslogan debajo de Maisha's Café</label>
+                        <input type="text" name="slogan" class="input-dark" value="{{ hub.slogan if hub is defined else 'Tu rincón favorito de café en Navojoa' }}" required>
+                    </div>
+                    <div>
+                        <label style="font-size:11.5px; color:var(--gold-light); font-weight:700; display:block; margin-bottom:5px;">Nombre de Red Wi-Fi (SSID)</label>
+                        <input type="text" name="wifi_ssid" class="input-dark" value="{{ hub.wifi_ssid if hub is defined else 'Maishas_Cafe' }}" required>
+                    </div>
+                    <div>
+                        <label style="font-size:11.5px; color:var(--gold-light); font-weight:700; display:block; margin-bottom:5px;">Contraseña del Wi-Fi</label>
+                        <input type="text" name="wifi_pass" class="input-dark" value="{{ hub.wifi_pass if hub is defined else 'cafemaishas' }}" required>
+                    </div>
+                    <div>
+                        <label style="font-size:11.5px; color:var(--gold-light); font-weight:700; display:block; margin-bottom:5px;">Enlace de Google Reviews / Maps</label>
+                        <input type="url" name="google_review_url" class="input-dark" value="{{ hub.google_review_url if hub is defined else '' }}" required>
+                    </div>
+                    <div>
+                        <label style="font-size:11.5px; color:var(--gold-light); font-weight:700; display:block; margin-bottom:5px;">Usuario de Instagram</label>
+                        <input type="text" name="instagram_handle" class="input-dark" value="{{ hub.instagram_handle if hub is defined else '@maishascafe' }}">
+                    </div>
+                    <div style="display:flex; align-items:flex-end;">
+                        <button type="submit" class="btn-cam-launch" style="width:100%; justify-content:center;">
+                            💾 Guardar Ajustes del Hub
+                        </button>
+                    </div>
+                </form>
+            </div>
         </section>
     </main>
 
@@ -5656,7 +5735,193 @@ def generate_signed_pkpass(
 
 @app.route("/")
 def index():
+    hub_tpl_path = os.path.join(BASE_DIR, "hub_template.html")
+    if os.path.isfile(hub_tpl_path):
+        with open(hub_tpl_path, "r", encoding="utf-8") as fp:
+            tpl_str = fp.read()
+        return render_template_string(tpl_str, campaign=get_campaign_config(), hub=get_hub_config())
     return render_template_string(REGISTRATION_HTML, campaign=get_campaign_config())
+
+
+@app.route("/registro-directo")
+def registro_directo():
+    return render_template_string(REGISTRATION_HTML, campaign=get_campaign_config())
+
+
+@app.route("/api/hub/hero.jpg")
+def hub_hero_jpg():
+    hero_path = os.path.join(BASE_DIR, "static", "maishas_interior.jpg")
+    if os.path.isfile(hero_path):
+        return send_file(hero_path, mimetype="image/jpeg", max_age=3600)
+    return campaign_logo_png()
+
+
+@app.route("/api/hub/menu-oficial.png")
+def hub_menu_oficial_png():
+    menu_path = os.path.join(BASE_DIR, "static", "maishas_menu_oficial.png")
+    if os.path.isfile(menu_path):
+        return send_file(menu_path, mimetype="image/png", max_age=3600)
+    return "", 404
+
+
+@app.route("/api/hub/wifi-qr.png")
+def hub_wifi_qr_png():
+    hub_cfg = get_hub_config()
+    wifi_payload = f"WIFI:S:{hub_cfg['wifi_ssid']};T:WPA;P:{hub_cfg['wifi_pass']};;"
+    qr = qrcode.QRCode(version=1, error_correction=qrcode.constants.ERROR_CORRECT_M, box_size=8, border=1)
+    qr.add_data(wifi_payload)
+    qr.make(fit=True)
+    img = qr.make_image(fill_color="#121212", back_color="#FFFFFF").convert("RGB")
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    buf.seek(0)
+    return send_file(buf, mimetype="image/png", max_age=300)
+
+
+@app.route("/api/hub/register", methods=["POST"])
+def api_hub_register():
+    data = request.get_json(force=True, silent=True) or {}
+    name = (data.get("name") or request.form.get("name") or "").strip()
+    email = (data.get("email") or request.form.get("email") or "").strip()
+    phone = (data.get("phone") or request.form.get("phone") or "").strip()
+    birthdate = (data.get("birthdate") or request.form.get("birthdate") or "").strip()
+
+    ua = (request.headers.get("User-Agent") or "").lower()
+    platform = "android" if "android" in ua else "ios"
+    android_active = 1 if platform == "android" else 0
+    now_ts = get_utc_timestamp()
+    created_sonora = get_sonora_datetime_str()
+
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+
+    existing = None
+    norm_phone = _normalize_phone_digits(phone)
+    if email:
+        existing = c.execute(
+            "SELECT serial, stamps, total_visits, redeemed_count, message, phone, birthdate, email FROM clients WHERE COALESCE(status, 'active') != 'hidden' AND LOWER(TRIM(email)) = LOWER(?) ORDER BY rowid DESC LIMIT 1",
+            (email,)
+        ).fetchone()
+    if not existing and len(norm_phone) == 10:
+        all_with_phone = c.execute(
+            "SELECT serial, stamps, total_visits, redeemed_count, message, phone, birthdate, email FROM clients WHERE COALESCE(status, 'active') != 'hidden' AND phone IS NOT NULL AND TRIM(phone) != '' ORDER BY rowid DESC"
+        ).fetchall()
+        for row_p in all_with_phone:
+            if _normalize_phone_digits(row_p[5]) == norm_phone:
+                existing = row_p
+                break
+
+    if existing:
+        serial_number = existing[0]
+        stamps_val = existing[1] or 0
+        final_phone = phone if phone else (existing[5] or "")
+        final_bdate = birthdate if birthdate else (existing[6] or "")
+        final_email = email if email else (existing[7] or "")
+        c.execute(
+            """UPDATE clients
+               SET name = ?, email = ?, phone = ?, birthdate = ?, updated_at = ?,
+                   platform = ?, android_active = CASE WHEN ? = 1 THEN 1 ELSE android_active END,
+                   status = 'active', deactivated_at = ''
+               WHERE serial = ?""",
+            (name or "Cliente", final_email, final_phone, final_bdate, now_ts, platform, android_active, serial_number)
+        )
+    else:
+        serial_number = f"MAISHAS-{uuid.uuid4().hex[:6].upper()}"
+        stamps_val = 0
+        final_phone = phone
+        final_bdate = birthdate
+        final_email = email
+        c.execute(
+            """INSERT INTO clients (serial, name, email, phone, birthdate, stamps, total_visits, redeemed_count, message, updated_at, platform, android_active, created_at, last_action, status, deactivated_at)
+               VALUES (?, ?, ?, ?, ?, 0, 0, 0, ?, ?, ?, ?, ?, 'add', 'active', '')""",
+            (serial_number, name or "Cliente", final_email, final_phone, final_bdate, DEFAULT_MESSAGE, now_ts, platform, android_active, created_sonora)
+        )
+
+    conn.commit()
+    conn.close()
+
+    cfg = get_campaign_config()
+    return jsonify({
+        "ok": True,
+        "serial": serial_number,
+        "name": name or "Cliente",
+        "email": final_email,
+        "phone": final_phone,
+        "birthdate": final_bdate,
+        "stamps": stamps_val,
+        "stamp_goal": cfg["stampGoal"],
+        "pkpass_url": f"/card/{serial_number}/download.pkpass",
+        "android_card_url": f"/card/{serial_number}?autowallet=1",
+        "qr_url": f"/card/{serial_number}/qr.png",
+    })
+
+
+@app.route("/api/hub/staff-stamp", methods=["POST"])
+def api_hub_staff_stamp():
+    data = request.get_json(force=True, silent=True) or {}
+    serial = (data.get("serial") or "").strip().upper()
+    action = (data.get("action") or "add").strip().lower()
+    if action not in ("add", "sub", "reset"):
+        action = "add"
+    serial_clean, status_msg = _perform_stamp_update(serial, action=action, force_duplicate=True)
+    if not serial_clean:
+        return jsonify({"ok": False, "error": status_msg}), 404
+    conn = sqlite3.connect(DB_PATH)
+    row = conn.execute("SELECT name, stamps, total_visits, redeemed_count FROM clients WHERE serial = ?", (serial_clean,)).fetchone()
+    conn.close()
+    cfg = get_campaign_config()
+    return jsonify({
+        "ok": True,
+        "serial": serial_clean,
+        "name": row[0] if row else "Cliente",
+        "stamps": (row[1] or 0) if row else 0,
+        "stamp_goal": cfg["stampGoal"],
+        "message": status_msg,
+    })
+
+
+@app.route("/api/hub/feedback", methods=["POST"])
+def api_hub_feedback():
+    data = request.get_json(force=True, silent=True) or {}
+    serial = (data.get("serial") or "").strip().upper()
+    message = (data.get("message") or "").strip()[:1000]
+    sentiment = (data.get("sentiment") or "constructive").strip()
+    has_photo = 1 if data.get("has_photo") else 0
+    if not message:
+        return jsonify({"ok": False}), 400
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute(
+        "INSERT INTO hub_feedback (serial, message, sentiment, has_photo, created_at_sonora) VALUES (?, ?, ?, ?, ?)",
+        (serial, message, sentiment, has_photo, get_sonora_datetime_str())
+    )
+    c.execute(
+        "INSERT INTO wallet_logs (created_at, log_text) VALUES (?, ?)",
+        (get_utc_timestamp(), f"💬 Buzón de Sugerencias ({sentiment}): {message[:100]}")
+    )
+    conn.commit()
+    conn.close()
+    return jsonify({"ok": True, "sentiment": sentiment})
+
+
+@app.route("/api/hub/settings", methods=["POST"])
+@requires_auth
+def api_hub_settings():
+    fields = {
+        "hub_slogan": (request.form.get("slogan") or "").strip()[:120],
+        "hub_wifi_ssid": (request.form.get("wifi_ssid") or "").strip()[:80],
+        "hub_wifi_pass": (request.form.get("wifi_pass") or "").strip()[:80],
+        "hub_google_review_url": (request.form.get("google_review_url") or "").strip()[:300],
+        "hub_instagram_handle": (request.form.get("instagram_handle") or "").strip()[:60],
+    }
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    for k, v in fields.items():
+        if v:
+            c.execute("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)", (k, v))
+    conn.commit()
+    conn.close()
+    return redirect(url_for("barista", ok="✅ Ajustes del Hub de Experiencia en Mesa actualizados"))
 
 
 @app.route("/barista/login", methods=["GET", "POST"])
@@ -5940,6 +6205,7 @@ def barista():
         total_redeemed=total_redeemed,
         shop_loc=get_shop_location(),
         campaign=campaign_cfg,
+        hub=get_hub_config(),
         bday_auto=bday_auto_cfg,
         shift_summary=shift_summary,
         server_now_epoch=round(datetime.now(timezone.utc).timestamp(), 2),

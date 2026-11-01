@@ -1,0 +1,1751 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>{{ campaign.shopName }} — Experiencia en Mesa y Club de Lealtad (DEMO)</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['"Plus Jakarta Sans"', '-apple-system', 'BlinkMacSystemFont', '"SF Pro Display"', 'sans-serif'],
+                    },
+                    colors: {
+                        candour: {
+                            bg: '#F4ECE6',
+                            card: '#EADFD7',
+                            cardHover: '#E2D4C9',
+                            sheet: '#FAF6F3',
+                            ink: '#121212',
+                            muted: '#6E655F',
+                            loyalty: '#E86C78',
+                            wifi: '#34C759',
+                            feedback: '#5856D6',
+                            sudoku: '#AF52DE',
+                            gold: '#C5A869',
+                            olive: '#4A5D23'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+            -webkit-font-smoothing: antialiased;
+        }
+        body {
+            background-color: #E6DDD6;
+            color: #121212;
+            font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+            margin: 0;
+            padding: 0;
+            min-height: 100dvh;
+            display: flex;
+            justify-content: center;
+        }
+        .app-shell {
+            width: 100%;
+            max-width: 430px;
+            min-height: 100dvh;
+            background-color: #F4ECE6;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 24px 60px rgba(18, 18, 18, 0.14);
+        }
+        @media (min-width: 500px) {
+            body {
+                padding: 20px 0;
+            }
+            .app-shell {
+                min-height: calc(100dvh - 40px);
+                border-radius: 38px;
+                overflow: hidden;
+                border: 6px solid #1E1B18;
+            }
+        }
+        .action-card {
+            background-color: #EADFD7;
+            border-radius: 16px;
+            transition: transform 0.16s cubic-bezier(0.32, 0.72, 0, 1), background-color 0.16s ease;
+            cursor: pointer;
+            user-select: none;
+        }
+        .action-card:active {
+            transform: scale(0.98);
+            background-color: #E1D3C8;
+        }
+        /* Native <dialog> bottom sheets following prevent-page-scroll-under-modal-dialog */
+        dialog.bottom-sheet {
+            overscroll-behavior: contain;
+            background: #FAF6F3;
+            color: #121212;
+            border: none;
+            border-radius: 28px 28px 0 0;
+            width: 100%;
+            max-width: 430px;
+            margin: auto auto 0 auto;
+            padding: 0;
+            box-shadow: 0 -12px 44px rgba(0, 0, 0, 0.22);
+            transform: translateY(100%);
+            transition: transform 0.34s cubic-bezier(0.32, 0.72, 0, 1);
+        }
+        dialog.bottom-sheet[open] {
+            transform: translateY(0);
+        }
+        dialog.bottom-sheet::backdrop {
+            overflow: hidden;
+            overscroll-behavior: contain;
+            background: rgba(18, 18, 18, 0.48);
+            backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
+        }
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        .sudoku-cell {
+            aspect-ratio: 1 / 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 1.15rem;
+            cursor: pointer;
+            user-select: none;
+            transition: background-color 0.1s ease;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-shell">
+        <!-- HEADER VISUAL (HERO BANNER + AVATAR + ESLOGAN) -->
+        <header class="relative">
+            <div class="relative h-[200px] w-full overflow-hidden bg-[#2C2520]">
+                <img src="/api/hub/hero.jpg" alt="Interior de {{ campaign.shopName }}" class="w-full h-full object-cover object-center" />
+                <div class="absolute inset-0 bg-gradient-to-t from-black/50 via-black/15 to-black/25"></div>
+
+                <!-- Botón discreto Superior Izquierdo: Modo Staff POS -->
+                <button type="button" onclick="openModal('modal-staff')" class="absolute top-3.5 left-3.5 z-10 px-3 py-1.5 rounded-full bg-black/45 text-white text-xs font-semibold backdrop-blur-md border border-white/20 flex items-center gap-1.5 active:scale-95 transition">
+                    <span>☕️</span>
+                    <span>Modo Staff POS</span>
+                </button>
+
+                <!-- Botón Superior Derecho: Listo (Done) -->
+                <button type="button" onclick="handleTopDone()" class="absolute top-3.5 right-3.5 z-10 px-3.5 py-1.5 rounded-full bg-white/80 text-[#121212] text-xs font-bold backdrop-blur-md shadow-sm active:scale-95 transition">
+                    Listo
+                </button>
+            </div>
+
+            <!-- Avatar circular superpuesto en el borde inferior izquierdo -->
+            <div class="px-5">
+                <div class="relative -mt-9 mb-2.5 flex items-end justify-between">
+                    <div id="brand-avatar"
+                         oncontextmenu="event.preventDefault(); openModal('modal-staff');"
+                         onclick="handleAvatarTap()"
+                         title="Toca 3 veces o mantén presionado para abrir Modo Staff POS"
+                         class="w-[72px] h-[72px] rounded-full bg-[#FAF6F3] border-[3px] border-[#4A5D23] shadow-md flex items-center justify-center overflow-hidden cursor-pointer select-none">
+                        <img src="/api/campaign/logo.png" alt="{{ campaign.shopName }}" class="w-full h-full object-cover" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" />
+                        <div style="display:none;" class="w-full h-full items-center justify-center bg-[#4A5D23] text-[#FAF6F3] font-extrabold text-[10px] text-center leading-tight px-1">
+                            MAISHA'S CAFÉ
+                        </div>
+                    </div>
+                    <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-[#EADFD7] text-[#4A5D23]">
+                        <span>✨</span> Club en Mesa · DEMO
+                    </span>
+                </div>
+
+                <h1 class="text-[24px] font-bold tracking-[-0.02em] text-[#121212] leading-tight">
+                    {{ campaign.shopName }}
+                </h1>
+                <p class="text-[14px] text-[#6E655F] font-medium mt-0.5">
+                    {{ hub.slogan }}
+                </p>
+                <div class="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11.5px] text-[#6E655F]">
+                    <span>📍 {{ hub.address }}</span>
+                    <a href="tel:{{ hub.phone | replace(' ', '') }}" class="underline font-semibold text-[#4A5D23]">📞 {{ hub.phone }}</a>
+                </div>
+            </div>
+        </header>
+
+        <!-- LISTA DE TARJETAS DE ACCIÓN (STACK VERTICAL CON GAP 12PX) -->
+        <main class="px-4 pt-4 pb-10 flex flex-col gap-[12px] flex-1">
+
+            <!-- TARJETA 1: DINÁMICA - LEALTAD (ESTADO A: NO REGISTRADO / ESTADO B: REGISTRADO) -->
+            <div id="loyalty-card-unregistered" class="action-card p-4" onclick="openLoyaltyRegisterModal()">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-3.5">
+                        <div class="w-11 h-11 rounded-full bg-[#E86C78]/15 text-[#E86C78] flex items-center justify-center shrink-0">
+                            <svg class="w-5 h-5 fill-current" viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+                        </div>
+                        <div>
+                            <div class="text-[15.5px] font-bold text-[#121212] tracking-[-0.01em]">Empieza a ganar recompensas</div>
+                            <div class="text-[12.5px] text-[#6E655F]">Acumula <span class="stamp-goal-label">{{ campaign.stampGoal }}</span> sellos para ganar 1 café gratis</div>
+                        </div>
+                    </div>
+                    <svg class="w-5 h-5 text-[#6E655F]" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+                </div>
+            </div>
+
+            <!-- TARJETA 1 (ESTADO B): USUARIO YA REGISTRADO -->
+            <div id="loyalty-card-registered" class="hidden bg-[#EADFD7] rounded-[16px] p-4 transition-all">
+                <div class="flex items-start justify-between gap-2 mb-3">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-full bg-[#E86C78] text-white flex items-center justify-center shrink-0 shadow-sm">
+                            <svg class="w-5 h-5 fill-current" viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+                        </div>
+                        <div>
+                            <div id="hub-stamps-headline" class="text-[15px] font-bold text-[#121212] tracking-[-0.01em]">
+                                0 / {{ campaign.stampGoal }} sellos para tu café gratis
+                            </div>
+                            <div id="hub-member-sub" class="text-[12px] text-[#6E655F]">
+                                Socio: <span id="hub-member-name" class="font-semibold text-[#121212]">Cliente</span> · <span id="hub-member-serial" class="font-mono">MAISHAS-000000</span>
+                            </div>
+                        </div>
+                    </div>
+                    <button type="button" onclick="resetLocalMember()" title="Cambiar de cuenta" class="text-[11px] font-semibold text-[#6E655F] hover:text-[#121212] underline px-1 py-0.5">
+                        Cambiar
+                    </button>
+                </div>
+
+                <!-- Fila de círculos indicadores de sellos -->
+                <div id="hub-stamp-circles" class="grid grid-cols-5 gap-2 my-3.5 p-3 rounded-xl bg-[#FAF6F3]/80 border border-black/5">
+                    <!-- Renderizado dinámico por JS -->
+                </div>
+
+                <div class="flex flex-col gap-2 mt-3">
+                    <button type="button" onclick="openPassPreviewModal()" class="w-full py-3 px-4 rounded-[14px] bg-[#121212] text-white font-bold text-[14.5px] flex items-center justify-center gap-2 active:scale-[0.98] transition shadow-sm">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4h6v6H4V4zm10 0h6v6h-6V4zM4 14h6v6H4v-6zm10 3h3m3 0h-3m0 0v-3m0 3v3"/></svg>
+                        <span>Mostrar mi código QR</span>
+                    </button>
+                    <div class="grid grid-cols-2 gap-2">
+                        <a id="hub-apple-wallet-link" href="#" class="py-2.5 px-3 rounded-[12px] bg-[#FAF6F3] text-[#121212] font-bold text-[12.5px] border border-black/10 flex items-center justify-center gap-1.5 active:scale-[0.98] transition text-center">
+                            <span>🍎</span>
+                            <span>Apple Wallet</span>
+                        </a>
+                        <a id="hub-google-wallet-link" href="#" class="py-2.5 px-3 rounded-[12px] bg-[#FAF6F3] text-[#121212] font-bold text-[12.5px] border border-black/10 flex items-center justify-center gap-1.5 active:scale-[0.98] transition text-center">
+                            <span>📲</span>
+                            <span>Tarjeta en Vivo</span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TARJETA 2: GOOGLE REVIEW -->
+            <div class="action-card p-4" onclick="openGoogleReviewModal()">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-3.5">
+                        <div class="w-11 h-11 rounded-full bg-white flex items-center justify-center shrink-0 shadow-xs">
+                            <!-- Ícono oficial de Google multicolor -->
+                            <svg class="w-5 h-5" viewBox="0 0 24 24">
+                                <path fill="#EA4335" d="M12 5c1.6 0 3 .6 4.1 1.7l3.1-3.1C17.3 1.8 14.8 1 12 1 7.4 1 3.5 3.6 1.6 7.4l3.7 2.8C6.2 7.2 8.9 5 12 5z"/>
+                                <path fill="#4285F4" d="M23.5 12.3c0-.8-.1-1.6-.2-2.3H12v4.5h6.5c-.3 1.5-1.1 2.8-2.4 3.6l3.7 2.9c2.2-2 3.7-5 3.7-8.7z"/>
+                                <path fill="#FBBC05" d="M5.3 14.8c-.2-.8-.4-1.6-.4-2.5s.2-1.7.4-2.5L1.6 7C.6 9 0 11.2 0 13.5s.6 4.5 1.6 6.5l3.7-2.9z"/>
+                                <path fill="#34A853" d="M12 24c3.2 0 6-1.1 8-3l-3.7-2.9c-1.1.7-2.5 1.2-4.3 1.2-3.1 0-5.8-2.1-6.7-5l-3.7 2.9C3.5 21.4 7.4 24 12 24z"/>
+                            </svg>
+                        </div>
+                        <div>
+                            <div class="text-[15.5px] font-bold text-[#121212] tracking-[-0.01em]">Dejar una reseña en Google</div>
+                            <div class="text-[12.5px] text-[#6E655F]">Tu calificación nos ayuda a seguir creciendo</div>
+                        </div>
+                    </div>
+                    <svg class="w-5 h-5 text-[#6E655F]" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+                </div>
+            </div>
+
+            <!-- TARJETA 3: MENÚ DIGITAL INTERACTIVO -->
+            <div class="action-card p-4" onclick="openMenuModal()">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-3.5">
+                        <div class="w-11 h-11 rounded-full bg-[#F59E0B]/15 text-[#D97706] flex items-center justify-center shrink-0">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
+                        </div>
+                        <div>
+                            <div class="text-[15.5px] font-bold text-[#121212] tracking-[-0.01em]">Ver Menú</div>
+                            <div class="text-[12.5px] text-[#6E655F]">Bebidas calientes, frappés, sodas y postres</div>
+                        </div>
+                    </div>
+                    <svg class="w-5 h-5 text-[#6E655F]" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+                </div>
+            </div>
+
+            <!-- TARJETA 4: WI-FI -->
+            <div class="action-card p-4" onclick="openModal('modal-wifi')">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-3.5">
+                        <div class="w-11 h-11 rounded-full bg-[#34C759]/15 text-[#28A745] flex items-center justify-center shrink-0">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0M1.394 9.393c5.857-5.857 15.355-5.857 21.213 0"/></svg>
+                        </div>
+                        <div>
+                            <div class="text-[15.5px] font-bold text-[#121212] tracking-[-0.01em]">Conectarse al Wi-Fi</div>
+                            <div class="text-[12.5px] text-[#6E655F]">Red: <span class="font-semibold">{{ hub.wifi_ssid }}</span></div>
+                        </div>
+                    </div>
+                    <svg class="w-5 h-5 text-[#6E655F]" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+                </div>
+            </div>
+
+            <!-- TARJETA 5: BUZÓN DE SUGERENCIAS -->
+            <div class="action-card p-4" onclick="openFeedbackModal()">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-3.5">
+                        <div class="w-11 h-11 rounded-full bg-[#5856D6]/15 text-[#5856D6] flex items-center justify-center shrink-0">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/></svg>
+                        </div>
+                        <div>
+                            <div class="text-[15.5px] font-bold text-[#121212] tracking-[-0.01em]">Buzón de Sugerencias</div>
+                            <div class="text-[12.5px] text-[#6E655F]">Comentarios 100% anónimos para mejorar</div>
+                        </div>
+                    </div>
+                    <svg class="w-5 h-5 text-[#6E655F]" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+                </div>
+            </div>
+
+            <!-- TARJETA 6: MINI-JUEGO SUDOKU -->
+            <div class="action-card p-4" onclick="openSudokuModal()">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-3.5">
+                        <div class="w-11 h-11 rounded-full bg-[#AF52DE]/15 text-[#AF52DE] flex items-center justify-center shrink-0">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/></svg>
+                        </div>
+                        <div>
+                            <div class="text-[15.5px] font-bold text-[#121212] tracking-[-0.01em]">Jugar Sudoku</div>
+                            <div class="text-[12.5px] text-[#6E655F]">Entretente mientras preparamos tu café</div>
+                        </div>
+                    </div>
+                    <svg class="w-5 h-5 text-[#6E655F]" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+                </div>
+            </div>
+
+            <!-- TARJETA 7: INSTAGRAM -->
+            <a href="{{ hub.instagram_url }}" target="_blank" rel="noopener noreferrer" class="action-card p-4 block no-underline">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-3.5">
+                        <div class="w-11 h-11 rounded-full bg-gradient-to-tr from-[#F58529] via-[#DD2A7B] to-[#8134AF] text-white flex items-center justify-center shrink-0">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect><path d="M16 11.37A4 4 0 1112.63 8 4 4 0 0116 11.37z"></path><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line></svg>
+                        </div>
+                        <div>
+                            <div class="text-[15.5px] font-bold text-[#121212] tracking-[-0.01em]">Síguenos en Instagram</div>
+                            <div class="text-[12.5px] text-[#6E655F]">{{ hub.instagram_handle }}</div>
+                        </div>
+                    </div>
+                    <svg class="w-5 h-5 text-[#6E655F]" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+                </div>
+            </a>
+        </main>
+
+        <footer class="px-5 pb-6 text-center text-[11.5px] text-[#6E655F]">
+            <span>Experiencia Digital en Mesa · {{ campaign.shopName }}</span>
+        </footer>
+    </div>
+
+    <!-- =========================================================
+         MÓDULO 1: FLUJO DE REGISTRO DE LEALTAD Y PASE DIGITAL
+         ========================================================= -->
+    <dialog id="modal-loyalty" class="bottom-sheet max-h-[92dvh] overflow-y-auto">
+        <div class="p-5">
+            <div class="w-10 h-1.5 bg-black/15 rounded-full mx-auto mb-4"></div>
+
+            <!-- VISTA 1A: FORMULARIO DE REGISTRO -->
+            <div id="loyalty-step-form">
+                <div class="flex justify-between items-start mb-3">
+                    <div class="w-12 h-12 rounded-full bg-[#121212] text-white flex items-center justify-center">
+                        <svg class="w-6 h-6 fill-current" viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+                    </div>
+                    <button type="button" onclick="closeModal('modal-loyalty')" class="px-3 py-1 rounded-full bg-[#EADFD7] text-xs font-bold text-[#121212]">Cerrar</button>
+                </div>
+
+                <h2 class="text-[22px] font-bold tracking-[-0.02em] text-[#121212]">Gana Recompensas</h2>
+                <p class="text-[14px] text-[#6E655F] mt-0.5 mb-4">
+                    Acumula {{ campaign.stampGoal }} sellos para ganar 1 café o bebida gratis en {{ campaign.shopName }}.
+                </p>
+
+                <form id="hub-loyalty-form" onsubmit="submitLoyaltyForm(event)" class="space-y-3.5">
+                    <div>
+                        <label for="hub-reg-name" class="block text-[12.5px] font-bold text-[#121212] mb-1">Tu nombre completo</label>
+                        <input id="hub-reg-name" name="name" type="text" autocomplete="name" enterkeyhint="next" required placeholder="Ej. Valeria Esquer"
+                               class="w-full px-3.5 py-3 rounded-[12px] bg-white border border-black/15 text-[15px] text-[#121212] focus:outline-none focus:border-[#121212]" />
+                    </div>
+
+                    <div>
+                        <label for="hub-reg-email" class="block text-[12.5px] font-bold text-[#121212] mb-1">Correo electrónico</label>
+                        <input id="hub-reg-email" name="email" type="email" autocomplete="username" spellcheck="false" enterkeyhint="next" required placeholder="tucorreo@ejemplo.com"
+                               class="w-full px-3.5 py-3 rounded-[12px] bg-white border border-black/15 text-[15px] text-[#121212] focus:outline-none focus:border-[#121212]" />
+                    </div>
+
+                    <div>
+                        <label for="hub-reg-phone" class="flex justify-between text-[12.5px] font-bold text-[#121212] mb-1">
+                            <span>Número de celular</span>
+                            <span class="text-[11px] font-medium text-[#6E655F]">Para respaldar tus sellos</span>
+                        </label>
+                        <input id="hub-reg-phone" name="phone" type="tel" inputmode="tel" autocomplete="tel" enterkeyhint="done" placeholder="Ej. 642 113 8069"
+                               class="w-full px-3.5 py-3 rounded-[12px] bg-white border border-black/15 text-[15px] text-[#121212] focus:outline-none focus:border-[#121212]" />
+                    </div>
+
+                    <div class="pt-1">
+                        <label class="block text-[12.5px] font-bold text-[#121212] mb-1">
+                            🎂 Déjanos tu cumpleaños si quieres recibir un regalo en tu día
+                        </label>
+                        <div class="grid grid-cols-2 gap-2.5">
+                            <div>
+                                <label for="hub-bday-month" class="sr-only">Mes de nacimiento</label>
+                                <select id="hub-bday-month" name="bday_month" autocomplete="bday-month"
+                                        class="w-full px-3 py-3 rounded-[12px] bg-white border border-black/15 text-[14px] text-[#121212]">
+                                    <option value="">Mes (Opcional)</option>
+                                    <option value="01">Enero</option>
+                                    <option value="02">Febrero</option>
+                                    <option value="03">Marzo</option>
+                                    <option value="04">Abril</option>
+                                    <option value="05">Mayo</option>
+                                    <option value="06">Junio</option>
+                                    <option value="07">Julio</option>
+                                    <option value="08">Agosto</option>
+                                    <option value="09">Septiembre</option>
+                                    <option value="10">Octubre</option>
+                                    <option value="11">Noviembre</option>
+                                    <option value="12">Diciembre</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label for="hub-bday-day" class="sr-only">Día de nacimiento</label>
+                                <select id="hub-bday-day" name="bday_day" autocomplete="bday-day"
+                                        class="w-full px-3 py-3 rounded-[12px] bg-white border border-black/15 text-[14px] text-[#121212]">
+                                    <option value="">Día (Opcional)</option>
+                                    {% for d in range(1, 32) %}
+                                    <option value="{{ '%02d' % d }}">{{ d }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <label for="hub-offers-check" class="flex items-start gap-2.5 pt-1 cursor-pointer select-none">
+                        <input id="hub-offers-check" type="checkbox" checked class="mt-0.5 w-4 h-4 accent-[#121212] rounded" />
+                        <span class="text-[12.5px] text-[#6E655F] leading-snug">
+                            Recibir promociones, avisos de sellos y regalos de cumpleaños de <strong>{{ campaign.shopName }}</strong>. Tus datos son privados y nunca se comparten.
+                        </span>
+                    </label>
+
+                    <button id="hub-loyalty-submit-btn" type="submit"
+                            class="w-full py-3.5 px-4 rounded-[14px] bg-[#121212] text-white font-bold text-[15.5px] active:scale-[0.98] transition flex items-center justify-center gap-2 shadow-md">
+                        <span>Obtener mi tarjeta de lealtad</span>
+                    </button>
+                </form>
+            </div>
+
+            <!-- VISTA 1B: ÉXITO (¡YA ESTÁS INSCRITO!) -->
+            <div id="loyalty-step-success" class="hidden text-center py-3">
+                <div class="w-14 h-14 rounded-full bg-[#34C759]/15 text-[#28A745] flex items-center justify-center mx-auto mb-3">
+                    <svg class="w-8 h-8" fill="none" stroke="currentColor" stroke-width="2.6" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                </div>
+                <h3 class="text-[22px] font-bold text-[#121212] tracking-[-0.02em]">¡Ya eres parte del Club!</h3>
+                <p class="text-[13.5px] text-[#6E655F] mt-1 mb-4">
+                    Vinculamos tu pase digital al correo <strong id="success-email-label" class="text-[#121212]"></strong> con el código <span id="success-serial-badge" class="font-mono font-bold text-[#4A5D23]"></span>.
+                </p>
+
+                <div class="space-y-2.5">
+                    <button type="button" onclick="closeModal('modal-loyalty'); openPassPreviewModal();"
+                            class="w-full py-3.5 px-4 rounded-[14px] bg-[#121212] text-white font-bold text-[15px] flex items-center justify-center gap-2.5 active:scale-[0.98] transition shadow-md">
+                        <span>🍎</span>
+                        <span>Agregar a Apple Wallet (Vista Previa + .pkpass)</span>
+                    </button>
+
+                    <a id="success-google-wallet-btn" href="#"
+                       class="w-full py-3.5 px-4 rounded-[14px] bg-[#EADFD7] text-[#121212] font-bold text-[14.5px] flex items-center justify-center gap-2 active:scale-[0.98] transition no-underline">
+                        <span>🤖</span>
+                        <span>Abrir en Google Wallet / Tarjeta Android</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </dialog>
+
+    <!-- =========================================================
+         PREVISUALIZACIÓN NATIVA DE APPLE WALLET (.PKPASS SIMULATOR + REAL DOWNLOAD)
+         ========================================================= -->
+    <dialog id="modal-passkit" class="bottom-sheet max-h-[95dvh] overflow-y-auto">
+        <div class="bg-[#F2F2F7] text-[#121212] rounded-t-[28px] overflow-hidden">
+            <!-- Barra superior estilo iOS PassKit -->
+            <div class="flex items-center justify-between px-4 py-3.5 bg-[#F2F2F7]/95 border-b border-black/10 sticky top-0 z-10 backdrop-blur-md">
+                <button type="button" onclick="closeModal('modal-passkit')" class="text-[15px] font-medium text-[#007AFF] active:opacity-70">
+                    Cancelar
+                </button>
+                <div class="text-[14px] font-bold text-[#121212] truncate">
+                    Tarjeta {{ campaign.shopName }}
+                </div>
+                <button type="button" onclick="confirmAddPassToWallet()" class="text-[15px] font-bold text-[#007AFF] active:opacity-70">
+                    Agregar
+                </button>
+            </div>
+
+            <!-- Tarjeta estilo Apple Wallet (Color dorado/arena suave #C5A869) -->
+            <div class="p-4">
+                <div class="rounded-[20px] bg-[#C5A869] text-[#121212] shadow-xl overflow-hidden border border-black/10">
+                    <!-- Cabecera del pase -->
+                    <div class="px-4 py-3.5 flex items-center justify-between">
+                        <div class="flex items-center gap-2.5">
+                            <img src="/api/campaign/logo.png" alt="Logo" class="w-9 h-9 rounded-full object-cover border border-black/15 bg-[#FAF6F3]" />
+                            <div>
+                                <div class="text-[15px] font-extrabold tracking-tight leading-none text-[#121212]">{{ campaign.shopName }}</div>
+                                <div class="text-[10.5px] font-semibold uppercase tracking-wider text-black/70 mt-0.5">Club de Lealtad</div>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <div class="text-[10px] font-bold uppercase tracking-wider text-black/70">SELLOS</div>
+                            <div id="pkpass-stamps-top" class="text-[18px] font-extrabold leading-none text-[#121212]">0/{{ campaign.stampGoal }}</div>
+                        </div>
+                    </div>
+
+                    <!-- Franja central (Strip Image con fotografía real de la cafetería) -->
+                    <div class="relative h-[126px] w-full overflow-hidden bg-[#2C2520]">
+                        <img src="/api/hub/hero.jpg" alt="Strip {{ campaign.shopName }}" class="w-full h-full object-cover object-center" />
+                        <div class="absolute inset-0 bg-gradient-to-t from-black/65 via-black/20 to-transparent flex items-end p-3.5">
+                            <div class="text-white">
+                                <div class="text-[11px] font-bold uppercase tracking-wider text-[#F5EBE6]/90">META DEL PROGRAMA</div>
+                                <div class="text-[15px] font-extrabold">CAFÉ GRATIS = {{ campaign.stampGoal }} SELLOS ☕️</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Zona de progreso: círculos delineados -->
+                    <div class="px-4 pt-3.5 pb-2">
+                        <div class="flex justify-between items-center text-[11px] font-bold uppercase tracking-wider text-black/75 mb-2">
+                            <span id="pkpass-holder-name">SOCIO: CLIENTE</span>
+                            <span id="pkpass-reward-badge">FALTAN {{ campaign.stampGoal }} SELLOS</span>
+                        </div>
+                        <div id="pkpass-circles-grid" class="grid grid-cols-5 gap-2 p-2.5 rounded-xl bg-black/10">
+                            <!-- Círculos dinámicos -->
+                        </div>
+                    </div>
+
+                    <!-- Zona inferior: Código QR dinámico real en recuadro blanco -->
+                    <div class="px-4 pt-2 pb-4 flex flex-col items-center">
+                        <div class="bg-white p-3 rounded-2xl shadow-sm flex flex-col items-center">
+                            <img id="pkpass-qr-img" src="" alt="Código QR de Socio" class="w-40 h-40 object-contain" />
+                            <div id="pkpass-serial-code" class="font-mono text-[12px] font-bold text-[#121212] mt-1 tracking-wider">
+                                MAISHAS-000000
+                            </div>
+                        </div>
+                        <div class="text-[11px] font-semibold text-black/70 mt-2.5">
+                            Muestra este código QR al barista en mostrador · Impulsado por {{ campaign.shopName }}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Botones reales de instalación directa en iPhone (.pkpass) y Android -->
+                <div class="mt-4 space-y-2">
+                    <a id="pkpass-direct-download-btn" href="#"
+                       class="w-full py-3.5 px-4 rounded-[14px] bg-[#121212] text-white font-bold text-[14.5px] flex items-center justify-center gap-2 active:scale-[0.98] transition no-underline shadow-md">
+                        <span>📲</span>
+                        <span>Descargar archivo .pkpass en Apple Wallet</span>
+                    </a>
+                    <button type="button" onclick="closeModal('modal-passkit')"
+                            class="w-full py-2.5 text-[13px] font-semibold text-[#6E655F]">
+                        Volver al Hub de {{ campaign.shopName }}
+                    </button>
+                </div>
+            </div>
+        </div>
+    </dialog>
+
+    <!-- =========================================================
+         MÓDULO 2: MENÚ DIGITAL INTERACTIVO (92DVH + SCROLL-SPY + BUSCADOR)
+         ========================================================= -->
+    <dialog id="modal-menu" class="bottom-sheet h-[92dvh] max-h-[92dvh] flex flex-col overflow-hidden">
+        <!-- Sticky Header -->
+        <div class="bg-[#FAF6F3] border-b border-black/10 px-4 pt-3.5 pb-3 shrink-0 z-10">
+            <div class="w-10 h-1.5 bg-black/15 rounded-full mx-auto mb-3"></div>
+            <div class="flex items-center justify-between mb-3">
+                <div>
+                    <h2 class="text-[21px] font-bold tracking-[-0.02em] text-[#121212]">Nuestro Menú</h2>
+                    <p class="text-[12px] text-[#6E655F]">Precios en MXN · {{ campaign.shopName }}</p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <a href="/api/hub/menu-oficial.png" target="_blank" class="px-3 py-1.5 rounded-full bg-[#EADFD7] text-[#4A5D23] text-xs font-bold no-underline">
+                        🖼️ Carta Impresa
+                    </a>
+                    <button type="button" onclick="closeModal('modal-menu')" class="px-3.5 py-1.5 rounded-full bg-[#121212] text-white text-xs font-bold">
+                        Listo
+                    </button>
+                </div>
+            </div>
+
+            <!-- Nivel 1: Píldoras principales (CALIENTES, FRÍAS Y FRAPPÉS, POSTRES Y PANINI, EXTRAS) -->
+            <div class="flex gap-2 overflow-x-auto no-scrollbar pb-2">
+                <button type="button" onclick="selectMainMenuTab('CALIENTES')" data-main-tab="CALIENTES"
+                        class="menu-main-pill px-3.5 py-1.5 rounded-full text-xs font-bold whitespace-nowrap bg-[#121212] text-white transition">
+                    ☕️ CALIENTES
+                </button>
+                <button type="button" onclick="selectMainMenuTab('FRIAS')" data-main-tab="FRIAS"
+                        class="menu-main-pill px-3.5 py-1.5 rounded-full text-xs font-bold whitespace-nowrap bg-[#EADFD7] text-[#121212] transition">
+                    🧊 FRÍAS Y FRAPPÉS
+                </button>
+                <button type="button" onclick="selectMainMenuTab('ALIMENTOS')" data-main-tab="ALIMENTOS"
+                        class="menu-main-pill px-3.5 py-1.5 rounded-full text-xs font-bold whitespace-nowrap bg-[#EADFD7] text-[#121212] transition">
+                    🍰 POSTRES Y PANINI
+                </button>
+                <button type="button" onclick="selectMainMenuTab('EXTRAS')" data-main-tab="EXTRAS"
+                        class="menu-main-pill px-3.5 py-1.5 rounded-full text-xs font-bold whitespace-nowrap bg-[#EADFD7] text-[#121212] transition">
+                    ➕ EXTRAS
+                </button>
+            </div>
+
+            <!-- Nivel 2: Sub-categorías horizontales desplazables con Scroll-Spy -->
+            <div id="menu-sub-pills" class="flex gap-1.5 overflow-x-auto no-scrollbar pt-1">
+                <button type="button" onclick="scrollToMenuSection('sec-calientes')" data-sub-sec="sec-calientes"
+                        class="menu-sub-pill px-3 py-1 rounded-lg text-[11.5px] font-semibold whitespace-nowrap bg-[#4A5D23] text-white">
+                    Bebidas Calientes
+                </button>
+                <button type="button" onclick="scrollToMenuSection('sec-rocas')" data-sub-sec="sec-rocas"
+                        class="menu-sub-pill px-3 py-1 rounded-lg text-[11.5px] font-semibold whitespace-nowrap bg-[#EADFD7]/70 text-[#6E655F]">
+                    En las Rocas
+                </button>
+                <button type="button" onclick="scrollToMenuSection('sec-frappes')" data-sub-sec="sec-frappes"
+                        class="menu-sub-pill px-3 py-1 rounded-lg text-[11.5px] font-semibold whitespace-nowrap bg-[#EADFD7]/70 text-[#6E655F]">
+                    Frappés
+                </button>
+                <button type="button" onclick="scrollToMenuSection('sec-sodas')" data-sub-sec="sec-sodas"
+                        class="menu-sub-pill px-3 py-1 rounded-lg text-[11.5px] font-semibold whitespace-nowrap bg-[#EADFD7]/70 text-[#6E655F]">
+                    Sodas Italianas
+                </button>
+                <button type="button" onclick="scrollToMenuSection('sec-especialidad')" data-sub-sec="sec-especialidad"
+                        class="menu-sub-pill px-3 py-1 rounded-lg text-[11.5px] font-semibold whitespace-nowrap bg-[#EADFD7]/70 text-[#6E655F]">
+                    Especialidad de la Casa
+                </button>
+                <button type="button" onclick="scrollToMenuSection('sec-postres')" data-sub-sec="sec-postres"
+                        class="menu-sub-pill px-3 py-1 rounded-lg text-[11.5px] font-semibold whitespace-nowrap bg-[#EADFD7]/70 text-[#6E655F]">
+                    Postres
+                </button>
+                <button type="button" onclick="scrollToMenuSection('sec-extras')" data-sub-sec="sec-extras"
+                        class="menu-sub-pill px-3 py-1 rounded-lg text-[11.5px] font-semibold whitespace-nowrap bg-[#EADFD7]/70 text-[#6E655F]">
+                    Extras
+                </button>
+            </div>
+        </div>
+
+        <!-- Contenido desplazable del Menú -->
+        <div id="menu-scroll-container" onscroll="handleMenuScrollSpy()" class="flex-1 overflow-y-auto px-4 pt-3 pb-24 space-y-6">
+            <!-- Caja de nota destacada -->
+            <div class="p-3.5 rounded-2xl bg-[#EADFD7] text-[12.5px] text-[#121212] leading-relaxed">
+                ☕️ <strong>Nos especializamos en café, frappés y postres caseros.</strong> Si deseas personalizar tu bebida (por ejemplo con <strong>Leche Vegetal +$15</strong>) o tienes algún antojo especial, pregúntanos en barra y con gusto te atendemos.
+            </div>
+
+            <div id="menu-sections-wrapper" class="space-y-6">
+                <!-- Renderizado dinámico por JS con todos los productos oficiales de Maisha's Café -->
+            </div>
+        </div>
+
+        <!-- Buscador Inferior Flotante -->
+        <div class="absolute bottom-0 inset-x-0 p-3 bg-gradient-to-t from-[#FAF6F3] via-[#FAF6F3] to-transparent">
+            <div class="relative flex items-center">
+                <svg class="w-4 h-4 text-[#6E655F] absolute left-3.5 pointer-events-none" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                <input id="menu-search-input" type="search" enterkeyhint="search" oninput="renderMenuItems()"
+                       placeholder="Buscar en el menú (ej. Matcha, Taro, Coyota, Panini)..."
+                       class="w-full pl-9 pr-4 py-3 rounded-full bg-white border border-black/15 shadow-lg text-[14px] text-[#121212] focus:outline-none focus:border-[#121212]" />
+            </div>
+        </div>
+    </dialog>
+
+    <!-- =========================================================
+         MÓDULO 3: CONEXIÓN WI-FI INSTANTÁNEA
+         ========================================================= -->
+    <dialog id="modal-wifi" class="bottom-sheet">
+        <div class="p-5">
+            <div class="w-10 h-1.5 bg-black/15 rounded-full mx-auto mb-4"></div>
+            <div class="flex items-center justify-between mb-3">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-10 h-10 rounded-full bg-[#34C759]/15 text-[#28A745] flex items-center justify-center">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0M1.394 9.393c5.857-5.857 15.355-5.857 21.213 0"/></svg>
+                    </div>
+                    <div>
+                        <h3 class="text-[19px] font-bold text-[#121212]">Wi-Fi para Clientes</h3>
+                        <p class="text-[12px] text-[#6E655F]">Conexión gratuita en {{ campaign.shopName }}</p>
+                    </div>
+                </div>
+                <button type="button" onclick="closeModal('modal-wifi')" class="px-3 py-1 rounded-full bg-[#EADFD7] text-xs font-bold">Listo</button>
+            </div>
+
+            <div class="p-4 rounded-2xl bg-[#EADFD7] space-y-2.5 mb-4">
+                <div class="flex justify-between items-center">
+                    <span class="text-xs font-semibold text-[#6E655F] uppercase">Red (SSID)</span>
+                    <span id="wifi-ssid-text" class="text-[15px] font-bold text-[#121212] font-mono">{{ hub.wifi_ssid }}</span>
+                </div>
+                <div class="border-t border-black/10 pt-2.5 flex justify-between items-center">
+                    <span class="text-xs font-semibold text-[#6E655F] uppercase">Contraseña</span>
+                    <span id="wifi-pass-text" class="text-[15px] font-bold text-[#4A5D23] font-mono">{{ hub.wifi_pass }}</span>
+                </div>
+            </div>
+
+            <div class="bg-white p-3.5 rounded-2xl border border-black/10 flex flex-col items-center mb-4">
+                <img src="/api/hub/wifi-qr.png" alt="QR Wi-Fi" class="w-36 h-36 object-contain" />
+                <span class="text-[11.5px] text-[#6E655F] mt-1.5 text-center">Apunta la cámara de otro celular a este QR para conectar al instante</span>
+            </div>
+
+            <button id="btn-copy-wifi" type="button" onclick="copyWifiPassword()"
+                    class="w-full py-3.5 px-4 rounded-[14px] bg-[#121212] text-white font-bold text-[15px] active:scale-[0.98] transition flex items-center justify-center gap-2">
+                <span>📋</span>
+                <span id="btn-copy-wifi-text">Copiar contraseña y conectar</span>
+            </button>
+        </div>
+    </dialog>
+
+    <!-- =========================================================
+         MÓDULO 4: BUZÓN DE SUGERENCIAS CON FILTRO INTELIGENTE
+         ========================================================= -->
+    <dialog id="modal-feedback" class="bottom-sheet max-h-[92dvh] overflow-y-auto">
+        <div class="p-5">
+            <div class="w-10 h-1.5 bg-black/15 rounded-full mx-auto mb-4"></div>
+
+            <div id="feedback-step-form">
+                <div class="flex justify-between items-start mb-2">
+                    <h3 class="text-[21px] font-bold tracking-[-0.02em] text-[#121212]">Tu Opinión Sincera</h3>
+                    <button type="button" onclick="closeModal('modal-feedback')" class="px-3 py-1 rounded-full bg-[#EADFD7] text-xs font-bold">Cerrar</button>
+                </div>
+                <p class="text-[13.5px] text-[#6E655F] mb-3.5">
+                    Habla con total confianza — tus comentarios son completamente anónimos.
+                </p>
+
+                <form onsubmit="submitFeedbackForm(event)" class="space-y-3.5">
+                    <div>
+                        <label for="feedback-textarea" class="sr-only">Tu comentario</label>
+                        <textarea id="feedback-textarea" rows="4" required
+                                  placeholder="Cuéntanos qué te encantó hoy o qué podríamos mejorar en {{ campaign.shopName }}..."
+                                  class="w-full p-3.5 rounded-2xl bg-white border border-black/15 text-[14.5px] text-[#121212] focus:outline-none focus:border-[#121212]"></textarea>
+                    </div>
+
+                    <div class="p-3 rounded-xl bg-[#EADFD7]/80 text-[11.5px] text-[#6E655F] leading-relaxed">
+                        💡 Analizamos automáticamente si tu comentario es positivo mediante lenguaje natural para saber si invitarte a compartir tu reseña en Google o atender tu reporte directamente en gerencia.
+                    </div>
+
+                    <!-- Adjuntar Foto con previsualización real -->
+                    <div>
+                        <label for="feedback-photo-input" class="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-[#EADFD7] text-[#121212] text-xs font-bold cursor-pointer active:scale-95 transition">
+                            <span>📷</span>
+                            <span>Adjuntar Foto (Opcional)</span>
+                        </label>
+                        <input id="feedback-photo-input" type="file" accept="image/*" class="hidden" onchange="previewFeedbackPhoto(event)" />
+                        <div id="feedback-photo-preview-wrap" class="hidden mt-2.5 relative inline-block">
+                            <img id="feedback-photo-preview" src="" alt="Previsualización" class="h-24 w-24 object-cover rounded-xl border border-black/15" />
+                            <button type="button" onclick="clearFeedbackPhoto()" class="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-[#121212] text-white text-xs font-bold">✕</button>
+                        </div>
+                    </div>
+
+                    <button id="feedback-submit-btn" type="submit"
+                            class="w-full py-3.5 px-4 rounded-[14px] bg-[#121212] text-white font-bold text-[15px] active:scale-[0.98] transition">
+                        Enviar Comentario
+                    </button>
+                </form>
+            </div>
+
+            <!-- Resultado del filtro inteligente de sentimiento -->
+            <div id="feedback-step-result" class="hidden text-center py-4">
+                <div id="feedback-result-icon" class="w-14 h-14 rounded-full mx-auto mb-3 flex items-center justify-center text-2xl bg-[#34C759]/15">
+                    ❤️
+                </div>
+                <h4 id="feedback-result-title" class="text-[20px] font-bold text-[#121212]">¡Muchas gracias!</h4>
+                <p id="feedback-result-desc" class="text-[13.5px] text-[#6E655F] mt-1 mb-4 leading-relaxed"></p>
+
+                <a id="feedback-google-cta" href="{{ hub.google_review_url }}" target="_blank" rel="noopener noreferrer"
+                   class="hidden w-full py-3.5 px-4 rounded-[14px] bg-[#121212] text-white font-bold text-[15px] items-center justify-center gap-2 no-underline mb-2">
+                    <span>⭐</span>
+                    <span>Publicar mi reseña en Google</span>
+                </a>
+                <button type="button" onclick="closeModal('modal-feedback')" class="w-full py-3 rounded-[14px] bg-[#EADFD7] text-[#121212] font-bold text-[14px]">
+                    Volver a {{ campaign.shopName }}
+                </button>
+            </div>
+        </div>
+    </dialog>
+
+    <!-- =========================================================
+         MODAL DE RESEÑA EN GOOGLE (TARJETA 2)
+         ========================================================= -->
+    <dialog id="modal-google-review" class="bottom-sheet">
+        <div class="p-5 text-center">
+            <div class="w-10 h-1.5 bg-black/15 rounded-full mx-auto mb-4"></div>
+            <div class="w-14 h-14 rounded-full bg-white shadow-sm flex items-center justify-center mx-auto mb-3 text-2xl">
+                ⭐🌟⭐
+            </div>
+            <h3 class="text-[20px] font-bold text-[#121212]">¿Disfrutaste tu visita a {{ campaign.shopName }}?</h3>
+            <p class="text-[13.5px] text-[#6E655F] mt-1 mb-4">
+                Tus estrellas en Google Maps ayudan a que más personas en Navojoa conozcan nuestro café y postres.
+            </p>
+            <div class="space-y-2">
+                <a href="{{ hub.google_review_url }}" target="_blank" rel="noopener noreferrer"
+                   onclick="closeModal('modal-google-review')"
+                   class="w-full py-3.5 px-4 rounded-[14px] bg-[#121212] text-white font-bold text-[15px] flex items-center justify-center gap-2 no-underline">
+                    <span>Ir a Google Maps de {{ campaign.shopName }}</span>
+                    <span>↗</span>
+                </a>
+                <button type="button" onclick="closeModal('modal-google-review')" class="w-full py-2.5 text-xs font-bold text-[#6E655F]">
+                    Ahora no
+                </button>
+            </div>
+        </div>
+    </dialog>
+
+    <!-- =========================================================
+         MÓDULO 5: MOTOR DE JUEGO SUDOKU COMPLETO (9x9 INTERACTIVO)
+         ========================================================= -->
+    <dialog id="modal-sudoku" class="bottom-sheet h-[94dvh] max-h-[94dvh] overflow-y-auto">
+        <div class="p-4 flex flex-col h-full">
+            <!-- Barra Superior -->
+            <div class="flex items-center justify-between pb-3 border-b border-black/10">
+                <button type="button" onclick="closeSudokuModal()" class="px-3 py-1.5 rounded-full bg-[#EADFD7] text-xs font-bold text-[#121212] flex items-center gap-1">
+                    <span>‹</span> Volver
+                </button>
+                <div class="flex bg-[#EADFD7] p-1 rounded-full gap-1">
+                    <button type="button" onclick="startSudoku('easy')" data-diff="easy" class="sudoku-diff-btn px-3 py-1 rounded-full text-xs font-bold bg-[#121212] text-white">Fácil</button>
+                    <button type="button" onclick="startSudoku('medium')" data-diff="medium" class="sudoku-diff-btn px-3 py-1 rounded-full text-xs font-bold text-[#6E655F]">Medio</button>
+                    <button type="button" onclick="startSudoku('hard')" data-diff="hard" class="sudoku-diff-btn px-3 py-1 rounded-full text-xs font-bold text-[#6E655F]">Difícil</button>
+                </div>
+                <div id="sudoku-timer" class="font-mono text-xs font-bold px-2.5 py-1 rounded-full bg-[#EADFD7] text-[#121212]">
+                    00:00
+                </div>
+            </div>
+
+            <!-- Estado / Mensaje del Juego -->
+            <div class="flex items-center justify-between my-2.5 px-1">
+                <span id="sudoku-status-msg" class="text-xs font-semibold text-[#6E655F]">Selecciona una casilla para empezar</span>
+                <span id="sudoku-notes-badge" class="text-[11px] font-bold px-2 py-0.5 rounded-full bg-[#EADFD7] text-[#6E655F]">Modo Lápiz: OFF</span>
+            </div>
+
+            <!-- Tablero 9x9 Interactivo -->
+            <div id="sudoku-board" class="grid grid-cols-9 border-2 border-[#121212] rounded-xl overflow-hidden bg-white shadow-sm mx-auto w-full max-w-[360px]">
+                <!-- 81 celdas generadas por JS -->
+            </div>
+
+            <!-- Controles Inferiores: Notas, Deshacer, Borrar, Pista -->
+            <div class="grid grid-cols-4 gap-2 my-3.5 max-w-[360px] mx-auto w-full">
+                <button type="button" onclick="toggleSudokuNotes()" id="btn-sudoku-notes" class="flex flex-col items-center py-2 rounded-xl bg-[#EADFD7] text-[#121212] active:scale-95 transition">
+                    <span class="text-base">✏️</span>
+                    <span class="text-[11px] font-bold mt-0.5">Notas</span>
+                </button>
+                <button type="button" onclick="undoSudokuMove()" class="flex flex-col items-center py-2 rounded-xl bg-[#EADFD7] text-[#121212] active:scale-95 transition">
+                    <span class="text-base">↩️</span>
+                    <span class="text-[11px] font-bold mt-0.5">Deshacer</span>
+                </button>
+                <button type="button" onclick="eraseSudokuCell()" class="flex flex-col items-center py-2 rounded-xl bg-[#EADFD7] text-[#121212] active:scale-95 transition">
+                    <span class="text-base">🧹</span>
+                    <span class="text-[11px] font-bold mt-0.5">Borrar</span>
+                </button>
+                <button type="button" onclick="hintSudokuCell()" class="flex flex-col items-center py-2 rounded-xl bg-[#EADFD7] text-[#121212] active:scale-95 transition">
+                    <span class="text-base">💡</span>
+                    <span class="text-[11px] font-bold mt-0.5">Pista</span>
+                </button>
+            </div>
+
+            <!-- Teclado numérico del 1 al 9 -->
+            <div class="grid grid-cols-9 gap-1.5 max-w-[360px] mx-auto w-full">
+                {% for n in range(1, 10) %}
+                <button type="button" onclick="inputSudokuNumber({{ n }})"
+                        class="py-3 rounded-xl bg-[#121212] text-white font-extrabold text-[17px] active:scale-90 transition shadow-xs">
+                    {{ n }}
+                </button>
+                {% endfor %}
+            </div>
+        </div>
+    </dialog>
+
+    <!-- =========================================================
+         MÓDULO G: MODO CAJERO / STAFF POS SIMULATOR (CONECTADO A BD REAL)
+         ========================================================= -->
+    <dialog id="modal-staff" class="bottom-sheet max-h-[90dvh] overflow-y-auto">
+        <div class="p-5">
+            <div class="w-10 h-1.5 bg-black/15 rounded-full mx-auto mb-4"></div>
+            <div class="flex items-center justify-between mb-2">
+                <div>
+                    <span class="text-[10.5px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded bg-[#4A5D23] text-white">Simulador en Vivo</span>
+                    <h3 class="text-[20px] font-bold text-[#121212] mt-1">Modo Cajero / Staff POS</h3>
+                </div>
+                <button type="button" onclick="closeModal('modal-staff')" class="px-3 py-1 rounded-full bg-[#EADFD7] text-xs font-bold">Cerrar</button>
+            </div>
+            <p class="text-[13px] text-[#6E655F] mb-4">
+                Simula el escaneo del QR del cliente desde aquí para ver cómo se actualizan sus círculos en vivo y en la consola <strong>/barista</strong>.
+            </p>
+
+            <div class="p-4 rounded-2xl bg-[#EADFD7] mb-4">
+                <div class="text-xs font-bold text-[#6E655F] uppercase">Cliente Activo en este Teléfono</div>
+                <div id="staff-client-summary" class="text-[15px] font-bold text-[#121212] mt-1">
+                    Ningún cliente registrado aún en este navegador
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-2.5 mb-4">
+                <button type="button" onclick="staffSimulateStamp('add')"
+                        class="py-3.5 px-3 rounded-[14px] bg-[#121212] text-white font-bold text-[14px] active:scale-95 transition flex items-center justify-center gap-1.5">
+                    <span>☕️</span>
+                    <span>Sumar +1 Sello</span>
+                </button>
+                <button type="button" onclick="staffSimulateStamp('reset')"
+                        class="py-3.5 px-3 rounded-[14px] bg-[#E86C78] text-white font-bold text-[14px] active:scale-95 transition flex items-center justify-center gap-1.5">
+                    <span>🎁</span>
+                    <span>Canjear / Reiniciar</span>
+                </button>
+            </div>
+
+            <a href="/barista" target="_blank"
+               class="w-full py-3 px-4 rounded-[14px] bg-white border border-black/15 text-[#121212] font-bold text-[13.5px] flex items-center justify-center gap-2 no-underline mb-4">
+                <span>🖥️</span>
+                <span>Abrir Consola Completa del Barista (/barista)</span>
+            </a>
+
+            <!-- Documentación de Arquitectura PassKit & SQL integrada -->
+            <details class="rounded-2xl bg-white border border-black/10 p-3.5 text-xs">
+                <summary class="font-bold text-[#121212] cursor-pointer">
+                    📐 Ver Esquema SQL y Estructura Apple PassKit (pass.json)
+                </summary>
+                <div class="mt-3 space-y-2 text-[11px] font-mono text-[#6E655F] overflow-x-auto">
+                    <div class="font-bold text-[#121212]">1. Tabla SQLite / PostgreSQL (clients & stamp_transactions):</div>
+                    <pre class="bg-[#FAF6F3] p-2.5 rounded-lg overflow-x-auto">CREATE TABLE clients (
+  serial TEXT PRIMARY KEY, -- Ej. MAISHAS-74DEDF
+  name TEXT NOT NULL,
+  email TEXT,
+  phone TEXT,
+  birthdate TEXT,          -- YYYY-MM-DD
+  stamps INTEGER DEFAULT 0,
+  total_visits INTEGER DEFAULT 0,
+  redeemed_count INTEGER DEFAULT 0,
+  status TEXT DEFAULT 'active'
+);</pre>
+                    <div class="font-bold text-[#121212] pt-1">2. Estructura Apple Wallet PassKit (pass.json · storeCard):</div>
+                    <pre class="bg-[#FAF6F3] p-2.5 rounded-lg overflow-x-auto">{
+  "formatVersion": 1,
+  "passTypeIdentifier": "pass.com.maishascafe.loyalty",
+  "organizationName": "{{ campaign.shopName }}",
+  "description": "Tarjeta de Lealtad {{ campaign.shopName }}",
+  "backgroundColor": "{{ campaign.backgroundColor }}",
+  "foregroundColor": "{{ campaign.foregroundColor }}",
+  "labelColor": "{{ campaign.labelColor }}",
+  "webServiceURL": "https://web-production-f7cd4.up.railway.app/",
+  "storeCard": {
+    "headerFields": [{"key": "stamps", "label": "SELLOS", "value": "0/{{ campaign.stampGoal }}"}],
+    "secondaryFields": [{"key": "memberName", "label": "CLIENTE", "value": "Socio"}],
+    "backFields": [{"key": "terms", "label": "Términos", "value": "{{ campaign.rewardText }}"}]
+  },
+  "barcodes": [{"format": "PKBarcodeFormatQR", "message": "MAISHAS-XXXXXX"}]
+}</pre>
+                </div>
+            </details>
+        </div>
+    </dialog>
+
+    <!-- =========================================================
+         LÓGICA REACTIVA, SINCRONIZACIÓN REAL CON BACKEND Y SUDOKU
+         ========================================================= -->
+    <script>
+        const STAMP_GOAL = {{ campaign.stampGoal | int }};
+        const STORAGE_KEY = 'maishas_demo_hub_member_v1';
+
+        // Menú Oficial Real de Maisha's Café (extraído fielmente de la carta oficial)
+        const MAISHA_MENU = [
+            {
+                id: 'sec-calientes',
+                mainTab: 'CALIENTES',
+                title: '☕️ Bebidas Calientes',
+                items: [
+                    { name: 'Espresso', allergen: '100% Café de especialidad recién extraído', price: '$35' },
+                    { name: 'Americano', allergen: 'Doble shot de espresso y agua caliente', price: '$40' },
+                    { name: 'Capuchino', allergen: 'Contiene: Leche · Opción leche vegetal (+$15)', price: '$60' },
+                    { name: 'Latte', allergen: 'Contiene: Leche · Opción leche vegetal (+$15)', price: '$60' },
+                    { name: 'Moka', allergen: 'Contiene: Leche, Cacao', price: '$65' },
+                    { name: 'Dirty Chai', allergen: 'Contiene: Leche, Especias Chai y Shot de Espresso', price: '$65' },
+                    { name: 'Matcha Caliente', allergen: 'Contiene: Leche, Té verde Matcha', price: '$65' },
+                    { name: 'Taro Caliente', allergen: 'Contiene: Leche', price: '$65' }
+                ]
+            },
+            {
+                id: 'sec-rocas',
+                mainTab: 'FRIAS',
+                title: '🧊 En las Rocas',
+                items: [
+                    { name: 'Latte en las Rocas', allergen: 'Contiene: Leche', price: '$65' },
+                    { name: 'Dirty Chai en las Rocas', allergen: 'Contiene: Leche, Espresso, Chai', price: '$70' },
+                    { name: 'Chai en las Rocas', allergen: 'Contiene: Leche, Especias Chai', price: '$70' },
+                    { name: 'Moka en las Rocas', allergen: 'Contiene: Leche, Cacao', price: '$70' },
+                    { name: 'Taro en las Rocas', allergen: 'Contiene: Leche', price: '$70' },
+                    { name: 'Caramel Latte en las Rocas', allergen: 'Contiene: Leche, Caramelo', price: '$75' }
+                ]
+            },
+            {
+                id: 'sec-frappes',
+                mainTab: 'FRIAS',
+                title: '🥤 Frappés',
+                items: [
+                    { name: 'Frappé Caramelo', allergen: 'Contiene: Leche, Caramelo', price: '$70' },
+                    { name: 'Frappé Capuchino', allergen: 'Contiene: Leche, Café', price: '$70' },
+                    { name: 'Frappé Oreo', allergen: 'Contiene: Leche, Galleta Oreo (Extra Oreo $20)', price: '$70' },
+                    { name: 'Frappé Moka', allergen: 'Contiene: Leche, Cacao', price: '$70' },
+                    { name: 'Frappé Matcha', allergen: 'Contiene: Leche, Matcha', price: '$70' },
+                    { name: 'Frappé Taro', allergen: 'Contiene: Leche', price: '$70' },
+                    { name: 'Frappé Chocolate Blanco', allergen: 'Contiene: Leche, Chocolate Blanco', price: '$75' },
+                    { name: 'Frappé Galleta Lotus', allergen: 'Contiene: Leche, Galleta Biscoff Lotus', price: '$75' }
+                ]
+            },
+            {
+                id: 'sec-sodas',
+                mainTab: 'FRIAS',
+                title: '🫧 Sodas Italianas',
+                items: [
+                    { name: 'Soda Italiana de Fresa', allergen: 'Bebida refrescante sin lácteos', price: '$60' },
+                    { name: 'Soda Italiana de Uva', allergen: 'Bebida refrescante sin lácteos', price: '$60' },
+                    { name: 'Soda Italiana de Frutos de la Pasión', allergen: 'Maracuyá · Sin lácteos', price: '$60' },
+                    { name: 'Soda Italiana de Frutos Rojos', allergen: 'Mezcla de berries · Sin lácteos', price: '$60' },
+                    { name: 'Soda Italiana de Mora Azul', allergen: 'Blueberry · Sin lácteos', price: '$60' }
+                ]
+            },
+            {
+                id: 'sec-especialidad',
+                mainTab: 'ALIMENTOS',
+                title: '🧁 Especialidad de la Casa',
+                items: [
+                    { name: "Maisha's Frappé", allergen: 'Receta insignia de la casa · Contiene: Leche', price: '$95' },
+                    { name: 'Panini Maishas', allergen: 'Preparado al grill · Contiene: Gluten, Queso', price: '$95' }
+                ]
+            },
+            {
+                id: 'sec-postres',
+                mainTab: 'ALIMENTOS',
+                title: '🍰 Postres',
+                items: [
+                    { name: 'Pastel de Zanahoria', allergen: 'Contiene: Gluten, Nuez, Lácteos', price: '$55' },
+                    { name: 'Pastel de Chocolate', allergen: 'Contiene: Gluten, Cacao, Lácteos', price: '$55' },
+                    { name: 'Pastel Helado', allergen: 'Contiene: Lácteos', price: '$50' },
+                    { name: 'Rol de Canela', allergen: 'Recién horneado · Contiene: Gluten, Canela', price: '$40' },
+                    { name: 'Bollitos', allergen: 'Repostería de la casa · Contiene: Gluten', price: '$25' },
+                    { name: 'Mini Coyota', allergen: 'Tradicional sonorense · Contiene: Gluten', price: '$15' },
+                    { name: 'Muffin', allergen: 'Contiene: Gluten, Lácteos', price: '$40' }
+                ]
+            },
+            {
+                id: 'sec-extras',
+                mainTab: 'EXTRAS',
+                title: '➕ Extras y Embotellados',
+                items: [
+                    { name: 'Leche Vegetal', allergen: 'Cambia la leche de tu bebida favorita', price: '$15' },
+                    { name: 'Botella de Agua', allergen: 'Natural 500 ml', price: '$10' },
+                    { name: 'Refresco', allergen: 'Lata bien fría', price: '$25' },
+                    { name: 'Agua Mineral', allergen: 'Refrescante con gas', price: '$40' }
+                ]
+            }
+        ];
+
+        let currentMember = null;
+        let avatarTapCount = 0;
+        let avatarTapTimer = null;
+
+        function openModal(id) {
+            const dlg = document.getElementById(id);
+            if (!dlg) return;
+            if (!dlg.open) dlg.showModal();
+            if (id === 'modal-staff') refreshStaffSummary();
+        }
+
+        function closeModal(id) {
+            const dlg = document.getElementById(id);
+            if (dlg && dlg.open) dlg.close();
+        }
+
+        // Cerrar modal al tocar el backdrop
+        document.querySelectorAll('dialog.bottom-sheet').forEach(dlg => {
+            dlg.addEventListener('click', (e) => {
+                if (e.target === dlg) dlg.close();
+            });
+        });
+
+        function handleTopDone() {
+            if (currentMember) {
+                openPassPreviewModal();
+            } else {
+                openLoyaltyRegisterModal();
+            }
+        }
+
+        function handleAvatarTap() {
+            avatarTapCount++;
+            clearTimeout(avatarTapTimer);
+            if (avatarTapCount >= 3) {
+                avatarTapCount = 0;
+                openModal('modal-staff');
+                return;
+            }
+            avatarTapTimer = setTimeout(() => { avatarTapCount = 0; }, 900);
+        }
+
+        // =========================================================
+        // ESTADO DE LEALTAD Y SINCRONIZACIÓN REAL CON BACKEND
+        // =========================================================
+        function loadMemberFromStorage() {
+            try {
+                const raw = localStorage.getItem(STORAGE_KEY);
+                if (raw) {
+                    currentMember = JSON.parse(raw);
+                    renderLoyaltyHubState();
+                    syncMemberWithServer();
+                }
+            } catch (e) {
+                console.warn(e);
+            }
+        }
+
+        function saveMemberToStorage(memberObj) {
+            currentMember = memberObj;
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(memberObj));
+            renderLoyaltyHubState();
+        }
+
+        function resetLocalMember() {
+            localStorage.removeItem(STORAGE_KEY);
+            currentMember = null;
+            renderLoyaltyHubState();
+            openLoyaltyRegisterModal();
+        }
+
+        async function syncMemberWithServer() {
+            if (!currentMember || !currentMember.serial) return;
+            try {
+                const res = await fetch('/api/android/state/' + encodeURIComponent(currentMember.serial));
+                if (res.ok) {
+                    const data = await res.json();
+                    currentMember.name = data.name || currentMember.name;
+                    currentMember.stamps = data.stamps || 0;
+                    currentMember.stamp_goal = data.stamp_goal || STAMP_GOAL;
+                    saveMemberToStorage(currentMember);
+                }
+            } catch (e) {}
+        }
+
+        function renderLoyaltyHubState() {
+            const unregEl = document.getElementById('loyalty-card-unregistered');
+            const regEl = document.getElementById('loyalty-card-registered');
+            if (!currentMember || !currentMember.serial) {
+                unregEl.classList.remove('hidden');
+                regEl.classList.add('hidden');
+                return;
+            }
+            unregEl.classList.add('hidden');
+            regEl.classList.remove('hidden');
+
+            const goal = currentMember.stamp_goal || STAMP_GOAL;
+            const stamps = Math.min(goal, Math.max(0, parseInt(currentMember.stamps || 0, 10)));
+            const headline = document.getElementById('hub-stamps-headline');
+            if (stamps >= goal) {
+                headline.textContent = `🎉 ¡${stamps} / ${goal} sellos! Tienes 1 bebida gratis lista`;
+            } else {
+                headline.textContent = `${stamps} / ${goal} sellos para tu café gratis`;
+            }
+
+            document.getElementById('hub-member-name').textContent = currentMember.name || 'Socio';
+            document.getElementById('hub-member-serial').textContent = currentMember.serial;
+
+            const circlesWrap = document.getElementById('hub-stamp-circles');
+            circlesWrap.innerHTML = '';
+            for (let i = 1; i <= goal; i++) {
+                const filled = i <= stamps;
+                const isLast = i === goal;
+                const div = document.createElement('div');
+                div.className = `aspect-square rounded-full flex items-center justify-center text-xs font-extrabold transition-all ${
+                    filled
+                        ? 'bg-[#E86C78] text-white shadow-xs scale-100'
+                        : 'border-2 border-dashed border-[#121212]/25 text-[#6E655F] bg-white/60'
+                }`;
+                div.innerHTML = filled ? '☕️' : (isLast ? '🎁' : i);
+                circlesWrap.appendChild(div);
+            }
+
+            document.getElementById('hub-apple-wallet-link').href = `/card/${currentMember.serial}/download.pkpass`;
+            document.getElementById('hub-google-wallet-link').href = `/card/${currentMember.serial}`;
+        }
+
+        function openLoyaltyRegisterModal() {
+            document.getElementById('loyalty-step-form').classList.remove('hidden');
+            document.getElementById('loyalty-step-success').classList.add('hidden');
+            const btn = document.getElementById('hub-loyalty-submit-btn');
+            btn.disabled = false;
+            btn.innerHTML = '<span>Obtener mi tarjeta de lealtad</span>';
+            openModal('modal-loyalty');
+        }
+
+        async function submitLoyaltyForm(e) {
+            e.preventDefault();
+            const btn = document.getElementById('hub-loyalty-submit-btn');
+            if (btn.disabled) return;
+            btn.disabled = true;
+
+            const name = document.getElementById('hub-reg-name').value.trim();
+            const email = document.getElementById('hub-reg-email').value.trim();
+            const phone = document.getElementById('hub-reg-phone').value.trim();
+            const month = document.getElementById('hub-bday-month').value;
+            const day = document.getElementById('hub-bday-day').value;
+            const birthdate = (month && day) ? `2000-${month}-${day}` : '';
+
+            // Paso 1: "Registrando tu cuenta..." (800ms)
+            btn.innerHTML = '<span>⏳ Registrando tu cuenta...</span>';
+            const wait = (ms) => new Promise(res => setTimeout(res, ms));
+
+            const reqPromise = fetch('/api/hub/register', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name, email, phone, birthdate })
+            }).then(r => r.json());
+
+            await wait(800);
+            // Paso 2: "Generando tu pase digital..." (1000ms)
+            btn.innerHTML = '<span>✨ Generando tu pase digital...</span>';
+            const [data] = await Promise.all([reqPromise, wait(950)]);
+
+            if (data && data.ok) {
+                saveMemberToStorage(data);
+                document.getElementById('success-email-label').textContent = data.email || email;
+                document.getElementById('success-serial-badge').textContent = data.serial;
+                document.getElementById('success-google-wallet-btn').href = data.android_card_url || `/card/${data.serial}`;
+                document.getElementById('loyalty-step-form').classList.add('hidden');
+                document.getElementById('loyalty-step-success').classList.remove('hidden');
+            } else {
+                btn.disabled = false;
+                btn.innerHTML = '<span>Obtener mi tarjeta de lealtad</span>';
+                alert('No se pudo completar el registro. Intenta de nuevo.');
+            }
+        }
+
+        function openPassPreviewModal() {
+            if (!currentMember || !currentMember.serial) {
+                openLoyaltyRegisterModal();
+                return;
+            }
+            const goal = currentMember.stamp_goal || STAMP_GOAL;
+            const stamps = Math.min(goal, Math.max(0, parseInt(currentMember.stamps || 0, 10)));
+
+            document.getElementById('pkpass-stamps-top').textContent = `${stamps}/${goal}`;
+            document.getElementById('pkpass-holder-name').textContent = `SOCIO: ${(currentMember.name || 'CLIENTE').toUpperCase()}`;
+            document.getElementById('pkpass-reward-badge').textContent = stamps >= goal ? '¡CAFÉ GRATIS LISTO! 🎉' : `FALTAN ${goal - stamps} SELLOS`;
+            document.getElementById('pkpass-serial-code').textContent = currentMember.serial;
+            document.getElementById('pkpass-qr-img').src = `/card/${currentMember.serial}/qr.png`;
+            document.getElementById('pkpass-direct-download-btn').href = `/card/${currentMember.serial}/download.pkpass`;
+
+            const grid = document.getElementById('pkpass-circles-grid');
+            grid.innerHTML = '';
+            for (let i = 1; i <= goal; i++) {
+                const filled = i <= stamps;
+                const cell = document.createElement('div');
+                cell.className = `aspect-square rounded-full flex items-center justify-center text-xs font-extrabold ${
+                    filled
+                        ? 'bg-[#121212] text-[#C5A869]'
+                        : 'border-2 border-[#121212]/40 text-[#121212]/60'
+                }`;
+                cell.textContent = filled ? '✓' : i;
+                grid.appendChild(cell);
+            }
+            openModal('modal-passkit');
+        }
+
+        function confirmAddPassToWallet() {
+            closeModal('modal-passkit');
+            renderLoyaltyHubState();
+            if (currentMember && currentMember.serial) {
+                window.location.href = `/card/${currentMember.serial}/download.pkpass`;
+            }
+        }
+
+        // =========================================================
+        // MÓDULO 2: MENÚ DIGITAL INTERACTIVO + SCROLL-SPY
+        // =========================================================
+        function openMenuModal() {
+            document.getElementById('menu-search-input').value = '';
+            renderMenuItems();
+            openModal('modal-menu');
+        }
+
+        function renderMenuItems() {
+            const q = (document.getElementById('menu-search-input').value || '').trim().toLowerCase();
+            const wrap = document.getElementById('menu-sections-wrapper');
+            wrap.innerHTML = '';
+
+            MAISHA_MENU.forEach(sec => {
+                const filtered = sec.items.filter(it =>
+                    !q ||
+                    it.name.toLowerCase().includes(q) ||
+                    it.allergen.toLowerCase().includes(q)
+                );
+                if (filtered.length === 0) return;
+
+                const secEl = document.createElement('section');
+                secEl.id = sec.id;
+                secEl.dataset.mainTab = sec.mainTab;
+                secEl.className = 'scroll-mt-4';
+
+                let rowsHtml = '';
+                filtered.forEach(item => {
+                    rowsHtml += `
+                        <div class="py-3 border-b border-black/10 flex items-start justify-between gap-3">
+                            <div>
+                                <div class="text-[15px] font-bold text-[#121212]">${item.name}</div>
+                                <div class="text-[12px] text-[#6E655F] mt-0.5">${item.allergen}</div>
+                            </div>
+                            <div class="text-[15px] font-extrabold text-[#121212] shrink-0">${item.price}</div>
+                        </div>
+                    `;
+                });
+
+                secEl.innerHTML = `
+                    <h3 class="text-[16px] font-extrabold text-[#4A5D23] tracking-tight mb-1">${sec.title}</h3>
+                    <div class="divide-y divide-black/5">${rowsHtml}</div>
+                `;
+                wrap.appendChild(secEl);
+            });
+        }
+
+        function selectMainMenuTab(tabKey) {
+            document.querySelectorAll('.menu-main-pill').forEach(btn => {
+                const active = btn.dataset.mainTab === tabKey;
+                btn.className = `menu-main-pill px-3.5 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition ${
+                    active ? 'bg-[#121212] text-white' : 'bg-[#EADFD7] text-[#121212]'
+                }`;
+            });
+            const firstSec = MAISHA_MENU.find(s => s.mainTab === tabKey);
+            if (firstSec) scrollToMenuSection(firstSec.id);
+        }
+
+        function scrollToMenuSection(secId) {
+            const el = document.getElementById(secId);
+            if (el) {
+                el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                setActiveSubPill(secId);
+            }
+        }
+
+        function setActiveSubPill(secId) {
+            document.querySelectorAll('.menu-sub-pill').forEach(btn => {
+                const active = btn.dataset.subSec === secId;
+                btn.className = `menu-sub-pill px-3 py-1 rounded-lg text-[11.5px] font-semibold whitespace-nowrap transition ${
+                    active ? 'bg-[#4A5D23] text-white' : 'bg-[#EADFD7]/70 text-[#6E655F]'
+                }`;
+            });
+        }
+
+        function handleMenuScrollSpy() {
+            const container = document.getElementById('menu-scroll-container');
+            const scrollTop = container.scrollTop;
+            let currentSec = MAISHA_MENU[0].id;
+            let currentMain = MAISHA_MENU[0].mainTab;
+
+            for (const sec of MAISHA_MENU) {
+                const el = document.getElementById(sec.id);
+                if (el && el.offsetTop - container.offsetTop - 60 <= scrollTop) {
+                    currentSec = sec.id;
+                    currentMain = sec.mainTab;
+                }
+            }
+            setActiveSubPill(currentSec);
+            document.querySelectorAll('.menu-main-pill').forEach(btn => {
+                const active = btn.dataset.mainTab === currentMain;
+                btn.className = `menu-main-pill px-3.5 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition ${
+                    active ? 'bg-[#121212] text-white' : 'bg-[#EADFD7] text-[#121212]'
+                }`;
+            });
+        }
+
+        // =========================================================
+        // MÓDULO 3: CONEXIÓN WI-FI INSTANTÁNEA
+        // =========================================================
+        async function copyWifiPassword() {
+            const pass = document.getElementById('wifi-pass-text').textContent.trim();
+            const txtEl = document.getElementById('btn-copy-wifi-text');
+            try {
+                await navigator.clipboard.writeText(pass);
+            } catch (e) {
+                const temp = document.createElement('input');
+                temp.value = pass;
+                document.body.appendChild(temp);
+                temp.select();
+                document.execCommand('copy');
+                temp.remove();
+            }
+            txtEl.textContent = '¡Contraseña copiada al portapapeles! ✅';
+            setTimeout(() => {
+                txtEl.textContent = 'Copiar contraseña y conectar';
+            }, 2600);
+        }
+
+        // =========================================================
+        // MÓDULO 4: BUZÓN DE SUGERENCIAS CON FILTRO INTELIGENTE
+        // =========================================================
+        function openGoogleReviewModal() {
+            openModal('modal-google-review');
+        }
+
+        function openFeedbackModal() {
+            document.getElementById('feedback-step-form').classList.remove('hidden');
+            document.getElementById('feedback-step-result').classList.add('hidden');
+            document.getElementById('feedback-textarea').value = '';
+            clearFeedbackPhoto();
+            openModal('modal-feedback');
+        }
+
+        function previewFeedbackPhoto(e) {
+            const file = e.target.files && e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+                document.getElementById('feedback-photo-preview').src = ev.target.result;
+                document.getElementById('feedback-photo-preview-wrap').classList.remove('hidden');
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function clearFeedbackPhoto() {
+            document.getElementById('feedback-photo-input').value = '';
+            document.getElementById('feedback-photo-preview-wrap').classList.add('hidden');
+        }
+
+        async function submitFeedbackForm(e) {
+            e.preventDefault();
+            const text = document.getElementById('feedback-textarea').value.trim();
+            if (!text) return;
+            const hasPhoto = !document.getElementById('feedback-photo-preview-wrap').classList.contains('hidden');
+
+            const positiveWords = [
+                'excelente', 'rico', 'delicioso', 'encantó', 'encanto', 'increíble', 'increible',
+                'buen', 'bueno', 'buenísimo', 'mejor', 'felicidades', 'súper', 'super', 'genial',
+                'amor', 'favorito', 'recomendado', 'amables', 'rápido', 'great', 'love', 'good', 'best'
+            ];
+            const lower = text.toLowerCase();
+            const isPositive = positiveWords.some(w => lower.includes(w)) && text.length >= 10;
+
+            try {
+                await fetch('/api/hub/feedback', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        serial: currentMember ? currentMember.serial : '',
+                        message: text,
+                        sentiment: isPositive ? 'positive' : 'constructive',
+                        has_photo: hasPhoto
+                    })
+                });
+            } catch (err) {}
+
+            document.getElementById('feedback-step-form').classList.add('hidden');
+            document.getElementById('feedback-step-result').classList.remove('hidden');
+
+            const googleBtn = document.getElementById('feedback-google-cta');
+            if (isPositive) {
+                document.getElementById('feedback-result-icon').textContent = '🌟';
+                document.getElementById('feedback-result-title').textContent = '¡Qué alegría leer tu comentario!';
+                document.getElementById('feedback-result-desc').textContent =
+                    'Nos encanta saber que disfrutaste tu experiencia en Maisha\'s Café. ¿Nos ayudarías compartiendo tu reseña en Google?';
+                googleBtn.classList.remove('hidden');
+                googleBtn.classList.add('flex');
+            } else {
+                document.getElementById('feedback-result-icon').textContent = '💌';
+                document.getElementById('feedback-result-title').textContent = 'Gracias por tu honestidad';
+                document.getElementById('feedback-result-desc').textContent =
+                    'Tu mensaje fue enviado de forma privada a la gerencia de Maisha\'s Café para revisarlo de inmediato y mejorar.';
+                googleBtn.classList.add('hidden');
+                googleBtn.classList.remove('flex');
+            }
+        }
+
+        // =========================================================
+        // MÓDULO 5: MOTOR DE JUEGO SUDOKU COMPLETO (9x9)
+        // =========================================================
+        const SUDOKU_BANK = {
+            easy: {
+                puzzle: [
+                    [5,3,0, 0,7,0, 0,0,0],
+                    [6,0,0, 1,9,5, 0,0,0],
+                    [0,9,8, 0,0,0, 0,6,0],
+                    [8,0,0, 0,6,0, 0,0,3],
+                    [4,0,0, 8,0,3, 0,0,1],
+                    [7,0,0, 0,2,0, 0,0,6],
+                    [0,6,0, 0,0,0, 2,8,0],
+                    [0,0,0, 4,1,9, 0,0,5],
+                    [0,0,0, 0,8,0, 0,7,9]
+                ],
+                solution: [
+                    [5,3,4, 6,7,8, 9,1,2],
+                    [6,7,2, 1,9,5, 3,4,8],
+                    [1,9,8, 3,4,2, 5,6,7],
+                    [8,5,9, 7,6,1, 4,2,3],
+                    [4,2,6, 8,5,3, 7,9,1],
+                    [7,1,3, 9,2,4, 8,5,6],
+                    [9,6,1, 5,3,7, 2,8,4],
+                    [2,8,7, 4,1,9, 6,3,5],
+                    [3,4,5, 2,8,6, 1,7,9]
+                ]
+            },
+            medium: {
+                puzzle: [
+                    [0,2,0, 6,0,8, 0,0,0],
+                    [5,8,0, 0,0,9, 7,0,0],
+                    [0,0,0, 0,4,0, 0,0,0],
+                    [3,7,0, 0,0,0, 5,0,0],
+                    [6,0,0, 0,0,0, 0,0,4],
+                    [0,0,8, 0,0,0, 0,1,3],
+                    [0,0,0, 0,2,0, 0,0,0],
+                    [0,0,9, 8,0,0, 0,3,6],
+                    [0,0,0, 3,0,6, 0,9,0]
+                ],
+                solution: [
+                    [1,2,3, 6,7,8, 9,4,5],
+                    [5,8,4, 2,3,9, 7,6,1],
+                    [9,6,7, 1,4,5, 3,2,8],
+                    [3,7,2, 4,6,1, 5,8,9],
+                    [6,9,1, 5,8,3, 2,7,4],
+                    [4,5,8, 7,9,2, 6,1,3],
+                    [8,3,6, 9,2,4, 1,5,7],
+                    [2,1,9, 8,5,7, 4,3,6],
+                    [7,4,5, 3,1,6, 8,9,2]
+                ]
+            },
+            hard: {
+                puzzle: [
+                    [0,0,0, 6,0,0, 4,0,0],
+                    [7,0,0, 0,0,3, 6,0,0],
+                    [0,0,0, 0,9,1, 0,8,0],
+                    [0,0,0, 0,0,0, 0,0,0],
+                    [0,5,0, 1,8,0, 0,0,3],
+                    [0,0,0, 3,0,6, 0,4,5],
+                    [0,4,0, 2,0,0, 0,6,0],
+                    [9,0,3, 0,0,0, 0,0,0],
+                    [0,2,0, 0,0,0, 1,0,0]
+                ],
+                solution: [
+                    [5,8,1, 6,7,2, 4,3,9],
+                    [7,9,2, 8,4,3, 6,5,1],
+                    [3,6,4, 5,9,1, 7,8,2],
+                    [4,3,8, 9,5,7, 2,1,6],
+                    [2,5,6, 1,8,4, 9,7,3],
+                    [1,7,9, 3,2,6, 8,4,5],
+                    [8,4,5, 2,1,9, 3,6,7],
+                    [9,1,3, 7,6,8, 5,2,4],
+                    [6,2,7, 4,3,5, 1,9,8]
+                ]
+            }
+        };
+
+        let sudokuState = {
+            diff: 'easy',
+            fixed: [],
+            grid: [],
+            solution: [],
+            notes: {},
+            selected: [0, 0],
+            notesMode: false,
+            history: [],
+            seconds: 0,
+            timerId: null
+        };
+
+        function openSudokuModal() {
+            if (!sudokuState.grid.length) {
+                startSudoku('easy');
+            } else {
+                startSudokuTimer();
+            }
+            openModal('modal-sudoku');
+        }
+
+        function closeSudokuModal() {
+            clearInterval(sudokuState.timerId);
+            closeModal('modal-sudoku');
+        }
+
+        function startSudokuTimer() {
+            clearInterval(sudokuState.timerId);
+            sudokuState.timerId = setInterval(() => {
+                sudokuState.seconds++;
+                const m = String(Math.floor(sudokuState.seconds / 60)).padStart(2, '0');
+                const s = String(sudokuState.seconds % 60).padStart(2, '0');
+                document.getElementById('sudoku-timer').textContent = `${m}:${s}`;
+            }, 1000);
+        }
+
+        function startSudoku(diff) {
+            const tpl = SUDOKU_BANK[diff] || SUDOKU_BANK.easy;
+            sudokuState.diff = diff;
+            sudokuState.fixed = tpl.puzzle.map(r => [...r]);
+            sudokuState.grid = tpl.puzzle.map(r => [...r]);
+            sudokuState.solution = tpl.solution.map(r => [...r]);
+            sudokuState.notes = {};
+            sudokuState.history = [];
+            sudokuState.selected = [0, 2];
+            sudokuState.seconds = 0;
+            document.getElementById('sudoku-timer').textContent = '00:00';
+
+            document.querySelectorAll('.sudoku-diff-btn').forEach(b => {
+                const active = b.dataset.diff === diff;
+                b.className = `sudoku-diff-btn px-3 py-1 rounded-full text-xs font-bold ${
+                    active ? 'bg-[#121212] text-white' : 'text-[#6E655F]'
+                }`;
+            });
+            startSudokuTimer();
+            renderSudokuBoard();
+        }
+
+        function renderSudokuBoard() {
+            const board = document.getElementById('sudoku-board');
+            board.innerHTML = '';
+            const [selR, selC] = sudokuState.selected;
+            const selVal = sudokuState.grid[selR] ? sudokuState.grid[selR][selC] : 0;
+
+            for (let r = 0; r < 9; r++) {
+                for (let c = 0; c < 9; c++) {
+                    const val = sudokuState.grid[r][c];
+                    const isFixed = sudokuState.fixed[r][c] !== 0;
+                    const isSel = (r === selR && c === selC);
+                    const sameRowColBox = (r === selR || c === selC || (Math.floor(r/3) === Math.floor(selR/3) && Math.floor(c/3) === Math.floor(selC/3)));
+                    const sameNumber = (val !== 0 && val === selVal);
+                    const isWrong = (val !== 0 && !isFixed && val !== sudokuState.solution[r][c]);
+
+                    let bg = 'bg-white';
+                    if (isSel) bg = 'bg-[#C5A869]/55';
+                    else if (sameNumber) bg = 'bg-[#C5A869]/30';
+                    else if (sameRowColBox) bg = 'bg-[#F4ECE6]';
+
+                    const borderR = (c === 2 || c === 5) ? 'border-r-2 border-r-[#121212]' : 'border-r border-r-black/15';
+                    const borderB = (r === 2 || r === 5) ? 'border-b-2 border-b-[#121212]' : 'border-b border-b-black/15';
+
+                    const cell = document.createElement('div');
+                    cell.className = `sudoku-cell ${bg} ${borderR} ${borderB} ${
+                        isWrong ? 'text-[#E86C78]' : (isFixed ? 'text-[#121212]' : 'text-[#4A5D23]')
+                    }`;
+                    cell.onclick = () => {
+                        sudokuState.selected = [r, c];
+                        renderSudokuBoard();
+                    };
+
+                    const key = `${r}-${c}`;
+                    if (val !== 0) {
+                        cell.textContent = val;
+                    } else if (sudokuState.notes[key] && sudokuState.notes[key].length) {
+                        cell.innerHTML = `<div class="text-[9px] leading-none text-[#6E655F] font-semibold text-center">${sudokuState.notes[key].join(' ')}</div>`;
+                    }
+                    board.appendChild(cell);
+                }
+            }
+        }
+
+        function inputSudokuNumber(n) {
+            const [r, c] = sudokuState.selected;
+            if (sudokuState.fixed[r][c] !== 0) return;
+            const key = `${r}-${c}`;
+
+            if (sudokuState.notesMode) {
+                const arr = sudokuState.notes[key] || [];
+                const idx = arr.indexOf(n);
+                if (idx >= 0) arr.splice(idx, 1);
+                else arr.push(n);
+                sudokuState.notes[key] = arr.sort();
+                renderSudokuBoard();
+                return;
+            }
+
+            sudokuState.history.push({ r, c, prev: sudokuState.grid[r][c] });
+            sudokuState.grid[r][c] = n;
+            delete sudokuState.notes[key];
+            renderSudokuBoard();
+
+            // Verificar si completó el tablero
+            let completed = true;
+            for (let i = 0; i < 9; i++) {
+                for (let j = 0; j < 9; j++) {
+                    if (sudokuState.grid[i][j] !== sudokuState.solution[i][j]) {
+                        completed = false;
+                        break;
+                    }
+                }
+            }
+            if (completed) {
+                clearInterval(sudokuState.timerId);
+                document.getElementById('sudoku-status-msg').textContent = '🎉 ¡Felicidades! Completaste el Sudoku de Maisha\'s Café';
+            }
+        }
+
+        function toggleSudokuNotes() {
+            sudokuState.notesMode = !sudokuState.notesMode;
+            const badge = document.getElementById('sudoku-notes-badge');
+            badge.textContent = `Modo Lápiz: ${sudokuState.notesMode ? 'ON' : 'OFF'}`;
+            badge.className = `text-[11px] font-bold px-2 py-0.5 rounded-full ${
+                sudokuState.notesMode ? 'bg-[#121212] text-white' : 'bg-[#EADFD7] text-[#6E655F]'
+            }`;
+        }
+
+        function undoSudokuMove() {
+            const last = sudokuState.history.pop();
+            if (!last) return;
+            sudokuState.grid[last.r][last.c] = last.prev;
+            renderSudokuBoard();
+        }
+
+        function eraseSudokuCell() {
+            const [r, c] = sudokuState.selected;
+            if (sudokuState.fixed[r][c] !== 0) return;
+            sudokuState.history.push({ r, c, prev: sudokuState.grid[r][c] });
+            sudokuState.grid[r][c] = 0;
+            delete sudokuState.notes[`${r}-${c}`];
+            renderSudokuBoard();
+        }
+
+        function hintSudokuCell() {
+            const [r, c] = sudokuState.selected;
+            if (sudokuState.fixed[r][c] !== 0) return;
+            sudokuState.grid[r][c] = sudokuState.solution[r][c];
+            document.getElementById('sudoku-status-msg').textContent = `💡 Pista revelada en fila ${r+1}, columna ${c+1}`;
+            renderSudokuBoard();
+        }
+
+        // =========================================================
+        // MÓDULO G: MODO CAJERO / STAFF POS SIMULATOR
+        // =========================================================
+        function refreshStaffSummary() {
+            const el = document.getElementById('staff-client-summary');
+            if (!currentMember || !currentMember.serial) {
+                el.textContent = 'Ningún cliente activo aún. Regístrate primero en "Empieza a ganar recompensas".';
+                return;
+            }
+            el.textContent = `${currentMember.name} (${currentMember.serial}) · ${currentMember.stamps || 0}/${currentMember.stamp_goal || STAMP_GOAL} sellos`;
+        }
+
+        async function staffSimulateStamp(action) {
+            if (!currentMember || !currentMember.serial) {
+                closeModal('modal-staff');
+                openLoyaltyRegisterModal();
+                return;
+            }
+            try {
+                const res = await fetch('/api/hub/staff-stamp', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ serial: currentMember.serial, action })
+                });
+                const data = await res.json();
+                if (data && data.ok) {
+                    currentMember.stamps = data.stamps;
+                    currentMember.stamp_goal = data.stamp_goal || STAMP_GOAL;
+                    saveMemberToStorage(currentMember);
+                    refreshStaffSummary();
+                } else if (data && data.error) {
+                    alert(data.error);
+                }
+            } catch (e) {
+                alert('Error al conectar con el servidor DEMO.');
+            }
+        }
+
+        // Inicializar al cargar
+        loadMemberFromStorage();
+    </script>
+</body>
+</html>
