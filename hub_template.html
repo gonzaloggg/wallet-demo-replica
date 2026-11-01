@@ -136,6 +136,9 @@
             touch-action: manipulation;
             transition: background-color 0.1s ease;
         }
+        dialog button:focus {
+            outline: none;
+        }
     </style>
 </head>
 <body>
@@ -617,16 +620,16 @@
             <!-- Sticky Header -->
             <div class="bg-[#FAF6F3] border-b border-black/10 px-4 pt-3.5 pb-3 shrink-0 z-10">
                 <div class="w-10 h-1.5 bg-black/15 rounded-full mx-auto mb-3"></div>
-                <div class="flex items-center justify-between mb-3">
-                    <div>
-                        <h2 class="text-[21px] font-bold tracking-[-0.02em] text-[#121212]">Nuestro Menú</h2>
-                        <p class="text-[12px] text-[#6E655F]">Precios en MXN · {{ campaign.shopName }}</p>
+                <div class="flex items-center justify-between gap-2 mb-3">
+                    <div class="min-w-0">
+                        <h2 class="text-[20px] font-bold tracking-[-0.02em] text-[#121212] leading-tight">Nuestro Menú</h2>
+                        <p class="text-[11.5px] text-[#6E655F] truncate">Precios en MXN · {{ campaign.shopName }}</p>
                     </div>
-                    <div class="flex items-center gap-2">
-                        <button type="button" onclick="openModal('modal-printed-menu')" class="px-3 py-1.5 rounded-full bg-[#EADFD7] text-[#4A5D23] text-xs font-bold active:scale-95 transition">
+                    <div class="flex items-center gap-1.5 shrink-0">
+                        <button type="button" onclick="openModal('modal-printed-menu')" class="px-2.5 py-1.5 rounded-full bg-[#EADFD7] text-[#4A5D23] text-[11.5px] font-bold whitespace-nowrap shrink-0 active:scale-95 transition">
                             🖼️ Carta Impresa
                         </button>
-                        <button type="button" onclick="closeModal('modal-menu')" class="px-3.5 py-1.5 rounded-full bg-[#121212] text-white text-xs font-bold active:scale-95 transition">
+                        <button type="button" onclick="closeModal('modal-menu')" class="px-3.5 py-1.5 rounded-full bg-[#121212] text-white text-xs font-bold whitespace-nowrap shrink-0 active:scale-95 transition">
                             Listo
                         </button>
                     </div>
