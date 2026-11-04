@@ -79,23 +79,27 @@ BARISTA_LOGIN_HTML = """
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Maishas Café — Barista POS</title>
-    <meta name="theme-color" content="#0D0C0B">
+    <title>Maisha's Café — Barista POS</title>
+    <meta name="theme-color" content="#F4ECE6">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="Barista POS">
     <link rel="manifest" href="/barista/manifest.webmanifest" crossorigin="use-credentials">
     <link rel="apple-touch-icon" href="/barista/icon-512.png">
     <link rel="icon" type="image/png" href="/card/icon-192.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Calligraffitti&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg-canvas: #0D0C0B;
-            --gold: #D4AF37;
-            --gold-light: #E6C280;
-            --text-primary: #F5F2EB;
-            --text-secondary: #A8A096;
-            --border-subtle: rgba(255, 255, 255, 0.1);
+            color-scheme: light;
+            --bg-canvas: #F4ECE6;
+            --gold: #4A5D23;
+            --gold-light: #4E301B;
+            --text-primary: #121212;
+            --text-secondary: #6E655F;
+            --border-subtle: rgba(18, 18, 18, 0.08);
         }
         * { box-sizing: border-box; -webkit-font-smoothing: antialiased; }
         html, body {
@@ -107,11 +111,11 @@ BARISTA_LOGIN_HTML = """
         body {
             margin: 0;
             min-height: 100vh;
-            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", sans-serif;
+            font-family: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", sans-serif;
             background-color: var(--bg-canvas);
             background-image:
-                radial-gradient(circle at 50% 0%, rgba(212, 175, 55, 0.15) 0%, transparent 55%),
-                radial-gradient(circle at 85% 90%, rgba(198, 166, 117, 0.08) 0%, transparent 45%);
+                radial-gradient(circle at 50% 0%, rgba(234, 223, 215, 0.85) 0%, transparent 55%),
+                radial-gradient(circle at 85% 90%, rgba(232, 108, 120, 0.06) 0%, transparent 45%);
             color: var(--text-primary);
             display: flex;
             align-items: center;
@@ -121,31 +125,33 @@ BARISTA_LOGIN_HTML = """
         .login-card {
             width: 100%;
             max-width: 380px;
-            background: linear-gradient(165deg, #1C1916 0%, #12100E 100%);
-            border: 1px solid rgba(212, 175, 55, 0.32);
+            background: #EADFD7;
+            border: 1px solid var(--border-subtle);
             border-radius: 24px;
             padding: 30px 24px 26px;
-            box-shadow: 0 24px 60px rgba(0, 0, 0, 0.8), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+            box-shadow: 0 12px 34px rgba(78, 48, 27, 0.08);
             text-align: center;
         }
         .login-emblem {
-            width: 56px;
-            height: 56px;
-            border-radius: 16px;
-            background: linear-gradient(135deg, #D4AF37 0%, #8F6B1A 100%);
-            color: #12100E;
+            width: 58px;
+            height: 58px;
+            border-radius: 50%;
+            background: #121212;
+            border: 2.5px solid #4A5D23;
+            color: #FAF6F3;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 28px;
+            font-size: 26px;
             margin: 0 auto 14px;
-            box-shadow: 0 8px 22px rgba(212, 175, 55, 0.28);
+            box-shadow: 0 6px 16px rgba(18, 18, 18, 0.14);
         }
         .login-title {
             margin: 0 0 6px;
             font-size: 22px;
             font-weight: 800;
-            letter-spacing: -0.3px;
+            letter-spacing: -0.02em;
+            color: var(--text-primary);
         }
         .login-sub {
             margin: 0 0 22px;
@@ -154,36 +160,39 @@ BARISTA_LOGIN_HTML = """
         }
         .login-field {
             width: 100%;
-            background: rgba(0, 0, 0, 0.45);
-            border: 1px solid var(--border-subtle);
+            background: #FAF6F3;
+            border: 1.5px solid rgba(18, 18, 18, 0.10);
             border-radius: 13px;
             padding: 13px 14px;
             color: var(--text-primary);
             font-size: 16px;
+            font-family: inherit;
             margin-bottom: 12px;
             outline: none;
         }
         .login-field:focus {
-            border-color: var(--gold);
-            box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.18);
+            border-color: #121212;
+            background: #FFFFFF;
+            box-shadow: 0 0 0 3px rgba(18, 18, 18, 0.08);
         }
         .login-btn {
             width: 100%;
             border: none;
-            border-radius: 13px;
+            border-radius: 14px;
             padding: 14px 16px;
             margin-top: 6px;
-            background: linear-gradient(135deg, #E6C280 0%, #D4AF37 55%, #AA7C11 100%);
-            color: #12100E;
+            background: #121212;
+            color: #FAF6F3;
             font-size: 15px;
-            font-weight: 800;
+            font-weight: 700;
+            font-family: inherit;
             cursor: pointer;
-            box-shadow: 0 8px 20px rgba(212, 175, 55, 0.25);
+            box-shadow: 0 8px 20px rgba(18, 18, 18, 0.16);
         }
         .login-error {
-            background: rgba(255, 55, 95, 0.15);
-            border: 1px solid rgba(255, 55, 95, 0.4);
-            color: #FF859D;
+            background: rgba(217, 56, 72, 0.14);
+            border: 1px solid rgba(217, 56, 72, 0.38);
+            color: #C81D40;
             border-radius: 12px;
             padding: 10px 12px;
             font-size: 13px;
@@ -191,16 +200,16 @@ BARISTA_LOGIN_HTML = """
             margin-bottom: 14px;
         }
     </style>
-    <title>[DEMO] Maishas Café — Barista POS</title>
+    <title>[DEMO] Maisha's Café — Barista POS</title>
 </head>
 <body>
     <div class="login-card">
-        <div style="display:inline-flex; align-items:center; gap:6px; padding:5px 12px; border-radius:99px; background:rgba(56,189,248,0.16); border:1px solid rgba(56,189,248,0.5); color:#7DD3FC; font-size:11px; font-weight:800; letter-spacing:0.6px; text-transform:uppercase; margin-bottom:12px;">
+        <div style="display:inline-flex; align-items:center; gap:6px; padding:5px 12px; border-radius:99px; background:rgba(74,93,35,0.12); border:1px solid rgba(74,93,35,0.34); color:#4A5D23; font-size:11px; font-weight:800; letter-spacing:0.6px; text-transform:uppercase; margin-bottom:12px;">
             🧪 ENTORNO DEMO · RÉPLICA DE PRUEBAS
         </div>
         <div class="login-emblem">☕️</div>
-        <h1 class="login-title">Iniciar sesión <span style="color:#38BDF8; font-size:15px;">(DEMO)</span></h1>
-        <p class="login-sub">Maishas Café · Consola Barista DEMO</p>
+        <h1 class="login-title">Iniciar sesión <span style="color:#4A5D23; font-size:15px;">(DEMO)</span></h1>
+        <p class="login-sub">Maisha's Café · Consola Barista DEMO</p>
         {% if error %}
         <div class="login-error">{{ error }}</div>
         {% endif %}
@@ -408,9 +417,9 @@ def get_vip_tier(total_visits):
             "name": "Amante del Café ☕️",
             "short": "Bronce ☕️",
             "badge": "🌱 Bronce",
-            "bg": "rgba(198, 166, 117, 0.16)",
-            "fg": "#E6C280",
-            "border": "rgba(198, 166, 117, 0.3)",
+            "bg": "rgba(78, 48, 27, 0.10)",
+            "fg": "#4E301B",
+            "border": "rgba(78, 48, 27, 0.24)",
             "next_goal": f"A {10 - visits} visitas de Nivel Plata ✦"
         }
 
@@ -2332,32 +2341,38 @@ BARISTA_HTML = """
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Maishas Café — Barista POS</title>
-    <meta name="theme-color" content="#0D0C0B">
+    <title>Maisha's Café — Barista POS</title>
+    <meta name="theme-color" content="#F4ECE6">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="Barista POS">
     <link rel="manifest" href="/barista/manifest.webmanifest" crossorigin="use-credentials">
     <link rel="apple-touch-icon" href="/barista/icon-512.png">
     <link rel="icon" type="image/png" href="/card/icon-192.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Calligraffitti&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
     <style>
         :root {
-            --bg-canvas: #0D0C0B;
-            --bg-elevated: #161412;
-            --bg-glass: rgba(24, 21, 18, 0.75);
-            --bg-glass-subtle: rgba(255, 255, 255, 0.035);
-            --border-subtle: rgba(255, 255, 255, 0.08);
-            --border-gold: rgba(212, 175, 55, 0.35);
-            --gold: #D4AF37;
-            --gold-light: #E6C280;
-            --apple-green: #30D158;
-            --apple-rose: #FF375F;
-            --apple-amber: #FF9F0A;
-            --text-primary: #F5F2EB;
-            --text-secondary: #A8A096;
-            --text-tertiary: #6E675F;
+            color-scheme: light;
+            --bg-canvas: #F4ECE6;
+            --bg-elevated: #FAF6F3;
+            --bg-card: #EADFD7;
+            --bg-glass: #EADFD7;
+            --bg-glass-subtle: #FAF6F3;
+            --border-subtle: rgba(18, 18, 18, 0.08);
+            --border-gold: rgba(74, 93, 35, 0.35);
+            --gold: #4A5D23;
+            --gold-light: #4E301B;
+            --coffee-bean: #4E301B;
+            --apple-green: #248A3D;
+            --apple-rose: #D93848;
+            --apple-amber: #B86200;
+            --text-primary: #121212;
+            --text-secondary: #6E655F;
+            --text-tertiary: #8C827A;
         }
         * { box-sizing: border-box; -webkit-font-smoothing: antialiased; }
         html, body {
@@ -2368,12 +2383,12 @@ BARISTA_HTML = """
             -webkit-text-size-adjust: 100%;
         }
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", sans-serif;
+            font-family: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", sans-serif;
             font-variant-numeric: tabular-nums;
             background-color: var(--bg-canvas);
             background-image:
-                radial-gradient(circle at 15% 0%, rgba(212, 175, 55, 0.09) 0%, transparent 45%),
-                radial-gradient(circle at 85% 15%, rgba(255, 55, 95, 0.05) 0%, transparent 40%);
+                radial-gradient(circle at 15% 0%, rgba(234, 223, 215, 0.7) 0%, transparent 45%),
+                radial-gradient(circle at 85% 15%, rgba(232, 108, 120, 0.06) 0%, transparent 40%);
             color: var(--text-primary);
             margin: 0;
             padding: 0 0 60px;
@@ -2396,12 +2411,12 @@ BARISTA_HTML = """
         }
         .dynamic-island {
             pointer-events: auto;
-            background: rgba(18, 16, 14, 0.92);
-            backdrop-filter: blur(28px);
-            -webkit-backdrop-filter: blur(28px);
-            border: 1px solid rgba(48, 209, 88, 0.45);
-            box-shadow: 0 18px 45px rgba(0, 0, 0, 0.75), 0 0 20px rgba(48, 209, 88, 0.15);
-            color: var(--text-primary);
+            background: #121212;
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(52, 199, 89, 0.45);
+            box-shadow: 0 14px 36px rgba(18, 18, 18, 0.22);
+            color: #FAF6F3;
             padding: 12px 18px;
             border-radius: 999px;
             display: flex;
@@ -2420,14 +2435,14 @@ BARISTA_HTML = """
             width: 10px;
             height: 10px;
             border-radius: 50%;
-            background: var(--apple-green);
-            box-shadow: 0 0 10px var(--apple-green);
+            background: #34C759;
+            box-shadow: 0 0 10px #34C759;
             flex-shrink: 0;
         }
         .di-close {
-            background: rgba(255, 255, 255, 0.08);
+            background: rgba(255, 255, 255, 0.14);
             border: none;
-            color: var(--text-secondary);
+            color: #EADFD7;
             width: 24px;
             height: 24px;
             border-radius: 50%;
@@ -2443,9 +2458,9 @@ BARISTA_HTML = """
             position: sticky;
             top: 0;
             z-index: 100;
-            background: rgba(13, 12, 11, 0.78);
-            backdrop-filter: blur(24px);
-            -webkit-backdrop-filter: blur(24px);
+            background: rgba(244, 236, 230, 0.88);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
             border-bottom: 1px solid var(--border-subtle);
             padding: calc(12px + env(safe-area-inset-top, 0px)) 24px 12px;
         }
@@ -2460,23 +2475,24 @@ BARISTA_HTML = """
         }
         .brand-Cluster { display: flex; align-items: center; gap: 12px; }
         .brand-emblem {
-            width: 38px;
-            height: 38px;
-            border-radius: 11px;
-            background: linear-gradient(135deg, #D4AF37 0%, #8F6B1A 100%);
-            color: #12100E;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: #121212;
+            border: 2.5px solid #4A5D23;
+            color: #FAF6F3;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 20px;
-            box-shadow: 0 4px 14px rgba(212, 175, 55, 0.25);
+            font-size: 19px;
+            box-shadow: 0 4px 12px rgba(18, 18, 18, 0.12);
         }
-        .brand-title { font-size: 18px; font-weight: 700; letter-spacing: -0.3px; margin: 0; }
-        .brand-sub { font-size: 11px; color: var(--gold-light); font-weight: 600; letter-spacing: 0.4px; text-transform: uppercase; }
+        .brand-title { font-size: 18px; font-weight: 800; letter-spacing: -0.02em; margin: 0; color: var(--text-primary); }
+        .brand-sub { font-size: 11px; color: var(--gold); font-weight: 700; letter-spacing: 0.4px; text-transform: uppercase; }
 
         .kpi-cluster { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
         .kpi-pill {
-            background: var(--bg-glass-subtle);
+            background: #FAF6F3;
             border: 1px solid var(--border-subtle);
             padding: 6px 12px;
             border-radius: 999px;
@@ -2486,31 +2502,32 @@ BARISTA_HTML = """
             align-items: center;
             gap: 6px;
         }
-        .kpi-pill strong { color: var(--text-primary); font-size: 13.5px; font-weight: 700; }
+        .kpi-pill strong { color: var(--text-primary); font-size: 13.5px; font-weight: 800; }
         .kpi-pill.kpi-bday {
-            border-color: rgba(255, 55, 95, 0.35);
-            background: rgba(255, 55, 95, 0.1);
-            color: #FFB3C1;
+            border-color: rgba(232, 108, 120, 0.4);
+            background: rgba(232, 108, 120, 0.14);
+            color: #B82937;
             cursor: pointer;
         }
-        .kpi-pill.kpi-bday strong { color: #FF375F; }
+        .kpi-pill.kpi-bday strong { color: #D93848; }
 
         .spotlight-wrap { position: relative; min-width: 0; width: 100%; flex: 1 1 220px; max-width: 340px; }
         .spotlight-input {
             width: 100%;
             padding: 9px 52px 9px 34px;
-            border-radius: 10px;
-            border: 1px solid var(--border-subtle);
-            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            border: 1.5px solid rgba(18, 18, 18, 0.10);
+            background: #FAF6F3;
             color: var(--text-primary);
             font-size: 16px;
             font-family: inherit;
         }
+        .spotlight-input::placeholder { color: var(--text-tertiary); }
         .spotlight-input:focus {
             outline: none;
-            border-color: var(--gold);
-            background: rgba(18, 16, 14, 0.95);
-            box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.18);
+            border-color: #121212;
+            background: #FFFFFF;
+            box-shadow: 0 0 0 3px rgba(18, 18, 18, 0.08);
         }
         .spotlight-icon {
             position: absolute;
@@ -2527,10 +2544,10 @@ BARISTA_HTML = """
             top: 50%;
             transform: translateY(-50%);
             font-size: 10px;
-            font-weight: 600;
-            color: var(--text-tertiary);
-            background: rgba(255, 255, 255, 0.06);
-            border: 1px solid rgba(255, 255, 255, 0.08);
+            font-weight: 700;
+            color: var(--text-secondary);
+            background: #EADFD7;
+            border: 1px solid rgba(18, 18, 18, 0.10);
             border-radius: 5px;
             padding: 2px 6px;
             pointer-events: none;
@@ -2559,13 +2576,11 @@ BARISTA_HTML = """
         }
 
         .bento-card {
-            background: var(--bg-glass);
-            backdrop-filter: blur(24px);
-            -webkit-backdrop-filter: blur(24px);
+            background: var(--bg-card);
             border: 1px solid var(--border-subtle);
-            border-radius: 22px;
+            border-radius: 20px;
             padding: 20px;
-            box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+            box-shadow: 0 6px 20px rgba(78, 48, 27, 0.04);
             display: flex;
             flex-direction: column;
             justify-content: space-between;
@@ -2573,12 +2588,12 @@ BARISTA_HTML = """
             max-width: 100%;
         }
         .bento-header { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
-        .bento-title { font-size: 15px; font-weight: 700; letter-spacing: -0.2px; margin: 0; display: flex; align-items: center; gap: 8px; }
-        .bento-subtitle { font-size: 12px; color: var(--text-secondary); margin: 0 0 12px; line-height: 1.4; }
+        .bento-title { font-size: 15px; font-weight: 800; letter-spacing: -0.02em; margin: 0; display: flex; align-items: center; gap: 8px; color: var(--text-primary); }
+        .bento-subtitle { font-size: 12.5px; color: var(--text-secondary); margin: 0 0 12px; line-height: 1.45; }
 
         .segmented-control {
             display: inline-flex;
-            background: rgba(0, 0, 0, 0.45);
+            background: #FAF6F3;
             border: 1px solid var(--border-subtle);
             border-radius: 10px;
             padding: 3px;
@@ -2589,22 +2604,23 @@ BARISTA_HTML = """
             border: none;
             color: var(--text-secondary);
             font-size: 11.5px;
-            font-weight: 600;
+            font-weight: 700;
             padding: 5px 10px;
             border-radius: 7px;
             cursor: pointer;
+            font-family: inherit;
         }
         .seg-btn.active {
-            background: rgba(255, 255, 255, 0.12);
-            color: var(--text-primary);
-            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+            background: #121212;
+            color: #FAF6F3;
+            box-shadow: 0 2px 6px rgba(18, 18, 18, 0.14);
         }
 
         .qr-hud-wrapper {
             position: relative;
-            background: #080706;
-            border-radius: 18px;
-            border: 1px solid rgba(212, 175, 55, 0.25);
+            background: #FAF6F3;
+            border-radius: 16px;
+            border: 1.5px dashed rgba(78, 48, 27, 0.22);
             overflow: hidden;
             min-height: 155px;
             display: flex;
@@ -2623,71 +2639,83 @@ BARISTA_HTML = """
             left: 50%;
             transform: translate(-50%, -50%);
             border-radius: 20px;
-            box-shadow: 0 0 0 999px rgba(0, 0, 0, 0.38);
-            border: 2px solid rgba(212, 175, 55, 0.75);
+            box-shadow: 0 0 0 999px rgba(18, 18, 18, 0.35);
+            border: 2px solid #4A5D23;
             pointer-events: none;
             display: none;
             animation: reticlePulse 2s infinite ease-in-out;
         }
         @keyframes reticlePulse {
-            0%, 100% { transform: translate(-50%, -50%) scale(1); border-color: rgba(212, 175, 55, 0.85); }
-            50% { transform: translate(-50%, -50%) scale(1.05); border-color: #30D158; }
+            0%, 100% { transform: translate(-50%, -50%) scale(1); border-color: #4A5D23; }
+            50% { transform: translate(-50%, -50%) scale(1.05); border-color: #34C759; }
         }
         .scan-flash {
             position: absolute;
             inset: 0;
-            background: rgba(48, 209, 88, 0.35);
+            background: rgba(52, 199, 89, 0.35);
             opacity: 0;
             pointer-events: none;
             transition: opacity 0.25s ease;
         }
         .btn-cam-launch {
-            background: linear-gradient(135deg, #D4AF37 0%, #B38A22 100%);
-            color: #12100E;
+            background: #121212;
+            color: #FAF6F3;
             border: none;
-            padding: 10px 18px;
-            border-radius: 12px;
-            font-size: 13px;
+            padding: 11px 20px;
+            border-radius: 14px;
+            font-size: 13.5px;
             font-weight: 700;
+            font-family: inherit;
             cursor: pointer;
             display: inline-flex;
             align-items: center;
-            gap: 6px;
-            box-shadow: 0 6px 18px rgba(212, 175, 55, 0.25);
+            gap: 8px;
+            box-shadow: 0 6px 16px rgba(18, 18, 18, 0.14);
+            transition: transform 0.12s ease;
         }
+        .btn-cam-launch:active { transform: scale(0.98); }
         .quick-scan-form { display: flex; gap: 8px; }
         .input-dark {
             width: 100%;
             min-width: 0;
-            padding: 10px 12px;
-            border-radius: 11px;
-            border: 1px solid var(--border-subtle);
-            background: rgba(10, 9, 8, 0.7);
+            padding: 10px 13px;
+            border-radius: 12px;
+            border: 1.5px solid rgba(18, 18, 18, 0.10);
+            background: #FAF6F3;
             color: var(--text-primary);
             font-size: 16px;
             font-family: inherit;
         }
-        .input-dark:focus { outline: none; border-color: var(--gold); }
+        .input-dark::placeholder { color: var(--text-tertiary); }
+        .input-dark:focus {
+            outline: none;
+            border-color: #121212;
+            background: #FFFFFF;
+            box-shadow: 0 0 0 3px rgba(18, 18, 18, 0.07);
+        }
         .btn-gold-sm {
-            background: rgba(212, 175, 55, 0.18);
-            border: 1px solid rgba(212, 175, 55, 0.45);
+            background: #FAF6F3;
+            border: 1.5px solid rgba(78, 48, 27, 0.25);
             color: var(--gold-light);
-            border-radius: 11px;
+            border-radius: 12px;
             padding: 10px 14px;
             font-size: 13px;
             font-weight: 700;
+            font-family: inherit;
             cursor: pointer;
             white-space: nowrap;
+            transition: background 0.15s ease;
         }
+        .btn-gold-sm:hover { background: #F4ECE6; }
 
         .bday-card-widget {
-            border-color: rgba(255, 55, 95, 0.22);
-            background: linear-gradient(160deg, rgba(32, 20, 24, 0.78) 0%, rgba(22, 20, 18, 0.82) 100%);
+            border-color: rgba(232, 108, 120, 0.28);
+            background: #EADFD7;
         }
         .bday-list { display: flex; flex-direction: column; gap: 8px; max-height: 215px; overflow-y: auto; padding-right: 2px; }
         .bday-item {
-            background: rgba(255, 255, 255, 0.035);
-            border: 1px solid rgba(255, 255, 255, 0.07);
+            background: #FAF6F3;
+            border: 1px solid var(--border-subtle);
             border-radius: 14px;
             padding: 10px 12px;
             display: flex;
@@ -2695,9 +2723,9 @@ BARISTA_HTML = """
             justify-content: space-between;
             gap: 10px;
         }
-        .bday-item.is-today { border-color: rgba(255, 55, 95, 0.45); background: rgba(255, 55, 95, 0.09); }
+        .bday-item.is-today { border-color: rgba(232, 108, 120, 0.5); background: rgba(232, 108, 120, 0.10); }
         .bday-badge-today {
-            background: var(--apple-rose);
+            background: #E86C78;
             color: #FFF;
             font-size: 10.5px;
             font-weight: 800;
@@ -2707,13 +2735,13 @@ BARISTA_HTML = """
             animation: pulseRose 1.8s infinite;
         }
         @keyframes pulseRose {
-            0%, 100% { box-shadow: 0 0 0 0 rgba(255, 55, 95, 0.55); }
-            50% { box-shadow: 0 0 0 6px rgba(255, 55, 95, 0); }
+            0%, 100% { box-shadow: 0 0 0 0 rgba(232, 108, 120, 0.55); }
+            50% { box-shadow: 0 0 0 6px rgba(232, 108, 120, 0); }
         }
         .bday-badge-soon {
-            background: rgba(255, 159, 10, 0.16);
-            border: 1px solid rgba(255, 159, 10, 0.35);
-            color: #FFB340;
+            background: rgba(184, 98, 0, 0.12);
+            border: 1px solid rgba(184, 98, 0, 0.28);
+            color: #9A5000;
             font-size: 10.5px;
             font-weight: 700;
             padding: 2px 8px;
@@ -2721,39 +2749,40 @@ BARISTA_HTML = """
             display: inline-block;
         }
         .btn-bday-gift {
-            background: linear-gradient(135deg, #FF375F 0%, #D91E47 100%);
+            background: #E86C78;
             color: #FFF;
             border: none;
             border-radius: 10px;
             padding: 7px 11px;
             font-size: 11.5px;
             font-weight: 700;
+            font-family: inherit;
             cursor: pointer;
             white-space: nowrap;
         }
 
         .chip-row { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
         .action-chip {
-            background: rgba(255, 255, 255, 0.05);
+            background: #FAF6F3;
             border: 1px solid var(--border-subtle);
             color: var(--text-secondary);
             border-radius: 999px;
-            padding: 5px 10px;
+            padding: 5px 11px;
             font-size: 11px;
-            font-weight: 600;
+            font-weight: 700;
+            font-family: inherit;
             cursor: pointer;
         }
         .action-chip:hover {
-            background: rgba(212, 175, 55, 0.15);
-            border-color: var(--border-gold);
-            color: var(--gold-light);
+            background: #121212;
+            border-color: #121212;
+            color: #FAF6F3;
         }
         .ios-lockscreen-preview {
-            background: rgba(255, 255, 255, 0.07);
-            backdrop-filter: blur(16px);
-            border: 1px solid rgba(255, 255, 255, 0.12);
+            background: #FAF6F3;
+            border: 1px solid rgba(18, 18, 18, 0.10);
             border-radius: 14px;
-            padding: 9px 12px;
+            padding: 10px 12px;
             margin: 8px 0;
             display: flex;
             align-items: center;
@@ -2763,8 +2792,9 @@ BARISTA_HTML = """
             width: 32px;
             height: 32px;
             border-radius: 8px;
-            background: linear-gradient(135deg, #241D17, #12100E);
-            border: 1px solid var(--gold);
+            background: #121212;
+            border: 1.5px solid #4A5D23;
+            color: #FAF6F3;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -2773,39 +2803,39 @@ BARISTA_HTML = """
         }
         .ios-notif-body { flex: 1; min-width: 0; }
         .ios-notif-top { display: flex; justify-content: space-between; font-size: 10px; font-weight: 700; color: var(--text-secondary); }
-        .ios-notif-text { font-size: 12px; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; }
+        .ios-notif-text { font-size: 12px; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; font-weight: 600; }
 
         .clients-section {
-            background: var(--bg-glass);
-            backdrop-filter: blur(24px);
-            -webkit-backdrop-filter: blur(24px);
+            background: var(--bg-card);
             border: 1px solid var(--border-subtle);
-            border-radius: 24px;
+            border-radius: 22px;
             padding: 22px;
-            box-shadow: 0 14px 40px rgba(0, 0, 0, 0.4);
+            box-shadow: 0 6px 20px rgba(78, 48, 27, 0.04);
         }
         .clients-top-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
         .filter-tabs { display: flex; gap: 6px; flex-wrap: wrap; }
         .filter-pill {
-            background: rgba(255, 255, 255, 0.04);
+            background: #FAF6F3;
             border: 1px solid var(--border-subtle);
             color: var(--text-secondary);
-            padding: 7px 13px;
+            padding: 7px 14px;
             border-radius: 999px;
             font-size: 12.5px;
-            font-weight: 600;
+            font-weight: 700;
+            font-family: inherit;
             cursor: pointer;
+            transition: all 0.15s ease;
         }
         .filter-pill.active {
-            background: var(--gold);
-            border-color: var(--gold);
-            color: #12100E;
+            background: #121212;
+            border-color: #121212;
+            color: #FAF6F3;
             font-weight: 700;
         }
 
         .client-list { display: flex; flex-direction: column; gap: 10px; }
         .client-card-row {
-            background: rgba(255, 255, 255, 0.025);
+            background: #FAF6F3;
             border: 1px solid var(--border-subtle);
             border-radius: 16px;
             padding: 14px 16px;
@@ -2815,10 +2845,14 @@ BARISTA_HTML = """
             gap: 16px;
             content-visibility: auto;
             contain-intrinsic-size: auto 130px;
+            transition: background 0.15s ease;
+        }
+        .client-card-row:hover {
+            background: #FFFFFF;
         }
         .client-card-row.highlight-row {
-            background: rgba(48, 209, 88, 0.11);
-            border-color: rgba(48, 209, 88, 0.45);
+            background: rgba(52, 199, 89, 0.12);
+            border-color: rgba(36, 138, 61, 0.45);
         }
         @media (max-width: 960px) { .client-card-row { grid-template-columns: 1fr; gap: 12px; } }
 
@@ -2827,55 +2861,56 @@ BARISTA_HTML = """
             width: 42px;
             height: 42px;
             border-radius: 13px;
-            background: rgba(212, 175, 55, 0.14);
-            border: 1px solid rgba(212, 175, 55, 0.35);
-            color: var(--gold-light);
-            font-weight: 700;
+            background: #EADFD7;
+            border: 1.5px solid rgba(78, 48, 27, 0.22);
+            color: #4E301B;
+            font-weight: 800;
             font-size: 15px;
             display: flex;
             align-items: center;
             justify-content: center;
             flex-shrink: 0;
         }
-        .avatar-circle.tier-gold { background: linear-gradient(135deg, #D4AF37, #8F6B1A); color: #12100E; border-color: #F3E5AB; }
-        .avatar-circle.tier-silver { background: linear-gradient(135deg, #E0E5EC, #8A95A5); color: #12100E; border-color: #FFF; }
+        .avatar-circle.tier-gold { background: linear-gradient(135deg, #D4AF37, #AA7C11); color: #12100E; border-color: #B38A22; }
+        .avatar-circle.tier-silver { background: linear-gradient(135deg, #E0E5EC, #9FAAB8); color: #12100E; border-color: #8A95A5; }
         .client-name-line { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-        .client-name { font-size: 15px; font-weight: 700; color: var(--text-primary); }
+        .client-name { font-size: 15px; font-weight: 800; color: var(--text-primary); letter-spacing: -0.01em; }
         .serial-tag {
             font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
             font-size: 11px;
-            color: var(--text-tertiary);
-            background: rgba(255, 255, 255, 0.04);
-            padding: 2px 6px;
-            border-radius: 5px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            background: #EADFD7;
+            padding: 2px 7px;
+            border-radius: 6px;
             white-space: nowrap;
             display: inline-block;
         }
         .vip-pill { font-size: 10.5px; font-weight: 700; padding: 2px 8px; border-radius: 99px; display: inline-block; white-space: nowrap; }
         .client-meta { font-size: 12px; color: var(--text-secondary); margin-top: 4px; display: flex; flex-wrap: wrap; gap: 10px; }
-        .client-msg-preview { font-size: 11.5px; color: var(--gold-light); margin-top: 4px; font-style: italic; }
+        .client-msg-preview { font-size: 11.5px; color: var(--gold); margin-top: 4px; font-weight: 600; }
 
         .stamp-progress-col { display: flex; flex-direction: column; gap: 5px; }
         .stamp-top-row { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
         .stamp-big-num { font-size: 17px; font-weight: 800; color: var(--gold-light); }
-        .stamp-visits-meta { font-size: 11.5px; color: var(--text-secondary); }
+        .stamp-visits-meta { font-size: 11.5px; color: var(--text-secondary); font-weight: 500; }
         .stamp-dots-row { display: flex; gap: 5px; align-items: center; }
         .s-dot {
             width: 12px;
             height: 12px;
             border-radius: 50%;
-            border: 1.5px solid rgba(198, 166, 117, 0.35);
-            background: transparent;
+            border: 1.5px solid rgba(78, 48, 27, 0.28);
+            background: #EADFD7;
             display: inline-block;
         }
-        .s-dot.filled { background: var(--gold); border-color: #F3E5AB; box-shadow: 0 0 6px rgba(212, 175, 55, 0.45); }
-        .s-dot.full-10 { background: var(--apple-green); border-color: #A8F5BC; box-shadow: 0 0 8px rgba(48, 209, 88, 0.6); }
+        .s-dot.filled { background: #4E301B; border-color: #4E301B; box-shadow: 0 2px 5px rgba(78, 48, 27, 0.25); }
+        .s-dot.full-10 { background: #248A3D; border-color: #248A3D; box-shadow: 0 0 8px rgba(36, 138, 61, 0.45); }
 
         .telemetry-col { display: flex; flex-direction: column; gap: 4px; align-items: flex-start; }
         .status-pill-on {
-            background: rgba(48, 209, 88, 0.14);
-            border: 1px solid rgba(48, 209, 88, 0.35);
-            color: #4AE072;
+            background: rgba(52, 199, 89, 0.15);
+            border: 1px solid rgba(36, 138, 61, 0.32);
+            color: #1E7A34;
             font-size: 11px;
             font-weight: 700;
             padding: 3px 9px;
@@ -2884,10 +2919,11 @@ BARISTA_HTML = """
             display: inline-block;
         }
         .status-pill-off {
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: #EADFD7;
+            border: 1px solid rgba(18, 18, 18, 0.10);
             color: var(--text-secondary);
             font-size: 11px;
+            font-weight: 600;
             padding: 3px 9px;
             border-radius: 99px;
             white-space: nowrap;
@@ -2897,56 +2933,63 @@ BARISTA_HTML = """
 
         .row-actions { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
         .btn-stamp-plus {
-            background: linear-gradient(135deg, #D4AF37 0%, #B38A22 100%);
-            color: #12100E;
+            background: #121212;
+            color: #FAF6F3;
             border: none;
-            border-radius: 11px;
+            border-radius: 12px;
             padding: 9px 14px;
             font-size: 13px;
             font-weight: 800;
+            font-family: inherit;
             cursor: pointer;
-            box-shadow: 0 4px 12px rgba(212, 175, 55, 0.22);
+            box-shadow: 0 4px 12px rgba(18, 18, 18, 0.15);
+            transition: transform 0.12s ease;
         }
+        .btn-stamp-plus:active { transform: scale(0.97); }
         .btn-redeem-glow {
-            background: linear-gradient(135deg, #30D158 0%, #229E42 100%);
-            color: #09140C;
-            border: 1px solid #98F7AE;
-            border-radius: 11px;
+            background: #248A3D;
+            color: #FFFFFF;
+            border: 1px solid #1E7A34;
+            border-radius: 12px;
             padding: 9px 14px;
             font-size: 13px;
             font-weight: 800;
+            font-family: inherit;
             cursor: pointer;
             animation: redeemPulse 1.6s infinite;
         }
         @keyframes redeemPulse {
-            0%, 100% { box-shadow: 0 0 0 0 rgba(48, 209, 88, 0.6); }
-            50% { box-shadow: 0 0 0 8px rgba(48, 209, 88, 0); }
+            0%, 100% { box-shadow: 0 0 0 0 rgba(36, 138, 61, 0.45); }
+            50% { box-shadow: 0 0 0 8px rgba(36, 138, 61, 0); }
         }
         .btn-redeem-normal {
-            background: rgba(211, 84, 0, 0.18);
-            border: 1px solid rgba(211, 84, 0, 0.4);
-            color: #FF9F43;
+            background: rgba(184, 98, 0, 0.12);
+            border: 1px solid rgba(184, 98, 0, 0.30);
+            color: #9A5000;
             border-radius: 10px;
             padding: 8px 11px;
             font-size: 12px;
-            font-weight: 600;
+            font-weight: 700;
+            font-family: inherit;
             cursor: pointer;
         }
         .btn-icon-sec {
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid var(--border-subtle);
-            color: var(--text-secondary);
+            background: #EADFD7;
+            border: 1px solid rgba(18, 18, 18, 0.08);
+            color: var(--text-primary);
             border-radius: 10px;
             padding: 8px 10px;
             font-size: 12px;
-            font-weight: 600;
+            font-weight: 700;
+            font-family: inherit;
             cursor: pointer;
             text-decoration: none;
             display: inline-flex;
             align-items: center;
+            transition: background 0.15s ease;
         }
-        .btn-icon-sec:hover { background: rgba(255, 255, 255, 0.1); color: var(--text-primary); }
-        .btn-icon-del:hover { background: rgba(255, 55, 95, 0.2); border-color: rgba(255, 55, 95, 0.45); color: #FF6B88; }
+        .btn-icon-sec:hover { background: #E2D4C9; color: var(--text-primary); }
+        .btn-icon-del:hover { background: rgba(217, 56, 72, 0.15); border-color: rgba(217, 56, 72, 0.38); color: #C81D40; }
 
         /* Navegación Principal Superior (Mostrador POS vs Base de Datos) */
         .main-nav-tabs {
@@ -2956,44 +2999,46 @@ BARISTA_HTML = """
             flex-wrap: wrap;
         }
         .nav-tab-btn {
-            background: rgba(255, 255, 255, 0.05);
+            background: #EADFD7;
             border: 1px solid var(--border-subtle);
             color: var(--text-secondary);
             padding: 9px 15px;
-            border-radius: 12px;
+            border-radius: 13px;
             font-size: 13px;
             font-weight: 700;
+            font-family: inherit;
             cursor: pointer;
             display: inline-flex;
             align-items: center;
             gap: 7px;
-            transition: all 0.2s ease;
+            transition: all 0.18s ease;
             text-decoration: none;
         }
         .nav-tab-btn:hover {
             color: var(--text-primary);
-            border-color: rgba(212, 175, 55, 0.35);
+            background: #E2D4C9;
         }
         .nav-tab-btn.active {
-            background: rgba(212, 175, 55, 0.18);
-            border-color: rgba(212, 175, 55, 0.5);
-            color: var(--gold-light);
-            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+            background: #121212;
+            border-color: #121212;
+            color: #FAF6F3;
+            box-shadow: 0 4px 12px rgba(18, 18, 18, 0.14);
         }
         .btn-export-csv {
-            background: linear-gradient(135deg, #30D158 0%, #229E42 100%);
-            color: #08130B;
-            border: 1px solid #98F7AE;
+            background: #121212;
+            color: #FAF6F3;
+            border: 1px solid #121212;
             padding: 9px 15px;
             border-radius: 12px;
             font-size: 13px;
-            font-weight: 800;
+            font-weight: 700;
+            font-family: inherit;
             cursor: pointer;
             display: inline-flex;
             align-items: center;
             gap: 7px;
             text-decoration: none;
-            box-shadow: 0 4px 14px rgba(48, 209, 88, 0.25);
+            box-shadow: 0 4px 12px rgba(18, 18, 18, 0.12);
         }
 
         /* Vista de Tabla Ejecutiva / Base de Datos de Clientes */
@@ -3013,14 +3058,14 @@ BARISTA_HTML = """
             gap: 14px;
         }
         .db-table-wrap {
-            background: var(--bg-card);
+            background: #FAF6F3;
             border: 1px solid var(--border-subtle);
             border-radius: 20px;
             overflow-x: auto;
             overflow-y: auto;
             max-height: 580px;
             -webkit-overflow-scrolling: touch;
-            box-shadow: 0 14px 36px rgba(0, 0, 0, 0.45);
+            box-shadow: 0 6px 20px rgba(78, 48, 27, 0.05);
         }
         .db-table {
             width: 100%;
@@ -3034,37 +3079,37 @@ BARISTA_HTML = """
             position: sticky;
             top: 0;
             z-index: 3;
-            background: #12100E;
+            background: #EADFD7;
             color: var(--gold-light);
             font-size: 11px;
-            font-weight: 700;
+            font-weight: 800;
             text-transform: uppercase;
             letter-spacing: 0.6px;
             padding: 14px 16px;
-            border-bottom: 1px solid rgba(212, 175, 55, 0.28);
+            border-bottom: 1px solid rgba(18, 18, 18, 0.10);
             white-space: nowrap;
         }
         .db-table td {
             padding: 13px 16px;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+            border-bottom: 1px solid rgba(18, 18, 18, 0.06);
             color: var(--text-primary);
             vertical-align: middle;
         }
         .db-table tr:hover td {
-            background: rgba(212, 175, 55, 0.05);
+            background: rgba(234, 223, 215, 0.55);
         }
 
         /* Switch / Check accesible para Automatización de Cumpleaños (8:00 AM Sonora) */
         .bday-auto-card {
-            background: linear-gradient(145deg, rgba(255, 55, 95, 0.08) 0%, rgba(28, 24, 21, 0.92) 100%);
-            border: 1px solid rgba(255, 55, 95, 0.32);
+            background: #EADFD7;
+            border: 1px solid rgba(232, 108, 120, 0.32);
             border-radius: 20px;
             padding: 18px 22px;
             margin-bottom: 18px;
             display: flex;
             flex-direction: column;
             gap: 14px;
-            box-shadow: 0 12px 32px rgba(0, 0, 0, 0.38);
+            box-shadow: 0 6px 20px rgba(78, 48, 27, 0.04);
         }
         .bday-auto-top {
             display: flex;
@@ -3080,8 +3125,8 @@ BARISTA_HTML = """
             cursor: pointer;
             padding: 9px 15px;
             border-radius: 14px;
-            background: rgba(0, 0, 0, 0.42);
-            border: 1px solid rgba(212, 175, 55, 0.38);
+            background: #FAF6F3;
+            border: 1.5px solid rgba(74, 93, 35, 0.32);
             font-size: 13.5px;
             font-weight: 700;
             color: var(--text-primary);
@@ -3090,18 +3135,18 @@ BARISTA_HTML = """
         }
         .bday-check-label:hover {
             border-color: var(--gold);
-            background: rgba(212, 175, 55, 0.1);
+            background: #FFFFFF;
         }
         input[type="checkbox"][switch] {
-            accent-color: var(--gold, #D4AF37);
+            accent-color: var(--gold, #4A5D23);
             width: 20px;
             height: 20px;
             margin: 0;
             cursor: pointer;
-            color-scheme: dark;
+            color-scheme: light;
         }
         input[type="checkbox"][switch]:focus-visible {
-            outline: 3px solid var(--gold-light, #E6C280);
+            outline: 3px solid var(--gold, #4A5D23);
             outline-offset: 4px;
         }
 
@@ -3113,7 +3158,7 @@ BARISTA_HTML = """
             margin-bottom: 16px;
         }
         .shift-kpi-card {
-            background: linear-gradient(155deg, rgba(28, 25, 22, 0.96) 0%, rgba(18, 16, 14, 0.96) 100%);
+            background: #FAF6F3;
             border: 1px solid var(--border-subtle);
             border-radius: 18px;
             padding: 16px 18px;
@@ -3121,22 +3166,22 @@ BARISTA_HTML = """
             align-items: center;
             justify-content: space-between;
             gap: 12px;
-            box-shadow: 0 10px 26px rgba(0, 0, 0, 0.35);
+            box-shadow: 0 4px 14px rgba(78, 48, 27, 0.04);
         }
         .shift-kpi-label {
             font-size: 12.5px;
             font-weight: 700;
-            color: var(--text-secondary);
+            color: var(--text-primary);
             line-height: 1.35;
         }
         .shift-kpi-sub {
             font-size: 11px;
-            color: var(--text-tertiary);
+            color: var(--text-secondary);
             margin-top: 3px;
         }
         .shift-kpi-value {
             font-size: 28px;
-            font-weight: 900;
+            font-weight: 800;
             font-variant-numeric: tabular-nums;
             line-height: 1;
             white-space: nowrap;
@@ -3148,13 +3193,13 @@ BARISTA_HTML = """
             }
         }
 
-        /* Modal Personalizado Glassmorphism (Sin URL de navegador) */
+        /* Modal Personalizado Estilo Candour / Hub (Fondo #FAF6F3) */
         .custom-modal-backdrop {
             position: fixed;
             inset: 0;
-            background: rgba(8, 7, 6, 0.78);
-            backdrop-filter: blur(14px);
-            -webkit-backdrop-filter: blur(14px);
+            background: rgba(18, 18, 18, 0.42);
+            backdrop-filter: blur(5px);
+            -webkit-backdrop-filter: blur(5px);
             z-index: 10000;
             display: none;
             align-items: center;
@@ -3167,16 +3212,16 @@ BARISTA_HTML = """
         .custom-modal-box {
             width: 100%;
             max-width: 420px;
-            background: linear-gradient(165deg, #1E1B18 0%, #141210 100%);
-            border: 1px solid rgba(212, 175, 55, 0.35);
-            border-radius: 24px;
+            background: #FAF6F3;
+            border: 1px solid rgba(18, 18, 18, 0.10);
+            border-radius: 26px;
             padding: 26px 24px 22px;
-            box-shadow: 0 28px 70px rgba(0, 0, 0, 0.85), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+            box-shadow: 0 24px 60px rgba(18, 18, 18, 0.22);
             text-align: center;
             animation: modalPop 0.2s cubic-bezier(0.16, 1, 0.3, 1);
         }
         @keyframes modalPop {
-            from { transform: scale(0.92); opacity: 0; }
+            from { transform: scale(0.94); opacity: 0; }
             to { transform: scale(1); opacity: 1; }
         }
         .cm-icon {
@@ -3190,23 +3235,23 @@ BARISTA_HTML = """
             font-size: 26px;
         }
         .cm-icon.danger {
-            background: rgba(255, 55, 95, 0.16);
-            border: 1px solid rgba(255, 55, 95, 0.4);
+            background: rgba(232, 108, 120, 0.16);
+            border: 1px solid rgba(232, 108, 120, 0.4);
         }
         .cm-icon.warn {
-            background: rgba(212, 175, 55, 0.16);
-            border: 1px solid rgba(212, 175, 55, 0.45);
+            background: #EADFD7;
+            border: 1px solid rgba(78, 48, 27, 0.22);
         }
         .cm-icon.success {
-            background: rgba(48, 209, 88, 0.16);
-            border: 1px solid rgba(48, 209, 88, 0.45);
+            background: rgba(52, 199, 89, 0.16);
+            border: 1px solid rgba(36, 138, 61, 0.35);
         }
         .cm-brand {
             font-size: 11px;
-            font-weight: 700;
+            font-weight: 800;
             letter-spacing: 0.7px;
             text-transform: uppercase;
-            color: var(--gold-light);
+            color: var(--gold);
             margin-bottom: 4px;
         }
         .cm-title {
@@ -3214,6 +3259,7 @@ BARISTA_HTML = """
             font-weight: 800;
             color: var(--text-primary);
             margin: 0 0 8px;
+            letter-spacing: -0.02em;
         }
         .cm-desc {
             font-size: 13.5px;
@@ -3227,34 +3273,36 @@ BARISTA_HTML = """
             gap: 10px;
         }
         .cm-btn-cancel {
-            background: rgba(255, 255, 255, 0.07);
+            background: #EADFD7;
             border: 1px solid var(--border-subtle);
             color: var(--text-primary);
             padding: 12px 16px;
-            border-radius: 13px;
+            border-radius: 14px;
             font-size: 14px;
             font-weight: 700;
+            font-family: inherit;
             cursor: pointer;
         }
         .cm-btn-confirm {
             border: none;
             padding: 12px 16px;
-            border-radius: 13px;
+            border-radius: 14px;
             font-size: 14px;
             font-weight: 800;
+            font-family: inherit;
             cursor: pointer;
         }
         .cm-btn-confirm.danger {
-            background: linear-gradient(135deg, #FF375F 0%, #C81D40 100%);
+            background: #D93848;
             color: #FFFFFF;
         }
         .cm-btn-confirm.warn {
-            background: linear-gradient(135deg, #D4AF37 0%, #B38A22 100%);
-            color: #12100E;
+            background: #121212;
+            color: #FAF6F3;
         }
         .cm-btn-confirm.success {
-            background: linear-gradient(135deg, #30D158 0%, #229E42 100%);
-            color: #08130B;
+            background: #248A3D;
+            color: #FFFFFF;
         }
         .visually-hidden {
             position: absolute;
@@ -3273,11 +3321,11 @@ BARISTA_HTML = """
             accent-color: var(--gold);
         }
         .input-dark:user-invalid {
-            border-color: #FF453A;
-            box-shadow: 0 0 0 2px rgba(255, 69, 58, 0.2);
+            border-color: #D93848;
+            box-shadow: 0 0 0 2px rgba(217, 56, 72, 0.16);
         }
         .input-dark:user-valid {
-            border-color: rgba(48, 209, 88, 0.45);
+            border-color: rgba(36, 138, 61, 0.45);
         }
 
         /* Layout Responsivo para Dashboard de Campaña (Desktop 2 columnas vs Celular 1 columna sin empalmes) */
@@ -3301,7 +3349,7 @@ BARISTA_HTML = """
             display: grid;
             grid-template-columns: repeat(3, minmax(0, 1fr));
             gap: 8px;
-            background: rgba(0, 0, 0, 0.38);
+            background: #FAF6F3;
             padding: 6px;
             border-radius: 14px;
             border: 1px solid var(--border-subtle);
@@ -3405,13 +3453,13 @@ BARISTA_HTML = """
                 <h3 class="cm-title">Instalar en tu Teléfono o Tablet</h3>
                 <p class="cm-desc" style="margin-bottom:14px;">Agrega la consola a tu pantalla de inicio para abrirla a pantalla completa como aplicación nativa:</p>
             </div>
-            <div style="background:rgba(255,255,255,0.04); border:1px solid var(--border-subtle); border-radius:14px; padding:12px 14px; margin-bottom:10px; font-size:13px; line-height:1.5; color:var(--text-primary);">
+            <div style="background:#EADFD7; border:1px solid var(--border-subtle); border-radius:14px; padding:12px 14px; margin-bottom:10px; font-size:13px; line-height:1.5; color:var(--text-primary);">
                 <strong style="color:var(--gold-light);">🍎 En iPhone o iPad (Safari):</strong><br>
-                1. Toca el botón <strong>Compartir</strong> <span style="display:inline-block; padding:1px 6px; border-radius:6px; background:rgba(255,255,255,0.12);">⬆️</span> en la barra de Safari.<br>
+                1. Toca el botón <strong>Compartir</strong> <span style="display:inline-block; padding:1px 6px; border-radius:6px; background:#FAF6F3;">⬆️</span> en la barra de Safari.<br>
                 2. Selecciona <strong>«Agregar a pantalla de inicio»</strong> (➕) y toca <strong>Agregar</strong>.
             </div>
-            <div style="background:rgba(255,255,255,0.04); border:1px solid var(--border-subtle); border-radius:14px; padding:12px 14px; margin-bottom:18px; font-size:13px; line-height:1.5; color:var(--text-primary);">
-                <strong style="color:#30D158;">🤖 En Android o Tablet (Chrome):</strong><br>
+            <div style="background:#EADFD7; border:1px solid var(--border-subtle); border-radius:14px; padding:12px 14px; margin-bottom:18px; font-size:13px; line-height:1.5; color:var(--text-primary);">
+                <strong style="color:#1E7A34;">🤖 En Android o Tablet (Chrome):</strong><br>
                 1. Toca los <strong>3 puntitos (⋮)</strong> arriba a la derecha en Chrome.<br>
                 2. Toca <strong>«Instalar aplicación»</strong> o <strong>«Agregar a la pantalla principal»</strong>.
             </div>
@@ -3445,7 +3493,7 @@ BARISTA_HTML = """
                 </div>
                 <div style="margin-bottom:16px;">
                     <label style="font-size:11px; color:var(--gold-light); font-weight:700; display:block; margin-bottom:4px;">Fecha de nacimiento</label>
-                    <input type="date" name="birthdate" id="edit-client-birthdate" class="input-dark" style="color-scheme:dark;">
+                    <input type="date" name="birthdate" id="edit-client-birthdate" class="input-dark" style="color-scheme:light;">
                 </div>
                 <div class="cm-actions">
                     <button type="button" class="cm-btn-cancel" onclick="closeEditClientModal()">Cancelar</button>
@@ -3459,12 +3507,12 @@ BARISTA_HTML = """
         <div class="header-inner">
             <div class="brand-Cluster">
                 <div class="brand-emblem" style="overflow:hidden;">
-                    <img src="/api/campaign/logo.png?v={{ campaign.logoVersion }}" alt="Logo" style="width:100%; height:100%; object-fit:cover; border-radius:10px;" onerror="this.style.display='none'">
+                    <img src="/api/campaign/logo.png?v={{ campaign.logoVersion }}" alt="Logo" style="width:100%; height:100%; object-fit:cover; border-radius:50%;" onerror="this.style.display='none'">
                 </div>
                 <div>
                     <h1 class="brand-title" style="display:flex; align-items:center; gap:7px; flex-wrap:wrap;">
                         <span id="hdr-shop-name">{{ campaign.shopName }}</span>
-                        <span style="background:rgba(56,189,248,0.18); border:1px solid #38BDF8; color:#7DD3FC; padding:2px 8px; border-radius:99px; font-size:10.5px; font-weight:800; letter-spacing:0.6px;">🧪 DEMO</span>
+                        <span style="background:rgba(74,93,35,0.14); border:1px solid rgba(74,93,35,0.38); color:#4A5D23; padding:2px 8px; border-radius:99px; font-size:10.5px; font-weight:800; letter-spacing:0.6px;">🧪 DEMO</span>
                     </h1>
                     <span class="brand-sub">Navojoa, Sonora · Consola Barista (Entorno DEMO)</span>
                 </div>
@@ -3475,7 +3523,7 @@ BARISTA_HTML = """
                 <button type="button" id="nav-btn-pos" class="nav-tab-btn active" onclick="switchMainView('pos')">
                     ☕️ Mostrador POS
                 </button>
-                <button type="button" id="nav-btn-campaign" class="nav-tab-btn" onclick="switchMainView('campaign')" style="border-color:rgba(56,189,248,0.45); color:#7DD3FC;">
+                <button type="button" id="nav-btn-campaign" class="nav-tab-btn" onclick="switchMainView('campaign')">
                     🎨 Diseño y Campaña
                 </button>
                 <button type="button" id="nav-btn-bday" class="nav-tab-btn" onclick="switchMainView('bday')">
@@ -3490,7 +3538,7 @@ BARISTA_HTML = """
                 <button type="button" class="btn-export-csv" onclick="downloadClientsCsv(this)" title="Descargar lista de clientes (.CSV para Excel)">
                     📥 Descargar Clientes
                 </button>
-                <button type="button" id="btn-install-barista-pwa" class="nav-tab-btn" onclick="installBaristaPwa()" style="border-color:rgba(212,175,55,0.45); color:var(--gold-light);">
+                <button type="button" id="btn-install-barista-pwa" class="nav-tab-btn" onclick="installBaristaPwa()">
                     📲 Instalar App
                 </button>
             </div>
@@ -3623,10 +3671,10 @@ BARISTA_HTML = """
                         <span class="tele-line">{{ client.last_push_clean }}</span>
                         {% endif %}
                         {% if client.android_installed and client.gw_pushes_24h is defined and client.gw_pushes_24h >= 3 %}
-                        <span class="tele-line" style="color:#FFB340;" title="Google Wallet muestra máximo 3 alertas emergentes cada 24h; los sellos siguen actualizándose en silencio.">🔕 Cuota Google 3/3 hoy (actualiza en silencio)</span>
+                        <span class="tele-line" style="color:#9A5000;" title="Google Wallet muestra máximo 3 alertas emergentes cada 24h; los sellos siguen actualizándose en silencio.">🔕 Cuota Google 3/3 hoy (actualiza en silencio)</span>
                         {% endif %}
                         {% if client.last_sync_clean %}
-                        <span class="tele-line" style="color:#7CE8B5;">🔄 Hora local Sonora: {{ client.last_sync_clean }}</span>
+                        <span class="tele-line" style="color:#4A5D23; font-weight:600;">🔄 Hora local Sonora: {{ client.last_sync_clean }}</span>
                         {% endif %}
                     </div>
 
@@ -3719,7 +3767,7 @@ BARISTA_HTML = """
                     </p>
                 </div>
                 <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
-                    <span style="font-size:12.5px; font-weight:700; color:#FF6B88; background:rgba(255,55,95,0.14); padding:7px 14px; border-radius:99px; border:1px solid rgba(255,55,95,0.35);">
+                    <span style="font-size:12.5px; font-weight:700; color:#C81D40; background:rgba(232,108,120,0.16); padding:7px 14px; border-radius:99px; border:1px solid rgba(232,108,120,0.4);">
                         🎂 Hoy y próx. 7 días: {{ upcoming_birthdays|length }} · Este mes: {{ month_birthdays_count }}
                     </span>
                 </div>
@@ -3733,7 +3781,7 @@ BARISTA_HTML = """
                             <span style="font-size:15.5px; font-weight:800; color:var(--text-primary);">
                                 ⏰ Automatización de Cumpleaños (8:00 AM · Hora Sonora)
                             </span>
-                            <span id="bday-auto-status-pill" class="{{ 'status-pill-on' if bday_auto.enabled else 'status-pill-off' }}" style="{{ '' if bday_auto.enabled else 'color:#FFB340; border-color:rgba(255,179,64,0.4);' }}">
+                            <span id="bday-auto-status-pill" class="{{ 'status-pill-on' if bday_auto.enabled else 'status-pill-off' }}" style="{{ '' if bday_auto.enabled else 'color:#9A5000; border-color:rgba(184,98,0,0.35);' }}">
                                 {{ '🟢 Envío Automático Activo (8:00 AM)' if bday_auto.enabled else '⏸️ Automático Desactivado (Solo manual)' }}
                             </span>
                         </div>
@@ -3750,16 +3798,16 @@ BARISTA_HTML = """
                     </label>
                 </div>
 
-                <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; background:rgba(0,0,0,0.28); padding:11px 14px; border-radius:14px; border:1px solid var(--border-subtle);">
+                <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; background:#FAF6F3; padding:11px 14px; border-radius:14px; border:1px solid var(--border-subtle);">
                     <label for="bday-auto-tpl-input" style="font-size:11.5px; font-weight:700; color:var(--gold-light); white-space:nowrap;">
-                        💬 Mensaje automático (<code style="color:#FF859D;">{nombre}</code>):
+                        💬 Mensaje automático (<code style="color:#C81D40;">{nombre}</code>):
                     </label>
-                    <input type="text" id="bday-auto-tpl-input" class="input-dark" maxlength="190" value="{{ bday_auto.template }}" style="flex:1; min-width:220px; padding:8px 12px; font-size:13px;">
+                    <input type="text" id="bday-auto-tpl-input" class="input-dark" maxlength="190" value="{{ bday_auto.template }}" style="flex:1; min-width:220px; padding:8px 12px; font-size:13px; background:#FFFFFF;">
                     <button type="button" class="btn-gold-sm" onclick="saveBirthdayAutoTemplate()" style="padding:8px 14px; font-size:12px;">
                         💾 Guardar Mensaje
                     </button>
                 </div>
-                <div id="bday-auto-feedback" style="display:none; font-size:12px; font-weight:700; color:#30D158;"></div>
+                <div id="bday-auto-feedback" style="display:none; font-size:12px; font-weight:700; color:#1E7A34;"></div>
             </div>
 
             <div class="tab-split-grid">
@@ -3768,7 +3816,7 @@ BARISTA_HTML = """
                     <div>
                         <div class="bento-header">
                             <h2 class="bento-title">🎉 Cumpleaños de Hoy y Próximos 7 Días</h2>
-                            <span style="font-size:11px; font-weight:700; color:#FF6B88; background:rgba(255,55,95,0.14); padding:4px 9px; border-radius:99px;">
+                            <span style="font-size:11px; font-weight:700; color:#C81D40; background:rgba(232,108,120,0.16); padding:4px 9px; border-radius:99px;">
                                 Prioridad
                             </span>
                         </div>
@@ -3807,7 +3855,7 @@ BARISTA_HTML = """
                                 </div>
                             </div>
                             {% else %}
-                            <div style="text-align:center; padding:34px 16px; color:var(--text-secondary); font-size:13px; background:rgba(0,0,0,0.2); border-radius:14px;">
+                            <div style="text-align:center; padding:34px 16px; color:var(--text-secondary); font-size:13px; background:#FAF6F3; border-radius:14px; border:1px solid var(--border-subtle);">
                                 <div style="font-size:26px; margin-bottom:8px;">🗓️</div>
                                 No hay cumpleaños registrados para hoy ni en los próximos 7 días.
                             </div>
@@ -3862,7 +3910,7 @@ BARISTA_HTML = """
                                 {% endif %}
                             {% endfor %}
                             {% if not ns.has_any_bday %}
-                            <div style="text-align:center; padding:34px 16px; color:var(--text-secondary); font-size:13px; background:rgba(0,0,0,0.2); border-radius:14px;">
+                            <div style="text-align:center; padding:34px 16px; color:var(--text-secondary); font-size:13px; background:#FAF6F3; border-radius:14px; border:1px solid var(--border-subtle);">
                                 Aún no hay clientes con fecha de cumpleaños capturada.
                             </div>
                             {% endif %}
@@ -3891,7 +3939,7 @@ BARISTA_HTML = """
                     <div>
                         <div class="bento-header">
                             <h2 class="bento-title" id="mkt-card-title">📣 Enviar Alerta Push</h2>
-                            <span style="font-size:11px; font-weight:700; color:var(--gold-light); background:rgba(212,175,55,0.14); padding:4px 10px; border-radius:99px;">
+                            <span style="font-size:11px; font-weight:700; color:#4A5D23; background:rgba(74,93,35,0.12); padding:4px 10px; border-radius:99px;">
                                 📲 {{ installed_count }} teléfonos activos
                             </span>
                         </div>
@@ -3944,11 +3992,11 @@ BARISTA_HTML = """
                             <form action="/api/update-location" method="POST">
                                 <div style="display:grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; gap:8px; margin-bottom:10px;">
                                     <div style="min-width:0;">
-                                        <label style="font-size:10.5px; color:var(--gold-light);">Latitud</label>
+                                        <label style="font-size:10.5px; color:var(--gold-light); font-weight:700;">Latitud</label>
                                         <input type="text" id="lat-input" name="lat" class="input-dark" value="{{ shop_loc.lat }}" required>
                                     </div>
                                     <div style="min-width:0;">
-                                        <label style="font-size:10.5px; color:var(--gold-light);">Longitud</label>
+                                        <label style="font-size:10.5px; color:var(--gold-light); font-weight:700;">Longitud</label>
                                         <input type="text" id="lng-input" name="lng" class="input-dark" value="{{ shop_loc.lng }}" required>
                                     </div>
                                     <div style="display:flex; align-items:flex-end;">
@@ -3956,7 +4004,7 @@ BARISTA_HTML = """
                                     </div>
                                 </div>
                                 <div style="margin-bottom:14px;">
-                                    <label style="font-size:10.5px; color:var(--gold-light);">Mensaje al pasar cerca:</label>
+                                    <label style="font-size:10.5px; color:var(--gold-light); font-weight:700;">Mensaje al pasar cerca:</label>
                                     <input type="text" name="relevant_text" class="input-dark" value="{{ shop_loc.relevant_text }}" maxlength="160" required>
                                 </div>
                                 <button type="submit" class="btn-cam-launch" style="width:100%; justify-content:center;">
@@ -4074,9 +4122,9 @@ BARISTA_HTML = """
             </div>
 
             <!-- PAPELERA / CLIENTES DESACTIVADOS (SOFT-DELETE CON REACTIVACIÓN Y OCULTAMIENTO DEFINITIVO) -->
-            <div class="db-header-card" style="margin-top:22px; border-color:rgba(255,179,64,0.32);">
+            <div class="db-header-card" style="margin-top:22px; border-color:rgba(184,98,0,0.28);">
                 <div>
-                    <div style="display:inline-flex; align-items:center; gap:6px; background:rgba(255,179,64,0.12); border:1px solid rgba(255,179,64,0.35); color:#FFB340; padding:3px 10px; border-radius:99px; font-size:11px; font-weight:800; margin-bottom:6px;">
+                    <div style="display:inline-flex; align-items:center; gap:6px; background:rgba(184,98,0,0.12); border:1px solid rgba(184,98,0,0.32); color:#9A5000; padding:3px 10px; border-radius:99px; font-size:11px; font-weight:800; margin-bottom:6px;">
                         📦 PAPELERA DE SEGURIDAD · CLIENTES DESACTIVADOS
                     </div>
                     <h2 style="margin:0; font-size:18px; font-weight:800; color:var(--text-primary);">
@@ -4106,10 +4154,10 @@ BARISTA_HTML = """
                     <tbody>
                         {% for ic in inactive_clients or [] %}
                         <tr>
-                            <td><span class="serial-tag" style="opacity:0.75;">{{ ic.serial }}</span></td>
+                            <td><span class="serial-tag" style="opacity:0.85;">{{ ic.serial }}</span></td>
                             <td>
                                 <strong>{{ ic.name }}</strong>
-                                <span class="status-pill-off" style="margin-left:6px; color:#FFB340; border-color:rgba(255,179,64,0.35);">Desactivado</span>
+                                <span class="status-pill-off" style="margin-left:6px; color:#9A5000; border-color:rgba(184,98,0,0.32); background:rgba(184,98,0,0.10);">Desactivado</span>
                             </td>
                             <td>{{ ic.phone if ic.phone else '—' }}</td>
                             <td>{{ ic.email if ic.email else '—' }}</td>
@@ -4127,7 +4175,7 @@ BARISTA_HTML = """
                                 <div style="display:inline-flex; align-items:center; gap:8px; flex-wrap:wrap;">
                                     <form id="form-react-{{ ic.serial }}" action="/api/reactivate-client" method="POST" style="margin:0;">
                                         <input type="hidden" name="serial" value="{{ ic.serial }}">
-                                        <button type="button" class="btn-export-csv" style="padding:6px 12px; font-size:11.5px; background:rgba(50,215,75,0.14); border-color:rgba(50,215,75,0.4); color:#32D74B;"
+                                        <button type="button" class="btn-export-csv" style="padding:6px 12px; font-size:11.5px; background:rgba(52,199,89,0.16); border-color:rgba(36,138,61,0.38); color:#1E7A34; box-shadow:none;"
                                                 onclick="openConfirmModal('reactivate', 'form-react-{{ ic.serial }}', {{ ic.name|tojson|forceescape }}, '{{ ic.serial }}', {{ ic.stamps }})">
                                             ♻️ Reactivar
                                         </button>
@@ -4135,7 +4183,7 @@ BARISTA_HTML = """
                                     <form id="form-purge-{{ ic.serial }}" action="/api/delete-client" method="POST" style="margin:0;">
                                         <input type="hidden" name="serial" value="{{ ic.serial }}">
                                         <input type="hidden" name="mode" value="purge">
-                                        <button type="button" class="btn-export-csv" style="padding:6px 12px; font-size:11.5px; background:rgba(255,69,58,0.13); border-color:rgba(255,69,58,0.4); color:#FF6961;"
+                                        <button type="button" class="btn-export-csv" style="padding:6px 12px; font-size:11.5px; background:rgba(217,56,72,0.14); border-color:rgba(217,56,72,0.38); color:#C81D40; box-shadow:none;"
                                                 onclick="openConfirmModal('purge', 'form-purge-{{ ic.serial }}', {{ ic.name|tojson|forceescape }}, '{{ ic.serial }}', {{ ic.stamps }})">
                                             🗑️ Eliminar Definitivamente
                                         </button>
@@ -4157,7 +4205,7 @@ BARISTA_HTML = """
             <!-- BITÁCORA DE AUDITORÍA DE MOVIMIENTOS (SELLOS Y CANJES) + RESUMEN DE CORTE DE TURNO -->
             <div class="db-header-card" style="margin-top:22px;">
                 <div>
-                    <div style="display:inline-flex; align-items:center; gap:6px; background:rgba(212,175,55,0.14); border:1px solid rgba(212,175,55,0.38); color:var(--gold-light); padding:3px 10px; border-radius:99px; font-size:11px; font-weight:800; margin-bottom:6px;">
+                    <div style="display:inline-flex; align-items:center; gap:6px; background:rgba(74,93,35,0.12); border:1px solid rgba(74,93,35,0.32); color:#4A5D23; padding:3px 10px; border-radius:99px; font-size:11px; font-weight:800; margin-bottom:6px;">
                         📊 CORTE DE TURNO EN VIVO · HORA SONORA ({{ shift_summary.date_label }})
                     </div>
                     <h2 style="margin:0; font-size:18px; font-weight:800; color:var(--text-primary);">
@@ -4171,7 +4219,7 @@ BARISTA_HTML = """
 
             <!-- 3 CONTADORES AUTOMÁTICOS DEL DÍA DE HOY (PUNTO B #7) -->
             <div class="shift-summary-grid" role="region" aria-label="Resumen de corte de turno de hoy">
-                <div class="shift-kpi-card" style="border-color:rgba(212, 175, 55, 0.35);">
+                <div class="shift-kpi-card" style="border-color:rgba(78, 48, 27, 0.22);">
                     <div>
                         <div class="shift-kpi-label">☕️ Sellos otorgados hoy</div>
                         <div class="shift-kpi-sub">
@@ -4179,23 +4227,23 @@ BARISTA_HTML = """
                             {% if shift_summary.sub_today > 0 %} · {{ shift_summary.sub_today }} ajuste(s) -1{% endif %}
                         </div>
                     </div>
-                    <div class="shift-kpi-value" style="color:var(--gold-light);" id="kpi-stamps-today">{{ shift_summary.stamps_today }}</div>
+                    <div class="shift-kpi-value" style="color:#4E301B;" id="kpi-stamps-today">{{ shift_summary.stamps_today }}</div>
                 </div>
 
-                <div class="shift-kpi-card" style="border-color:rgba(48, 209, 88, 0.35);">
+                <div class="shift-kpi-card" style="border-color:rgba(36, 138, 61, 0.28);">
                     <div>
                         <div class="shift-kpi-label">🎁 Cafés gratis canjeados hoy</div>
                         <div class="shift-kpi-sub">Recompensas entregadas en el turno</div>
                     </div>
-                    <div class="shift-kpi-value" style="color:#30D158;" id="kpi-redeemed-today">{{ shift_summary.redeemed_today }}</div>
+                    <div class="shift-kpi-value" style="color:#1E7A34;" id="kpi-redeemed-today">{{ shift_summary.redeemed_today }}</div>
                 </div>
 
-                <div class="shift-kpi-card" style="border-color:rgba(56, 189, 248, 0.35);">
+                <div class="shift-kpi-card" style="border-color:rgba(74, 93, 35, 0.28);">
                     <div>
                         <div class="shift-kpi-label">🆕 Nuevos socios registrados hoy</div>
                         <div class="shift-kpi-sub">Altas de tarjeta en el día ({{ shift_summary.date_label }})</div>
                     </div>
-                    <div class="shift-kpi-value" style="color:#7DD3FC;" id="kpi-new-clients-today">{{ shift_summary.new_clients_today }}</div>
+                    <div class="shift-kpi-value" style="color:#4A5D23;" id="kpi-new-clients-today">{{ shift_summary.new_clients_today }}</div>
                 </div>
             </div>
 
@@ -4218,13 +4266,13 @@ BARISTA_HTML = """
                             <td style="font-size:12px; color:var(--text-secondary);">{{ tx.created_at_sonora }}</td>
                             <td>
                                 {% if tx.action == 'reset' %}
-                                    <span class="status-pill-on" style="background:rgba(212,175,55,0.16); color:var(--gold-light); border:1px solid rgba(212,175,55,0.4);">🎁 Canje Café Gratis</span>
+                                    <span class="status-pill-on" style="background:rgba(78,48,27,0.12); color:#4E301B; border:1px solid rgba(78,48,27,0.3);">🎁 Canje Café Gratis</span>
                                 {% elif tx.action == 'sub' %}
-                                    <span class="status-pill-off" style="color:#FFB340;">➖ Ajuste (-1 sello)</span>
+                                    <span class="status-pill-off" style="color:#9A5000;">➖ Ajuste (-1 sello)</span>
                                 {% elif tx.action == 'deactivate' %}
-                                    <span class="status-pill-off" style="color:#FFB340; border-color:rgba(255,179,64,0.4);">📦 Desactivado</span>
+                                    <span class="status-pill-off" style="color:#9A5000; border-color:rgba(184,98,0,0.32);">📦 Desactivado</span>
                                 {% elif tx.action == 'reactivate' %}
-                                    <span class="status-pill-on" style="color:#32D74B;">♻️ Reactivado</span>
+                                    <span class="status-pill-on" style="color:#1E7A34;">♻️ Reactivado</span>
                                 {% else %}
                                     <span class="status-pill-on">☕️ +1 Sello</span>
                                 {% endif %}
@@ -4249,9 +4297,9 @@ BARISTA_HTML = """
 
         <!-- VISTA 5: 🎨 DASHBOARD DE ADMINISTRACIÓN DE LA TARJETA / CAMPAÑA -->
         <section id="view-campaign-container" class="db-view-section">
-            <div class="db-header-card" style="border-color:rgba(56,189,248,0.35);">
+            <div class="db-header-card" style="border-color:rgba(74,93,35,0.28);">
                 <div>
-                    <div style="display:inline-flex; align-items:center; gap:6px; background:rgba(56,189,248,0.14); border:1px solid rgba(56,189,248,0.4); color:#7DD3FC; padding:3px 10px; border-radius:99px; font-size:11px; font-weight:800; margin-bottom:6px;">
+                    <div style="display:inline-flex; align-items:center; gap:6px; background:rgba(74,93,35,0.12); border:1px solid rgba(74,93,35,0.34); color:#4A5D23; padding:3px 10px; border-radius:99px; font-size:11px; font-weight:800; margin-bottom:6px;">
                         🎨 PLANTILLA EN VIVO · APPLE WALLET & GOOGLE WALLET
                     </div>
                     <h2 style="margin:0; font-size:20px; font-weight:800; color:var(--text-primary);">
@@ -4298,27 +4346,27 @@ BARISTA_HTML = """
 
                             <!-- Selectores de Color -->
                             <div class="campaign-colors-grid">
-                                <div style="background:rgba(0,0,0,0.3); border:1px solid var(--border-subtle); border-radius:12px; padding:10px 12px;">
+                                <div style="background:#FAF6F3; border:1px solid var(--border-subtle); border-radius:12px; padding:10px 12px;">
                                     <label for="ca-bg-hex" style="font-size:11px; color:var(--text-secondary); font-weight:700; display:block; margin-bottom:6px;">Color de Fondo</label>
                                     <div style="display:flex; align-items:center; gap:8px;">
                                         <input type="color" id="ca-bg-picker" aria-label="Selector de color de fondo" value="{{ campaign.backgroundColor }}" style="width:36px; height:34px; border:none; border-radius:8px; background:transparent; cursor:pointer;" oninput="syncColorPair('bg', this.value)">
-                                        <input type="text" id="ca-bg-hex" class="input-dark" pattern="^#[0-9A-Fa-f]{6}$" value="{{ campaign.backgroundColor }}" maxlength="7" style="font-family:monospace; font-size:12.5px; padding:7px 9px;" oninput="syncColorPair('bg', this.value)">
+                                        <input type="text" id="ca-bg-hex" class="input-dark" pattern="^#[0-9A-Fa-f]{6}$" value="{{ campaign.backgroundColor }}" maxlength="7" style="font-family:monospace; font-size:12.5px; padding:7px 9px; background:#FFFFFF;" oninput="syncColorPair('bg', this.value)">
                                     </div>
                                 </div>
 
-                                <div style="background:rgba(0,0,0,0.3); border:1px solid var(--border-subtle); border-radius:12px; padding:10px 12px;">
+                                <div style="background:#FAF6F3; border:1px solid var(--border-subtle); border-radius:12px; padding:10px 12px;">
                                     <label for="ca-fg-hex" style="font-size:11px; color:var(--text-secondary); font-weight:700; display:block; margin-bottom:6px;">Color de Texto</label>
                                     <div style="display:flex; align-items:center; gap:8px;">
                                         <input type="color" id="ca-fg-picker" aria-label="Selector de color de texto" value="{{ campaign.foregroundColor }}" style="width:36px; height:34px; border:none; border-radius:8px; background:transparent; cursor:pointer;" oninput="syncColorPair('fg', this.value)">
-                                        <input type="text" id="ca-fg-hex" class="input-dark" pattern="^#[0-9A-Fa-f]{6}$" value="{{ campaign.foregroundColor }}" maxlength="7" style="font-family:monospace; font-size:12.5px; padding:7px 9px;" oninput="syncColorPair('fg', this.value)">
+                                        <input type="text" id="ca-fg-hex" class="input-dark" pattern="^#[0-9A-Fa-f]{6}$" value="{{ campaign.foregroundColor }}" maxlength="7" style="font-family:monospace; font-size:12.5px; padding:7px 9px; background:#FFFFFF;" oninput="syncColorPair('fg', this.value)">
                                     </div>
                                 </div>
 
-                                <div style="background:rgba(0,0,0,0.3); border:1px solid var(--border-subtle); border-radius:12px; padding:10px 12px;">
+                                <div style="background:#FAF6F3; border:1px solid var(--border-subtle); border-radius:12px; padding:10px 12px;">
                                     <label for="ca-lbl-hex" style="font-size:11px; color:var(--text-secondary); font-weight:700; display:block; margin-bottom:6px;">Color Acento / Sellos</label>
                                     <div style="display:flex; align-items:center; gap:8px;">
                                         <input type="color" id="ca-lbl-picker" aria-label="Selector de color de acento" value="{{ campaign.labelColor }}" style="width:36px; height:34px; border:none; border-radius:8px; background:transparent; cursor:pointer;" oninput="syncColorPair('lbl', this.value)">
-                                        <input type="text" id="ca-lbl-hex" class="input-dark" pattern="^#[0-9A-Fa-f]{6}$" value="{{ campaign.labelColor }}" maxlength="7" style="font-family:monospace; font-size:12.5px; padding:7px 9px;" oninput="syncColorPair('lbl', this.value)">
+                                        <input type="text" id="ca-lbl-hex" class="input-dark" pattern="^#[0-9A-Fa-f]{6}$" value="{{ campaign.labelColor }}" maxlength="7" style="font-family:monospace; font-size:12.5px; padding:7px 9px; background:#FFFFFF;" oninput="syncColorPair('lbl', this.value)">
                                     </div>
                                 </div>
                             </div>
@@ -4326,9 +4374,9 @@ BARISTA_HTML = """
                             <!-- Dropzones para Logo y Banner/Strip con validación de proporciones -->
                             <div class="campaign-dropzones-grid">
                                 <!-- Dropzone Logo -->
-                                <div style="background:rgba(0,0,0,0.28); border:1.5px dashed rgba(212,175,55,0.45); border-radius:14px; padding:14px; text-align:center;"
-                                     ondragover="event.preventDefault(); this.style.borderColor='#38BDF8';"
-                                     ondragleave="this.style.borderColor='rgba(212,175,55,0.45)';"
+                                <div style="background:#FAF6F3; border:1.5px dashed rgba(78,48,27,0.32); border-radius:14px; padding:14px; text-align:center;"
+                                     ondragover="event.preventDefault(); this.style.borderColor='#4A5D23';"
+                                     ondragleave="this.style.borderColor='rgba(78,48,27,0.32)';"
                                      ondrop="handleCampaignDrop(event, 'logo')">
                                     <label for="ca-logo-file" style="font-size:12px; font-weight:800; color:var(--gold-light); margin-bottom:4px; display:block; cursor:pointer;">🖼️ Logotipo de la Marca</label>
                                     <div style="font-size:11px; color:var(--text-secondary); margin-bottom:10px;">Proporción recomendada: <strong>1:1 cuadrada</strong> (ej. 660×660 px, PNG/JPG)</div>
@@ -4341,9 +4389,9 @@ BARISTA_HTML = """
                                 </div>
 
                                 <!-- Dropzone Banner / Strip -->
-                                <div style="background:rgba(0,0,0,0.28); border:1.5px dashed rgba(212,175,55,0.45); border-radius:14px; padding:14px; text-align:center;"
-                                     ondragover="event.preventDefault(); this.style.borderColor='#38BDF8';"
-                                     ondragleave="this.style.borderColor='rgba(212,175,55,0.45)';"
+                                <div style="background:#FAF6F3; border:1.5px dashed rgba(78,48,27,0.32); border-radius:14px; padding:14px; text-align:center;"
+                                     ondragover="event.preventDefault(); this.style.borderColor='#4A5D23';"
+                                     ondragleave="this.style.borderColor='rgba(78,48,27,0.32)';"
                                      ondrop="handleCampaignDrop(event, 'strip')">
                                     <label for="ca-strip-file" style="font-size:12px; font-weight:800; color:var(--gold-light); margin-bottom:4px; display:block; cursor:pointer;">🎞️ Fondo de Tira / Strip Banner</label>
                                     <div style="font-size:11px; color:var(--text-secondary); margin-bottom:10px;">Proporción recomendada: <strong>~3:1 panorámica</strong> (1125×432 o 1032×336 px)</div>
@@ -4453,14 +4501,14 @@ BARISTA_HTML = """
                     <div>
                         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; flex-wrap:wrap; gap:8px;">
                             <div>
-                                <span style="font-size:11px; font-weight:800; color:#7DD3FC; text-transform:uppercase; letter-spacing:0.7px;">⚡ Preview en Tiempo Real</span>
-                                <h3 style="margin:2px 0 0; font-size:16px; font-weight:800;">Simulador Apple Wallet</h3>
+                                <span style="font-size:11px; font-weight:800; color:#4A5D23; text-transform:uppercase; letter-spacing:0.7px;">⚡ Preview en Tiempo Real</span>
+                                <h3 style="margin:2px 0 0; font-size:16px; font-weight:800; color:var(--text-primary);">Simulador Apple Wallet</h3>
                             </div>
                             <div style="display:flex; gap:6px; align-items:center;">
                                 <button type="button" class="action-chip" onclick="setPreviewStamps(0)">0</button>
                                 <button type="button" class="action-chip" onclick="setPreviewStamps(3)">3</button>
                                 <button type="button" class="action-chip" onclick="setPreviewStamps('goal')">Meta</button>
-                                <button type="button" id="ca-flip-btn" class="action-chip" style="border-color:rgba(212,175,55,0.45); color:var(--gold-light);" onclick="toggleCampaignPreviewSide()">
+                                <button type="button" id="ca-flip-btn" class="action-chip" style="border-color:rgba(78,48,27,0.35); color:var(--gold-light);" onclick="toggleCampaignPreviewSide()">
                                     🔄 Reverso
                                 </button>
                             </div>
@@ -4922,7 +4970,7 @@ BARISTA_HTML = """
 
                 if (pill) {
                     pill.className = data.enabled ? 'status-pill-on' : 'status-pill-off';
-                    pill.style.cssText = data.enabled ? '' : 'color:#FFB340; border-color:rgba(255,179,64,0.4);';
+                    pill.style.cssText = data.enabled ? '' : 'color:#9A5000; border-color:rgba(184,98,0,0.35);';
                     pill.textContent = data.enabled
                         ? '🟢 Envío Automático Activo (8:00 AM)'
                         : '⏸️ Automático Desactivado (Solo manual)';
@@ -4934,7 +4982,7 @@ BARISTA_HTML = """
                 }
                 if (fb) {
                     fb.style.display = 'block';
-                    fb.style.color = data.enabled ? '#30D158' : '#FFB340';
+                    fb.style.color = data.enabled ? '#1E7A34' : '#9A5000';
                     fb.textContent = data.message || (data.enabled
                         ? '✅ Envío automático de cumpleaños activado (8:00 AM Hora Sonora).'
                         : '⏸️ Envío automático desactivado. Solo se enviarán felicitaciones cuando presiones el botón manualmente.');
@@ -4943,7 +4991,7 @@ BARISTA_HTML = """
             } catch (err) {
                 if (fb) {
                     fb.style.display = 'block';
-                    fb.style.color = '#FF6B88';
+                    fb.style.color = '#C81D40';
                     fb.textContent = '⚠️ Error al guardar: ' + err.message;
                 }
             }
@@ -5105,7 +5153,7 @@ BARISTA_HTML = """
 
         function handleCampaignDrop(evt, kind) {
             evt.preventDefault();
-            evt.currentTarget.style.borderColor = 'rgba(212,175,55,0.45)';
+            evt.currentTarget.style.borderColor = 'rgba(78,48,27,0.32)';
             const file = evt.dataTransfer && evt.dataTransfer.files && evt.dataTransfer.files[0];
             if (file) handleCampaignFileSelect(file, kind);
         }
@@ -5115,8 +5163,8 @@ BARISTA_HTML = """
             const fb = document.getElementById(kind === 'logo' ? 'ca-logo-feedback' : 'ca-strip-feedback');
             if (!file.type.startsWith('image/')) {
                 fb.style.display = 'block';
-                fb.style.background = 'rgba(255,55,95,0.16)';
-                fb.style.color = '#FF6B88';
+                fb.style.background = 'rgba(217,56,72,0.14)';
+                fb.style.color = '#C81D40';
                 fb.textContent = '⚠️ El archivo debe ser una imagen PNG, JPG o WEBP.';
                 return;
             }
@@ -5132,24 +5180,24 @@ BARISTA_HTML = """
                         document.getElementById('ca-logo-thumb').src = dataUrl;
                         document.getElementById('ca-prev-logo').src = dataUrl;
                         if (ratio >= 0.7 && ratio <= 1.4) {
-                            fb.style.background = 'rgba(48,209,88,0.15)';
-                            fb.style.color = '#66F08B';
+                            fb.style.background = 'rgba(52,199,89,0.15)';
+                            fb.style.color = '#1E7A34';
                             fb.textContent = `✅ Logo válido (${img.width}×${img.height}px · proporción ${ratio.toFixed(2)}:1)`;
                         } else {
-                            fb.style.background = 'rgba(255,179,64,0.16)';
-                            fb.style.color = '#FFD07B';
+                            fb.style.background = 'rgba(184,98,0,0.14)';
+                            fb.style.color = '#9A5000';
                             fb.textContent = `⚠️ Cargado (${img.width}×${img.height}px, ${ratio.toFixed(2)}:1). Se recomienda formato cuadrado 1:1.`;
                         }
                     } else {
                         caUploadedStripDataUrl = dataUrl;
                         document.getElementById('ca-use-custom-strip').checked = true;
                         if (ratio >= 2.2 && ratio <= 4.0) {
-                            fb.style.background = 'rgba(48,209,88,0.15)';
-                            fb.style.color = '#66F08B';
+                            fb.style.background = 'rgba(52,199,89,0.15)';
+                            fb.style.color = '#1E7A34';
                             fb.textContent = `✅ Strip válido (${img.width}×${img.height}px · proporción ${ratio.toFixed(2)}:1)`;
                         } else {
-                            fb.style.background = 'rgba(255,179,64,0.16)';
-                            fb.style.color = '#FFD07B';
+                            fb.style.background = 'rgba(184,98,0,0.14)';
+                            fb.style.color = '#9A5000';
                             fb.textContent = `⚠️ Cargado (${img.width}×${img.height}px, ${ratio.toFixed(2)}:1). Proporción óptima Apple Wallet: ~3:1 (1125×432px).`;
                         }
                     }
@@ -5165,8 +5213,8 @@ BARISTA_HTML = """
             document.getElementById('ca-use-custom-strip').checked = false;
             const fb = document.getElementById('ca-strip-feedback');
             fb.style.display = 'block';
-            fb.style.background = 'rgba(56,189,248,0.15)';
-            fb.style.color = '#7DD3FC';
+            fb.style.background = 'rgba(74,93,35,0.12)';
+            fb.style.color = '#4A5D23';
             fb.textContent = '✨ Usando fondo generado dinámicamente con los colores de tu marca.';
             renderCampaignLivePreview();
         }
@@ -5311,9 +5359,9 @@ BARISTA_HTML = """
                 if (!res.ok || !data.ok) throw new Error(data.error || 'No se pudo guardar la configuración');
 
                 banner.style.display = 'block';
-                banner.style.background = 'rgba(48,209,88,0.16)';
-                banner.style.border = '1px solid rgba(48,209,88,0.45)';
-                banner.style.color = '#66F08B';
+                banner.style.background = 'rgba(52,199,89,0.16)';
+                banner.style.border = '1px solid rgba(36,138,61,0.4)';
+                banner.style.color = '#1E7A34';
                 banner.textContent = data.message || '✅ Plantilla de campaña actualizada y sincronizada.';
 
                 const hdrName = document.getElementById('hdr-shop-name');
@@ -5322,9 +5370,9 @@ BARISTA_HTML = """
                 setTimeout(() => { window.location.reload(); }, 1100);
             } catch (err) {
                 banner.style.display = 'block';
-                banner.style.background = 'rgba(255,55,95,0.16)';
-                banner.style.border = '1px solid rgba(255,55,95,0.45)';
-                banner.style.color = '#FF6B88';
+                banner.style.background = 'rgba(217,56,72,0.14)';
+                banner.style.border = '1px solid rgba(217,56,72,0.4)';
+                banner.style.color = '#C81D40';
                 banner.textContent = '⚠️ Error: ' + err.message;
             } finally {
                 if (btnTop) btnTop.textContent = '💾 Guardar y Actualizar Plantilla';
@@ -6815,8 +6863,8 @@ def barista_manifest():
         "scope": "/",
         "display": "standalone",
         "orientation": "any",
-        "background_color": cfg["backgroundColor"],
-        "theme_color": cfg["backgroundColor"],
+        "background_color": "#F4ECE6",
+        "theme_color": "#F4ECE6",
         "icons": [
             {"src": "/card/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any"},
             {"src": "/barista/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable"}
