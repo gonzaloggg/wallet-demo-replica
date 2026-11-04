@@ -1339,7 +1339,7 @@
         async function syncMemberWithServer() {
             if (!currentMember || !currentMember.serial) return;
             try {
-                const res = await fetch('/api/android/state/' + encodeURIComponent(currentMember.serial));
+                const res = await fetch('/api/android/state/' + encodeURIComponent(currentMember.serial) + '?source=hub');
                 if (res.ok) {
                     const data = await res.json();
                     const prevStamps = currentMember.stamps;

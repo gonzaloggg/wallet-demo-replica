@@ -850,6 +850,14 @@ def init_db():
         )
     ''')
 
+    # Limpiar falsos positivos donde un cliente de iPhone tenía android_active=1 por sincronización web del Hub
+    c.execute("""
+        UPDATE clients
+        SET platform = 'ios', android_active = 0
+        WHERE (COALESCE(platform, 'ios') = 'ios' OR UPPER(serial) IN (SELECT UPPER(serial) FROM registrations) OR push_token IS NOT NULL)
+          AND UPPER(serial) NOT IN (SELECT UPPER(serial) FROM android_subscriptions)
+    """)
+
     c.execute('''
         CREATE TABLE IF NOT EXISTS wallet_logs (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -4868,7 +4876,7 @@ BARISTA_HTML = """
                 if (res.ok && data.ok && data.pin) {
                     digitsEl.textContent = data.pin;
                     statusEl.textContent = '⏳ Válido por 10 minutos · Un solo uso';
-                    const rawDigits = (data.phone || activePinClient.phone || '').replace(/\D+/g, '');
+                    const rawDigits = (data.phone || activePinClient.phone || '').replace(/\\D+/g, '');
                     if (rawDigits.length >= 10) {
                         const ten = rawDigits.slice(-10);
                         const msg = encodeURIComponent(`Hola ${activePinClient.name} ☕️ Tu PIN temporal de seguridad para recuperar tu tarjeta de Maishas Café es: *${data.pin}* (válido por 10 minutos).`);
@@ -6105,6 +6113,18 @@ def hub_wifi_qr_png():
     return send_file(buf, mimetype="image/png", max_age=300)
 
 
+def _detect_client_platform(req=None):
+    """Detecta de forma estricta si la petición proviene de un dispositivo iOS ('ios'), Android ('android') o escritorio (None)."""
+    r = req or request
+    ua = (r.headers.get("User-Agent") or "").lower()
+    ch_plat = (r.headers.get("Sec-CH-UA-Platform") or "").lower()
+    if "android" in ua or "android" in ch_plat:
+        return "android"
+    if "iphone" in ua or "ipad" in ua or "ipod" in ua or "ios" in ch_plat:
+        return "ios"
+    return None
+
+
 @app.route("/api/hub/register", methods=["POST"])
 def api_hub_register():
     data = request.get_json(force=True, silent=True) or {}
@@ -6113,8 +6133,8 @@ def api_hub_register():
     phone = (data.get("phone") or request.form.get("phone") or "").strip()
     birthdate = (data.get("birthdate") or request.form.get("birthdate") or "").strip()
 
-    ua = (request.headers.get("User-Agent") or "").lower()
-    platform = "android" if "android" in ua else "ios"
+    detected = _detect_client_platform(request)
+    platform = "android" if detected == "android" else "ios"
     android_active = 1 if platform == "android" else 0
     now_ts = get_utc_timestamp()
     created_sonora = get_sonora_datetime_str()
@@ -6304,14 +6324,26 @@ def api_hub_lookup():
                 "error": "El PIN temporal ya expiró (tiene vigencia de 10 minutos). Pide al barista que genere uno nuevo."
             }), 403
 
-        # Consumir el PIN tras el uso exitoso (One-Time Password)
-        c.execute(
-            "UPDATE clients SET recovery_pin = '', recovery_pin_expires = 0 WHERE serial = ?",
-            (found[0],)
-        )
+        # Consumir el PIN tras el uso exitoso (One-Time Password) y actualizar plataforma según el dispositivo actual
+        detected = _detect_client_platform(request)
+        if detected == "android":
+            c.execute(
+                "UPDATE clients SET recovery_pin = '', recovery_pin_expires = 0, platform = 'android', android_active = 1, last_sync_at = ? WHERE serial = ?",
+                (get_short_time(), found[0])
+            )
+        elif detected == "ios":
+            c.execute(
+                "UPDATE clients SET recovery_pin = '', recovery_pin_expires = 0, platform = 'ios', android_active = 0, last_sync_at = ? WHERE serial = ?",
+                (get_short_time(), found[0])
+            )
+        else:
+            c.execute(
+                "UPDATE clients SET recovery_pin = '', recovery_pin_expires = 0, last_sync_at = ? WHERE serial = ?",
+                (get_short_time(), found[0])
+            )
         c.execute(
             "INSERT INTO wallet_logs (created_at, log_text) VALUES (?, ?)",
-            (get_utc_timestamp(), f"✅ Tarjeta recuperada con PIN verificado: {found[1]} ({found[0]})")
+            (get_utc_timestamp(), f"✅ Tarjeta recuperada con PIN verificado ({'Android' if detected == 'android' else 'iPhone'}): {found[1]} ({found[0]})")
         )
         conn.commit()
         conn.close()
@@ -6457,7 +6489,8 @@ def barista():
                (SELECT COUNT(*) FROM android_subscriptions a WHERE a.serial = c.serial) as and_sub_count,
                c.created_at,
                COALESCE(c.status, 'active') as status,
-               COALESCE(c.deactivated_at, '') as deactivated_at
+               COALESCE(c.deactivated_at, '') as deactivated_at,
+               COALESCE(c.platform, 'ios') as platform
         FROM clients c
         ORDER BY c.rowid DESC
     """)
@@ -6569,8 +6602,11 @@ def barista():
             continue
 
         reg_count = r[10] or 0
-        ios_installed = bool(r[4]) or reg_count > 0
-        android_installed = bool(r[13]) or ((r[14] or 0) > 0)
+        and_sub_count = r[14] or 0
+        platform_val = (r[18] or "ios").strip().lower()
+        has_ios_passkit = bool(r[4]) or reg_count > 0
+        android_installed = (bool(r[13]) and platform_val == "android") or (and_sub_count > 0)
+        ios_installed = has_ios_passkit or (platform_val == "ios" and not android_installed)
         is_installed = ios_installed or android_installed
         stamps_val = r[3] or 0
         visits_val = r[11] if r[11] is not None else stamps_val
@@ -6718,7 +6754,8 @@ def export_clients_csv():
                c.last_sync_at, c.last_push_status, c.push_token, c.android_active,
                (SELECT COUNT(*) FROM registrations r WHERE r.serial = c.serial) as reg_count,
                (SELECT COUNT(*) FROM android_subscriptions a WHERE a.serial = c.serial) as and_sub_count,
-               COALESCE(c.status, 'active') as status
+               COALESCE(c.status, 'active') as status,
+               COALESCE(c.platform, 'ios') as platform
         FROM clients c
         WHERE COALESCE(c.status, 'active') != 'hidden'
         ORDER BY c.rowid DESC
@@ -6748,9 +6785,11 @@ def export_clients_csv():
     ])
 
     for r in rows:
-        serial, name, email, phone, bdate, created_at, stamps, visits, redeemed, msg, sync_at, push_st, p_tok, and_act, reg_c, and_c, status_val = r
-        ios_on = bool(p_tok) or ((reg_c or 0) > 0)
-        and_on = bool(and_act) or ((and_c or 0) > 0)
+        serial, name, email, phone, bdate, created_at, stamps, visits, redeemed, msg, sync_at, push_st, p_tok, and_act, reg_c, and_c, status_val, platform_val = r
+        plat_clean = (platform_val or "ios").strip().lower()
+        has_ios_pk = bool(p_tok) or ((reg_c or 0) > 0)
+        and_on = (bool(and_act) and plat_clean == "android") or ((and_c or 0) > 0)
+        ios_on = has_ios_pk or (plat_clean == "ios" and not and_on)
         if ios_on and and_on:
             dev_label = "iPhone + Android"
         elif ios_on:
@@ -6894,8 +6933,13 @@ def android_card_view(serial_number):
         return "Tarjeta no encontrada o desactivada", 404
 
     serial_id = row[0]
-    c.execute("UPDATE clients SET android_active = 1, last_sync_at = ? WHERE serial = ?", (get_short_time(), serial_id))
-    conn.commit()
+    detected = _detect_client_platform(request)
+    if detected == "android":
+        c.execute("UPDATE clients SET platform = 'android', android_active = 1, last_sync_at = ? WHERE serial = ?", (get_short_time(), serial_id))
+        conn.commit()
+    elif detected == "ios":
+        c.execute("UPDATE clients SET platform = 'ios', android_active = 0, last_sync_at = ? WHERE serial = ?", (get_short_time(), serial_id))
+        conn.commit()
     conn.close()
 
     cfg = get_campaign_config()
@@ -6975,16 +7019,25 @@ def android_card_qr(serial_number):
 def download_pkpass_direct(serial_number):
     serial_clean = (serial_number or "").strip().upper()
     conn = sqlite3.connect(DB_PATH)
-    row = conn.execute(
+    c = conn.cursor()
+    row = c.execute(
         "SELECT serial, name, stamps, message, phone, birthdate, total_visits, redeemed_count, last_action FROM clients WHERE UPPER(serial) = ?",
         (serial_clean,)
     ).fetchone()
-    conn.close()
     if not row:
+        conn.close()
         return "No encontrado", 404
 
     ua = (request.headers.get("User-Agent") or "").lower()
     is_ios = ("iphone" in ua or "ipad" in ua or "ipod" in ua) and ("android" not in ua)
+    if is_ios:
+        c.execute(
+            "UPDATE clients SET platform = 'ios', android_active = 0, last_sync_at = ? WHERE serial = ?",
+            (get_short_time(), row[0])
+        )
+        conn.commit()
+    conn.close()
+
     pkpass_path = generate_signed_pkpass(
         row[0], row[1], row[2] or 0, request.host_url, row[3],
         phone=row[4], birthdate=row[5], total_visits=row[6], redeemed_count=row[7] or 0,
@@ -7164,8 +7217,14 @@ self.addEventListener('notificationclick', event => {
 @app.route("/api/android/heartbeat/<serial_number>", methods=["POST"])
 def android_heartbeat(serial_number):
     serial_clean = (serial_number or "").strip().upper()
+    detected = _detect_client_platform(request)
     conn = sqlite3.connect(DB_PATH)
-    conn.execute("UPDATE clients SET android_active = 1, last_sync_at = ? WHERE UPPER(serial) = ?", (get_short_time(), serial_clean))
+    if detected == "android":
+        conn.execute("UPDATE clients SET platform = 'android', android_active = 1, last_sync_at = ? WHERE UPPER(serial) = ?", (get_short_time(), serial_clean))
+    elif detected == "ios":
+        conn.execute("UPDATE clients SET platform = 'ios', android_active = 0, last_sync_at = ? WHERE UPPER(serial) = ?", (get_short_time(), serial_clean))
+    else:
+        conn.execute("UPDATE clients SET last_sync_at = ? WHERE UPPER(serial) = ?", (get_short_time(), serial_clean))
     conn.commit()
     conn.close()
     return jsonify({"ok": True})
@@ -7187,7 +7246,7 @@ def android_subscribe(serial_number):
         (serial_clean, endpoint, json.dumps(sub), get_utc_timestamp())
     )
     c.execute(
-        "UPDATE clients SET android_active = 1, last_sync_at = ?, last_push_status = ? WHERE UPPER(serial) = ?",
+        "UPDATE clients SET platform = 'android', android_active = 1, last_sync_at = ?, last_push_status = ? WHERE UPPER(serial) = ?",
         (get_short_time(), f"✅ Push Android activado ({get_short_time()})", serial_clean)
     )
     c.execute(
@@ -7213,8 +7272,14 @@ def android_card_state(serial_number):
         conn.close()
         return jsonify({"error": "Not found or inactive"}), 404
 
-    # Registrar que el teléfono Android está sincronizado en vivo
-    c.execute("UPDATE clients SET android_active = 1, last_sync_at = ? WHERE serial = ?", (get_short_time(), row[0]))
+    # Distinguir si la sincronización proviene de un teléfono Android real o del Hub en un iPhone/escritorio
+    detected = _detect_client_platform(request)
+    if detected == "android":
+        c.execute("UPDATE clients SET platform = 'android', android_active = 1, last_sync_at = ? WHERE serial = ?", (get_short_time(), row[0]))
+    elif detected == "ios":
+        c.execute("UPDATE clients SET platform = 'ios', android_active = 0, last_sync_at = ? WHERE serial = ?", (get_short_time(), row[0]))
+    else:
+        c.execute("UPDATE clients SET last_sync_at = ? WHERE serial = ?", (get_short_time(), row[0]))
     conn.commit()
     conn.close()
 
@@ -7845,12 +7910,12 @@ def register_device(device_id, pass_type_id, serial_number):
     )
     if is_android_wallet_app:
         c.execute(
-            "UPDATE clients SET push_token = ?, android_active = 1, last_sync_at = ? WHERE UPPER(serial) = ?",
+            "UPDATE clients SET push_token = ?, platform = 'android', android_active = 1, last_sync_at = ? WHERE UPPER(serial) = ?",
             (push_token, get_short_time(), serial_clean)
         )
     else:
         c.execute(
-            "UPDATE clients SET push_token = ?, last_sync_at = ? WHERE UPPER(serial) = ?",
+            "UPDATE clients SET push_token = ?, platform = 'ios', android_active = 0, last_sync_at = ? WHERE UPPER(serial) = ?",
             (push_token, get_short_time(), serial_clean)
         )
     c.execute(
@@ -7945,7 +8010,10 @@ def get_latest_pass(pass_type_id, serial_number):
     ua_hdr = (request.headers.get("User-Agent") or "").lower()
     is_android_wallet = auth_hdr.startswith("AndroidPass") or auth_hdr.startswith("AttidoPass") or "android" in ua_hdr or "walletpasses" in ua_hdr
 
-    c.execute("UPDATE clients SET last_sync_at = ? WHERE serial = ?", (get_short_time(), serial_id))
+    if is_android_wallet:
+        c.execute("UPDATE clients SET platform = 'android', android_active = 1, last_sync_at = ? WHERE serial = ?", (get_short_time(), serial_id))
+    else:
+        c.execute("UPDATE clients SET platform = 'ios', android_active = 0, last_sync_at = ? WHERE serial = ?", (get_short_time(), serial_id))
     c.execute(
         "INSERT INTO wallet_logs (created_at, log_text) VALUES (?, ?)",
         (get_utc_timestamp(), f"🔄 Pase descargado/actualizado ({'Android' if is_android_wallet else 'iPhone'}): {serial_id} ({stamps}/10)")
