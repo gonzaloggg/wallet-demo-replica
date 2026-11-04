@@ -210,7 +210,7 @@
                         </div>
                         <div>
                             <div class="text-[15.5px] font-bold text-[#121212] tracking-[-0.01em]">Empieza a ganar recompensas</div>
-                            <div class="text-[12.5px] text-[#6E655F]">Acumula <span class="stamp-goal-label">{{ campaign.stampGoal }}</span> sellos para ganar 1 café gratis</div>
+                            <div class="text-[12.5px] text-[#6E655F] font-medium"><span class="font-semibold text-[#4A5D23]">Maisha's Rewards</span> · Collect <span class="stamp-goal-label">{{ campaign.stampGoal }}</span> stamps for free coffee</div>
                         </div>
                     </div>
                     <svg class="w-5 h-5 text-[#6E655F] shrink-0" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
@@ -229,7 +229,7 @@
                                 0 / {{ campaign.stampGoal }} sellos para tu café gratis
                             </div>
                             <div id="hub-member-sub" class="text-[12px] text-[#6E655F]">
-                                Socio: <span id="hub-member-name" class="font-semibold text-[#121212]">Cliente</span> · <span id="hub-member-serial" class="font-mono">MAISHAS-000000</span>
+                                <span class="font-semibold text-[#4A5D23]">Maisha's Rewards</span> · <span id="hub-member-name" class="font-semibold text-[#121212]">Cliente</span> (<span id="hub-member-serial" class="font-mono">MAISHAS-000000</span>)
                             </div>
                         </div>
                     </div>
@@ -261,7 +261,87 @@
                 </div>
             </div>
 
-            <!-- TARJETA 2: GOOGLE REVIEW -->
+            <!-- TARJETA 2: MENÚ DIGITAL INTERACTIVO -->
+            <div class="action-card p-4" onclick="openMenuModal()">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-3.5">
+                        <div class="w-11 h-11 rounded-full bg-[#F59E0B]/15 text-[#D97706] flex items-center justify-center shrink-0">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
+                        </div>
+                        <div>
+                            <div class="text-[15.5px] font-bold text-[#121212] tracking-[-0.01em]">Ver Menú</div>
+                            <div class="text-[12.5px] text-[#6E655F]">Bebidas calientes, frappés, sodas y postres</div>
+                        </div>
+                    </div>
+                    <svg class="w-5 h-5 text-[#6E655F] shrink-0" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+                </div>
+            </div>
+
+            <!-- TARJETA 3: INSTAGRAM (ABAJO DE VER MENÚ) -->
+            <a href="{{ hub.instagram_url }}" target="_blank" rel="noopener noreferrer" class="action-card p-4 block no-underline">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-3.5">
+                        <div class="w-11 h-11 rounded-full bg-gradient-to-tr from-[#F58529] via-[#DD2A7B] to-[#8134AF] text-white flex items-center justify-center shrink-0">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect><path d="M16 11.37A4 4 0 1112.63 8 4 4 0 0116 11.37z"></path><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line></svg>
+                        </div>
+                        <div>
+                            <div class="text-[15.5px] font-bold text-[#121212] tracking-[-0.01em]">Síguenos en Instagram</div>
+                            <div class="text-[12.5px] text-[#6E655F]">{{ hub.instagram_handle }}</div>
+                        </div>
+                    </div>
+                    <svg class="w-5 h-5 text-[#6E655F] shrink-0" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+                </div>
+            </a>
+
+            <!-- TARJETA 4: WI-FI -->
+            <div class="action-card p-4" onclick="openModal('modal-wifi')">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-3.5">
+                        <div class="w-11 h-11 rounded-full bg-[#34C759]/15 text-[#28A745] flex items-center justify-center shrink-0">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0M1.394 9.393c5.857-5.857 15.355-5.857 21.213 0"/></svg>
+                        </div>
+                        <div>
+                            <div class="text-[15.5px] font-bold text-[#121212] tracking-[-0.01em]">Conectarse al Wi-Fi</div>
+                            <div class="text-[12.5px] text-[#6E655F]">Red: <span class="font-semibold">{{ hub.wifi_ssid }}</span></div>
+                        </div>
+                    </div>
+                    <svg class="w-5 h-5 text-[#6E655F] shrink-0" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+                </div>
+            </div>
+
+            <!-- TARJETA 5: MINI-JUEGO SUDOKU -->
+            <div class="action-card p-4" onclick="openSudokuModal()">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-3.5">
+                        <div class="w-11 h-11 rounded-full bg-[#AF52DE]/15 text-[#AF52DE] flex items-center justify-center shrink-0">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/></svg>
+                        </div>
+                        <div>
+                            <div class="text-[15.5px] font-bold text-[#121212] tracking-[-0.01em]">Jugar Sudoku</div>
+                            <div class="text-[12.5px] text-[#6E655F]">Entretente mientras preparamos tu café</div>
+                        </div>
+                    </div>
+                    <svg class="w-5 h-5 text-[#6E655F] shrink-0" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+                </div>
+            </div>
+
+            <!-- TARJETA 6 (PENÚLTIMA): BUZÓN DE SUGERENCIAS -->
+            <div class="action-card p-4" onclick="openFeedbackModal()">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-3.5">
+                        <div class="w-11 h-11 rounded-full bg-[#5856D6]/15 text-[#5856D6] flex items-center justify-center shrink-0">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/></svg>
+                        </div>
+                        <div>
+                            <div class="text-[15.5px] font-bold text-[#121212] tracking-[-0.01em]">Buzón de Sugerencias</div>
+                            <div class="text-[12.5px] text-[#6E655F]">Comentarios 100% anónimos para mejorar</div>
+                        </div>
+                    </div>
+                    <svg class="w-5 h-5 text-[#6E655F] shrink-0" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+                </div>
+            </div>
+
+            <!-- TARJETA 7 (ÚLTIMA OPCIÓN): GOOGLE REVIEW -->
             <div class="action-card p-4" onclick="openGoogleReviewModal()">
                 <div class="flex items-center justify-between">
                     <div class="flex items-center gap-3.5">
@@ -281,86 +361,6 @@
                     <svg class="w-5 h-5 text-[#6E655F] shrink-0" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
                 </div>
             </div>
-
-            <!-- TARJETA 3: MENÚ DIGITAL INTERACTIVO -->
-            <div class="action-card p-4" onclick="openMenuModal()">
-                <div class="flex items-center justify-between">
-                    <div class="flex items-center gap-3.5">
-                        <div class="w-11 h-11 rounded-full bg-[#F59E0B]/15 text-[#D97706] flex items-center justify-center shrink-0">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
-                        </div>
-                        <div>
-                            <div class="text-[15.5px] font-bold text-[#121212] tracking-[-0.01em]">Ver Menú</div>
-                            <div class="text-[12.5px] text-[#6E655F]">Bebidas calientes, frappés, sodas y postres</div>
-                        </div>
-                    </div>
-                    <svg class="w-5 h-5 text-[#6E655F] shrink-0" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
-                </div>
-            </div>
-
-            <!-- TARJETA 4: WI-FI -->
-            <div class="action-card p-4" onclick="openModal('modal-wifi')">
-                <div class="flex items-center justify-between">
-                    <div class="flex items-center gap-3.5">
-                        <div class="w-11 h-11 rounded-full bg-[#34C759]/15 text-[#28A745] flex items-center justify-center shrink-0">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0M1.394 9.393c5.857-5.857 15.355-5.857 21.213 0"/></svg>
-                        </div>
-                        <div>
-                            <div class="text-[15.5px] font-bold text-[#121212] tracking-[-0.01em]">Conectarse al Wi-Fi</div>
-                            <div class="text-[12.5px] text-[#6E655F]">Red: <span class="font-semibold">{{ hub.wifi_ssid }}</span></div>
-                        </div>
-                    </div>
-                    <svg class="w-5 h-5 text-[#6E655F] shrink-0" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
-                </div>
-            </div>
-
-            <!-- TARJETA 5: BUZÓN DE SUGERENCIAS -->
-            <div class="action-card p-4" onclick="openFeedbackModal()">
-                <div class="flex items-center justify-between">
-                    <div class="flex items-center gap-3.5">
-                        <div class="w-11 h-11 rounded-full bg-[#5856D6]/15 text-[#5856D6] flex items-center justify-center shrink-0">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/></svg>
-                        </div>
-                        <div>
-                            <div class="text-[15.5px] font-bold text-[#121212] tracking-[-0.01em]">Buzón de Sugerencias</div>
-                            <div class="text-[12.5px] text-[#6E655F]">Comentarios 100% anónimos para mejorar</div>
-                        </div>
-                    </div>
-                    <svg class="w-5 h-5 text-[#6E655F] shrink-0" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
-                </div>
-            </div>
-
-            <!-- TARJETA 6: MINI-JUEGO SUDOKU -->
-            <div class="action-card p-4" onclick="openSudokuModal()">
-                <div class="flex items-center justify-between">
-                    <div class="flex items-center gap-3.5">
-                        <div class="w-11 h-11 rounded-full bg-[#AF52DE]/15 text-[#AF52DE] flex items-center justify-center shrink-0">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/></svg>
-                        </div>
-                        <div>
-                            <div class="text-[15.5px] font-bold text-[#121212] tracking-[-0.01em]">Jugar Sudoku</div>
-                            <div class="text-[12.5px] text-[#6E655F]">Entretente mientras preparamos tu café</div>
-                        </div>
-                    </div>
-                    <svg class="w-5 h-5 text-[#6E655F] shrink-0" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
-                </div>
-            </div>
-
-            <!-- TARJETA 7: INSTAGRAM -->
-            <a href="{{ hub.instagram_url }}" target="_blank" rel="noopener noreferrer" class="action-card p-4 block no-underline">
-                <div class="flex items-center justify-between">
-                    <div class="flex items-center gap-3.5">
-                        <div class="w-11 h-11 rounded-full bg-gradient-to-tr from-[#F58529] via-[#DD2A7B] to-[#8134AF] text-white flex items-center justify-center shrink-0">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect><path d="M16 11.37A4 4 0 1112.63 8 4 4 0 0116 11.37z"></path><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line></svg>
-                        </div>
-                        <div>
-                            <div class="text-[15.5px] font-bold text-[#121212] tracking-[-0.01em]">Síguenos en Instagram</div>
-                            <div class="text-[12.5px] text-[#6E655F]">{{ hub.instagram_handle }}</div>
-                        </div>
-                    </div>
-                    <svg class="w-5 h-5 text-[#6E655F] shrink-0" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
-                </div>
-            </a>
         </main>
 
         <footer class="px-5 pb-6 text-center text-[11.5px] text-[#6E655F]">
@@ -529,24 +529,30 @@
                 <button type="button" onclick="closeModal('modal-passkit')" class="text-[15px] font-medium text-[#007AFF] active:opacity-70">
                     Cancelar
                 </button>
-                <div class="text-[14px] font-bold text-[#121212] truncate">
-                    Tarjeta {{ campaign.shopName }}
+                <div class="flex items-center gap-2">
+                    <div class="text-[14px] font-bold text-[#121212] truncate">
+                        Tarjeta {{ campaign.shopName }}
+                    </div>
+                    <button type="button" id="pkpass-flip-btn" onclick="togglePkpassModalSide()" class="px-2.5 py-1 rounded-full bg-black/10 text-[11.5px] font-bold text-[#121212] active:scale-95 transition">
+                        ⓘ Reverso
+                    </button>
                 </div>
                 <button type="button" onclick="confirmAddPassToWallet()" class="text-[15px] font-bold text-[#007AFF] active:opacity-70">
                     Agregar
                 </button>
             </div>
 
-            <!-- Tarjeta estilo Apple Wallet (Color dorado/arena suave #C5A869) -->
+            <!-- Tarjeta estilo Apple Wallet (Frente y Reverso) -->
             <div class="p-4">
-                <div class="rounded-[20px] bg-[#C5A869] text-[#121212] shadow-xl overflow-hidden border border-black/10">
+                <!-- CARA FRONTAL -->
+                <div id="pkpass-modal-front" class="rounded-[20px] bg-[#C5A869] text-[#121212] shadow-xl overflow-hidden border border-black/10">
                     <!-- Cabecera del pase -->
                     <div class="px-4 py-3.5 flex items-center justify-between">
                         <div class="flex items-center gap-2.5">
                             <img src="/api/campaign/logo.png" alt="Logo" class="w-9 h-9 rounded-full object-cover border border-black/15 bg-[#FAF6F3]" />
                             <div>
                                 <div class="text-[15px] font-extrabold tracking-tight leading-none text-[#121212]">{{ campaign.shopName }}</div>
-                                <div class="text-[10.5px] font-semibold uppercase tracking-wider text-black/70 mt-0.5">Club de Lealtad</div>
+                                <div class="text-[10.5px] font-semibold uppercase tracking-wider text-black/70 mt-0.5">Maisha's Rewards</div>
                             </div>
                         </div>
                         <div class="text-right">
@@ -560,8 +566,8 @@
                         <img src="/api/hub/hero.jpg" alt="Strip {{ campaign.shopName }}" class="w-full h-full object-cover object-center" />
                         <div class="absolute inset-0 bg-gradient-to-t from-black/65 via-black/20 to-transparent flex items-end p-3.5">
                             <div class="text-white">
-                                <div class="text-[11px] font-bold uppercase tracking-wider text-[#F5EBE6]/90">META DEL PROGRAMA</div>
-                                <div class="text-[15px] font-extrabold">CAFÉ GRATIS = {{ campaign.stampGoal }} SELLOS ☕️</div>
+                                <div class="text-[11px] font-bold uppercase tracking-wider text-[#F5EBE6]/90">MAISHA'S REWARDS</div>
+                                <div class="text-[15px] font-extrabold">CAFÉ GRATIS = {{ campaign.stampGoal }} SELLOS</div>
                             </div>
                         </div>
                     </div>
@@ -573,7 +579,7 @@
                             <span id="pkpass-reward-badge">FALTAN {{ campaign.stampGoal }} SELLOS</span>
                         </div>
                         <div id="pkpass-circles-grid" class="grid grid-cols-5 gap-2 p-2.5 rounded-xl bg-black/10">
-                            <!-- Círculos dinámicos -->
+                            <!-- Círculos dinámicos con grano de café vertical simétrico -->
                         </div>
                     </div>
 
@@ -588,6 +594,84 @@
                         <div class="text-[11px] font-semibold text-black/70 mt-2.5 text-center">
                             Muestra este código QR al barista en mostrador · {{ campaign.shopName }}
                         </div>
+                    </div>
+                </div>
+
+                <!-- CARA REVERSO (ESTILO NATIVO APPLE WALLET iOS) -->
+                <div id="pkpass-modal-back" class="hidden rounded-[20px] bg-[#1C1C1E] text-white shadow-xl overflow-hidden border border-white/10 divide-y divide-white/10 text-[13.5px]">
+                    <div class="px-4 py-3">
+                        <div class="text-[13px] font-medium text-white">Último Mensaje</div>
+                        <div id="pkpass-back-msg" class="text-[13px] text-[#98989F] mt-0.5 leading-snug">
+                            ¡Bienvenido a {{ campaign.shopName }}! Acumula tus sellos en cada visita y disfruta tu bebida favorita gratis ✨
+                        </div>
+                    </div>
+                    <div class="px-4 py-3">
+                        <div class="text-[12.5px] text-[#98989F]">Formulario de comentarios</div>
+                        <button type="button" onclick="closeModal('modal-passkit'); openFeedbackModal();" class="mt-0.5 text-[13.5px] text-[#0A84FF] font-medium hover:underline text-left">
+                            ⭐ ¿Disfrutaste tu última visita?
+                        </button>
+                    </div>
+                    <div class="px-4 py-3 flex items-center justify-between">
+                        <span class="text-white">Total acumulado</span>
+                        <span id="pkpass-back-total-stamps" class="text-[#98989F]">0 sellos</span>
+                    </div>
+                    <div class="px-4 py-3 flex items-center justify-between">
+                        <span class="text-white">Para la siguiente recompensa</span>
+                        <span id="pkpass-back-remaining" class="text-[#98989F]">{{ campaign.stampGoal }} sellos</span>
+                    </div>
+                    <div class="px-4 py-3 flex items-center justify-between">
+                        <span class="text-white">Disponible</span>
+                        <span id="pkpass-back-available-rewards" class="text-[#98989F]">0 premios</span>
+                    </div>
+                    <div class="px-4 py-3">
+                        <div class="text-white">Cómo conseguir un sello</div>
+                        <div class="text-[#98989F] mt-0.5">Un sello = Una visita</div>
+                    </div>
+                    <div class="px-4 py-3 flex items-center justify-between">
+                        <span class="text-white">Total acumulado</span>
+                        <span id="pkpass-back-total-rewards" class="text-[#98989F]">0 premios</span>
+                    </div>
+                    <div class="px-4 py-3">
+                        <div class="text-[#98989F] text-[12.5px]">Descripción del premio</div>
+                        <div class="text-[#98989F] mt-0.5">{{ campaign.stampGoal }} sellos = {{ campaign.rewardText }}</div>
+                    </div>
+                    <div class="px-4 py-3 flex items-center justify-between">
+                        <span class="text-white">La tarjeta es válida hasta</span>
+                        <span class="text-[#98989F]">Ilimitado</span>
+                    </div>
+                    <div class="px-4 py-3">
+                        <div class="text-white mb-1">Términos de Uso</div>
+                        <div class="text-[#98989F] text-[12.5px] leading-relaxed space-y-0.5">
+                            <div>1. Consigue 1 sello por cada visita que hagas.</div>
+                            <div>2. Acumula {{ campaign.stampGoal }} sellos para obtener {{ campaign.rewardText | lower }}.</div>
+                            <div>3. La validez de las tarjetas, sellos y premios es ilimitada.</div>
+                            <div>4. Los sellos y las recompensas no se pueden cambiar, devolver, reemplazar ni comprar con efectivo.</div>
+                            <div>5. Las tarjetas no se pueden transferir ni combinar con otras tarjetas.</div>
+                            <div>6. {{ campaign.shopName }} se reserva el derecho de rechazar los servicios o modificar el programa.</div>
+                        </div>
+                    </div>
+                    <div class="px-4 py-3">
+                        <a href="tel:+526421138069" class="text-[#0A84FF] font-medium no-underline hover:underline">📱 Teléfono</a>
+                    </div>
+                    <div class="px-4 py-3">
+                        <a href="{{ hub.instagram_url }}" target="_blank" rel="noopener" class="text-[#0A84FF] font-medium no-underline hover:underline">Instagram</a>
+                    </div>
+                    <div class="px-4 py-3 flex items-center justify-between">
+                        <span class="text-white">Nombre de empresa</span>
+                        <span class="text-[#98989F]">{{ campaign.shopName }}</span>
+                    </div>
+                    <div class="px-4 py-3">
+                        <div class="text-[#98989F] text-[12.5px]">Información del emisor</div>
+                        <div class="text-[#98989F] mt-0.5">{{ campaign.shopName }}</div>
+                        <a href="tel:+526421138069" class="text-[#0A84FF] no-underline hover:underline">+526421138069</a>
+                    </div>
+                    <div class="px-4 py-3 flex items-center justify-between">
+                        <span class="text-white">Número de serie</span>
+                        <span id="pkpass-back-serial" class="text-[#98989F] font-mono text-[12.5px]">MAISHAS-000000</span>
+                    </div>
+                    <div class="px-4 py-3 flex items-center justify-between">
+                        <span class="text-white">Actualizado</span>
+                        <span id="pkpass-back-updated" class="text-[#98989F] text-[12.5px]">Hoy</span>
                     </div>
                 </div>
 
@@ -1263,6 +1347,26 @@
             }
         }, 10000);
 
+        // Ícono SVG de grano de café vertical y simétrico (inspirado en diseño minimalista plano, sin emoji de Apple)
+        const COFFEE_BEAN_SVG = `<svg class="w-5 h-5 fill-current" viewBox="0 0 24 24" aria-hidden="true"><path d="M10.95 3.12 C7.35 3.85 5.35 7.45 5.35 12.0 C5.35 16.45 7.25 19.95 10.75 20.82 C12.95 15.65 8.55 8.25 10.95 3.12 Z"/><path d="M13.05 20.88 C16.65 20.15 18.65 16.55 18.65 12.0 C18.65 7.55 16.75 4.05 13.25 3.18 C11.05 8.35 15.45 15.75 13.05 20.88 Z"/></svg>`;
+        let pkpassModalShowingBack = false;
+
+        function togglePkpassModalSide() {
+            pkpassModalShowingBack = !pkpassModalShowingBack;
+            const front = document.getElementById('pkpass-modal-front');
+            const back = document.getElementById('pkpass-modal-back');
+            const btn = document.getElementById('pkpass-flip-btn');
+            if (pkpassModalShowingBack) {
+                front.classList.add('hidden');
+                back.classList.remove('hidden');
+                if (btn) btn.textContent = '← Frente';
+            } else {
+                back.classList.add('hidden');
+                front.classList.remove('hidden');
+                if (btn) btn.textContent = 'ⓘ Reverso';
+            }
+        }
+
         function renderLoyaltyHubState() {
             const unregEl = document.getElementById('loyalty-card-unregistered');
             const regEl = document.getElementById('loyalty-card-registered');
@@ -1294,10 +1398,10 @@
                 const div = document.createElement('div');
                 div.className = `aspect-square rounded-full flex items-center justify-center text-xs font-extrabold transition-all ${
                     filled
-                        ? 'bg-[#E86C78] text-white shadow-xs scale-100'
+                        ? 'bg-[#54341E] text-[#FAF6F3] shadow-xs scale-100'
                         : 'border-2 border-dashed border-[#121212]/25 text-[#6E655F] bg-white/60'
                 }`;
-                div.innerHTML = filled ? '☕️' : (isLast ? '🎁' : i);
+                div.innerHTML = filled ? COFFEE_BEAN_SVG : (isLast ? '🎁' : i);
                 circlesWrap.appendChild(div);
             }
 
@@ -1415,28 +1519,55 @@
                 openLoyaltyRegisterModal('register');
                 return;
             }
+            pkpassModalShowingBack = false;
+            document.getElementById('pkpass-modal-front').classList.remove('hidden');
+            document.getElementById('pkpass-modal-back').classList.add('hidden');
+            const flipBtn = document.getElementById('pkpass-flip-btn');
+            if (flipBtn) flipBtn.textContent = 'ⓘ Reverso';
+
             const goal = currentMember.stamp_goal || STAMP_GOAL;
             const stamps = Math.min(goal, Math.max(0, parseInt(currentMember.stamps || 0, 10)));
+            const remaining = Math.max(0, goal - stamps);
+            const availRewards = stamps >= goal ? 1 : 0;
 
             document.getElementById('pkpass-stamps-top').textContent = `${stamps}/${goal}`;
             document.getElementById('pkpass-holder-name').textContent = `SOCIO: ${(currentMember.name || 'CLIENTE').toUpperCase()}`;
-            document.getElementById('pkpass-reward-badge').textContent = stamps >= goal ? '¡CAFÉ GRATIS LISTO! 🎉' : `FALTAN ${goal - stamps} SELLOS`;
+            document.getElementById('pkpass-reward-badge').textContent = stamps >= goal ? '¡CAFÉ GRATIS LISTO! 🎉' : `FALTAN ${remaining} SELLOS`;
             document.getElementById('pkpass-serial-code').textContent = currentMember.serial;
             document.getElementById('pkpass-qr-img').src = `/card/${currentMember.serial}/qr.png`;
             document.getElementById('pkpass-direct-download-btn').href = `/card/${currentMember.serial}/download.pkpass`;
             document.getElementById('pkpass-android-live-btn').href = `/card/${currentMember.serial}`;
 
+            // Poblar campos del reverso estilo Apple Wallet nativo
+            const elTotalStamps = document.getElementById('pkpass-back-total-stamps');
+            if (elTotalStamps) elTotalStamps.textContent = `${stamps} ${stamps === 1 ? 'sello' : 'sellos'}`;
+            const elRem = document.getElementById('pkpass-back-remaining');
+            if (elRem) elRem.textContent = `${remaining} ${remaining === 1 ? 'sello' : 'sellos'}`;
+            const elAvail = document.getElementById('pkpass-back-available-rewards');
+            if (elAvail) elAvail.textContent = `${availRewards} ${availRewards === 1 ? 'premio' : 'premios'}`;
+            const elTotRew = document.getElementById('pkpass-back-total-rewards');
+            if (elTotRew) elTotRew.textContent = `${availRewards} ${availRewards === 1 ? 'premio' : 'premios'}`;
+            const elBackSerial = document.getElementById('pkpass-back-serial');
+            if (elBackSerial) elBackSerial.textContent = currentMember.serial;
+            const elBackUpd = document.getElementById('pkpass-back-updated');
+            if (elBackUpd) {
+                const now = new Date();
+                const pad = (n) => String(n).padStart(2, '0');
+                elBackUpd.textContent = `${pad(now.getDate())}/${pad(now.getMonth() + 1)}/${now.getFullYear()} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+            }
+
             const grid = document.getElementById('pkpass-circles-grid');
             grid.innerHTML = '';
             for (let i = 1; i <= goal; i++) {
                 const filled = i <= stamps;
+                const isLast = i === goal;
                 const cell = document.createElement('div');
                 cell.className = `aspect-square rounded-full flex items-center justify-center text-xs font-extrabold ${
                     filled
-                        ? 'bg-[#121212] text-[#C5A869]'
+                        ? 'bg-[#4E301B] text-[#EADFD7] shadow-xs'
                         : 'border-2 border-[#121212]/40 text-[#121212]/60'
                 }`;
-                cell.textContent = filled ? '✓' : i;
+                cell.innerHTML = filled ? COFFEE_BEAN_SVG : (isLast ? '🎁' : i);
                 grid.appendChild(cell);
             }
             openModal('modal-passkit');

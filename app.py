@@ -544,6 +544,38 @@ def _hex_to_passkit_rgb(hex_str, default="rgb(18, 16, 14)"):
     return f"rgb({r}, {g}, {b})"
 
 
+def _cubic_bezier_pts(p0, p1, p2, p3, steps=22):
+    pts = []
+    for i in range(steps + 1):
+        t = i / float(steps)
+        mt = 1.0 - t
+        x = (mt ** 3) * p0[0] + 3 * (mt ** 2) * t * p1[0] + 3 * mt * (t ** 2) * p2[0] + (t ** 3) * p3[0]
+        y = (mt ** 3) * p0[1] + 3 * (mt ** 2) * t * p1[1] + 3 * mt * (t ** 2) * p2[1] + (t ** 3) * p3[1]
+        pts.append((x, y))
+    return pts
+
+
+def _draw_vertical_coffee_bean_pil(draw, cx, cy, radius, fill_color):
+    """Dibuja un grano de café vertical y simétrico de dos mitades con hendidura en S."""
+    scale = radius * 0.056
+
+    def _tr(pt):
+        return (cx + (pt[0] - 12.0) * scale, cy + (pt[1] - 12.0) * scale)
+
+    left_pts = (
+        _cubic_bezier_pts((10.95, 3.12), (7.35, 3.85), (5.35, 7.45), (5.35, 12.0))[:-1]
+        + _cubic_bezier_pts((5.35, 12.0), (5.35, 16.45), (7.25, 19.95), (10.75, 20.82))[:-1]
+        + _cubic_bezier_pts((10.75, 20.82), (12.95, 15.65), (8.55, 8.25), (10.95, 3.12))
+    )
+    right_pts = (
+        _cubic_bezier_pts((13.05, 20.88), (16.65, 20.15), (18.65, 16.55), (18.65, 12.0))[:-1]
+        + _cubic_bezier_pts((18.65, 12.0), (18.65, 7.55), (16.75, 4.05), (13.25, 3.18))[:-1]
+        + _cubic_bezier_pts((13.25, 3.18), (11.05, 8.35), (15.45, 15.75), (13.05, 20.88))
+    )
+    draw.polygon([_tr(p) for p in left_pts], fill=fill_color)
+    draw.polygon([_tr(p) for p in right_pts], fill=fill_color)
+
+
 def _create_dynamic_strip_pil(stamps_count, message=None, campaign=None):
     """
     Crea el objeto PIL Image (1500x500 super-sampled) adaptándose dinámicamente
@@ -647,15 +679,7 @@ def _create_dynamic_strip_pil(stamps_count, message=None, campaign=None):
                     pts.append((cx + rad_p * math.cos(ang), cy + rad_p * math.sin(ang)))
                 draw.polygon(pts, fill=bg_rgb)
             else:
-                bean_rx, bean_ry = 17, 23
-                draw.ellipse(
-                    [cx - bean_rx, cy - bean_ry, cx + bean_rx, cy + bean_ry],
-                    fill=bg_rgb
-                )
-                draw.arc(
-                    [cx - 12, cy - bean_ry + 3, cx + 15, cy + bean_ry - 3],
-                    start=110, end=250, fill=fill_gold, width=4
-                )
+                _draw_vertical_coffee_bean_pil(draw, cx, cy, radius, bg_rgb)
         else:
             bg_pending = (max(8, bg_rgb[0] + 4), max(8, bg_rgb[1] + 3), max(8, bg_rgb[2] + 2))
             ring_color = accent_rgb if is_last else (76, 64, 50)
@@ -1043,11 +1067,14 @@ def get_campaign_config():
         "stampGoal": 10,
         "rewardText": "¡1 Café Gratis!",
         "termsText": (
-            "1. Acumula 1 sello por cada compra de bebida participante.\n"
-            "2. Al completar la meta de sellos, canjea 1 bebida de cortesía en mostrador.\n"
-            "3. Programa de lealtad personal e intransferible."
+            "1. Consigue 1 sello por cada visita que hagas.\n"
+            "2. Acumula 10 sellos para obtener 1 café o bebida gratis.\n"
+            "3. La validez de las tarjetas, sellos y premios es ilimitada.\n"
+            "4. Los sellos y las recompensas no se pueden cambiar, devolver, reemplazar ni comprar con efectivo.\n"
+            "5. Las tarjetas no se pueden transferir ni combinar con otras tarjetas.\n"
+            "6. Maishas Café se reserva el derecho de rechazar los servicios o modificar el programa."
         ),
-        "menuUrl": "https://wa.me/526421127306",
+        "menuUrl": "https://wa.me/526421138069",
         "lat": loc["lat"],
         "lng": loc["lng"],
         "relevantText": loc["relevant_text"],
@@ -1956,45 +1983,73 @@ ANDROID_CARD_HTML = """
             </div>
         </div>
 
-        <!-- VISTA REVERSO (DETALLES DEL PASE) -->
-        <div id="pass-back-view" class="pass-back-view">
+        <!-- VISTA REVERSO (DETALLES DEL PASE ESTILO APPLE WALLET) -->
+        <div id="pass-back-view" class="pass-back-view" style="background:#1C1C1E; color:#FFFFFF; font-size:13.5px;">
             <div class="back-section">
-                <div class="back-lbl" style="color: {{ campaign.labelColor }};">Código Único de Socio (ID)</div>
-                <div class="back-val" style="font-family:ui-monospace, monospace; font-weight:700; color:var(--gold-light);">{{ client.serial }}</div>
+                <div style="font-size:13px; font-weight:600; color:#FFFFFF;">Último Mensaje</div>
+                <div class="back-val" id="back-val-msg" style="color:#98989F; margin-top:3px;">{{ client.message }}</div>
             </div>
             <div class="back-section">
-                <div class="back-lbl" style="color: {{ campaign.labelColor }};">Mensaje de {{ campaign.shopName }}</div>
-                <div class="back-val" id="back-val-msg">{{ client.message }}</div>
-            </div>
-            <div class="back-section">
-                <div class="back-lbl" style="color: {{ campaign.labelColor }};">Historial y Nivel de Socio</div>
-                <div class="back-val" id="back-val-history">
-                    Nivel: {{ client.tier.name }} | Visitas históricas: {{ client.total_visits }} | Cafés gratis canjeados: {{ client.redeemed_count }} ({{ client.tier.next_goal }})
+                <div style="font-size:12.5px; color:#98989F;">Formulario de comentarios</div>
+                <div class="back-val" style="margin-top:3px;">
+                    <a href="/?serial={{ client.serial }}" style="color:#0A84FF; text-decoration:none; font-weight:500;">⭐ ¿Disfrutaste tu última visita?</a>
                 </div>
             </div>
-            {% if client.phone or client.birthdate %}
-            <div class="back-section">
-                <div class="back-lbl" style="color: {{ campaign.labelColor }};">Datos del Socio</div>
-                <div class="back-val">
-                    {% if client.phone %}Celular: {{ client.phone }}{% endif %}
-                    {% if client.phone and client.birthdate %} | {% endif %}
-                    {% if client.birthdate %}Cumpleaños: {{ client.birthdate }}{% endif %}
-                </div>
+            <div class="back-section" style="display:flex; justify-content:space-between; align-items:center;">
+                <span style="color:#FFFFFF;">Total acumulado</span>
+                <span id="back-val-total-stamps" style="color:#98989F;">{{ client.total_visits }} {{ 'sello' if client.total_visits == 1 else 'sellos' }}</span>
             </div>
-            {% endif %}
-            {% if campaign.menuUrl %}
-            <div class="back-section">
-                <div class="back-lbl" style="color: {{ campaign.labelColor }};">Menú Digital / WhatsApp</div>
-                <div class="back-val"><a href="{{ campaign.menuUrl }}" target="_blank" rel="noopener" style="color:#66F08B; text-decoration:underline;">{{ campaign.menuUrl }}</a></div>
+            <div class="back-section" style="display:flex; justify-content:space-between; align-items:center;">
+                <span style="color:#FFFFFF;">Para la siguiente recompensa</span>
+                <span id="back-val-remaining" style="color:#98989F;">{{ [0, campaign.stampGoal - client.stamps] | max }} {{ 'sello' if ([0, campaign.stampGoal - client.stamps] | max) == 1 else 'sellos' }}</span>
             </div>
-            {% endif %}
-            <div class="back-section">
-                <div class="back-lbl" style="color: {{ campaign.labelColor }};">📍 Ubicación y Alertas de Proximidad</div>
-                <div class="back-val">{{ shop_loc.relevant_text }}</div>
+            <div class="back-section" style="display:flex; justify-content:space-between; align-items:center;">
+                <span style="color:#FFFFFF;">Disponible</span>
+                <span id="back-val-available-rewards" style="color:#98989F;">{{ 1 if client.stamps >= campaign.stampGoal else 0 }} {{ 'premio' if client.stamps >= campaign.stampGoal else 'premios' }}</span>
             </div>
             <div class="back-section">
-                <div class="back-lbl" style="color: {{ campaign.labelColor }};">Términos y Condiciones</div>
-                <div class="back-val">{{ campaign.termsText }}</div>
+                <div style="color:#FFFFFF;">Cómo conseguir un sello</div>
+                <div style="color:#98989F; margin-top:3px;">Un sello = Una visita</div>
+            </div>
+            <div class="back-section" style="display:flex; justify-content:space-between; align-items:center;">
+                <span style="color:#FFFFFF;">Total acumulado</span>
+                <span id="back-val-total-rewards" style="color:#98989F;">{{ client.redeemed_count + (1 if client.stamps >= campaign.stampGoal else 0) }} {{ 'premio' if (client.redeemed_count + (1 if client.stamps >= campaign.stampGoal else 0)) == 1 else 'premios' }}</span>
+            </div>
+            <div class="back-section">
+                <div style="font-size:12.5px; color:#98989F;">Descripción del premio</div>
+                <div style="color:#98989F; margin-top:3px;">{{ campaign.stampGoal }} sellos = {{ campaign.rewardText }}</div>
+            </div>
+            <div class="back-section" style="display:flex; justify-content:space-between; align-items:center;">
+                <span style="color:#FFFFFF;">La tarjeta es válida hasta</span>
+                <span style="color:#98989F;">Ilimitado</span>
+            </div>
+            <div class="back-section">
+                <div style="color:#FFFFFF; margin-bottom:4px;">Términos de Uso</div>
+                <div style="color:#98989F; font-size:12.5px; line-height:1.5; white-space:pre-line;">{{ campaign.termsText }}</div>
+                <div id="back-val-history" style="display:none;">{{ client.tier.name }}</div>
+            </div>
+            <div class="back-section">
+                <a href="tel:+526421138069" style="color:#0A84FF; text-decoration:none; font-weight:500;">📱 Teléfono</a>
+            </div>
+            <div class="back-section">
+                <a href="https://www.instagram.com/maishascafe/" target="_blank" rel="noopener" style="color:#0A84FF; text-decoration:none; font-weight:500;">Instagram</a>
+            </div>
+            <div class="back-section" style="display:flex; justify-content:space-between; align-items:center;">
+                <span style="color:#FFFFFF;">Nombre de empresa</span>
+                <span style="color:#98989F;">{{ campaign.shopName }}</span>
+            </div>
+            <div class="back-section">
+                <div style="font-size:12.5px; color:#98989F;">Información del emisor</div>
+                <div style="color:#98989F; margin-top:3px;">{{ campaign.shopName }}</div>
+                <div><a href="tel:+526421138069" style="color:#0A84FF; text-decoration:none;">+526421138069</a></div>
+            </div>
+            <div class="back-section" style="display:flex; justify-content:space-between; align-items:center;">
+                <span style="color:#FFFFFF;">Número de serie</span>
+                <span style="color:#98989F; font-family:ui-monospace, monospace; font-size:12.5px;">{{ client.serial }}</span>
+            </div>
+            <div class="back-section" style="display:flex; justify-content:space-between; align-items:center;">
+                <span style="color:#FFFFFF;">Actualizado</span>
+                <span id="back-val-updated-at" style="color:#98989F; font-size:12.5px;">{{ client.updated_at_display if client.updated_at_display is defined else client.updated_at }}</span>
             </div>
         </div>
     </div>
@@ -2089,8 +2144,18 @@ ANDROID_CARD_HTML = """
                     document.getElementById('val-tier').textContent = data.tier_name;
                     document.getElementById('val-reward').textContent = data.reward_status;
                     document.getElementById('val-promo').textContent = data.message;
-                    document.getElementById('back-val-msg').textContent = data.message;
-                    document.getElementById('back-val-history').textContent = data.history_text;
+                    const elBackMsg = document.getElementById('back-val-msg');
+                    if (elBackMsg) elBackMsg.textContent = data.message;
+                    const elBackRem = document.getElementById('back-val-remaining');
+                    if (elBackRem) {
+                        const rem = Math.max(0, goal - data.stamps);
+                        elBackRem.textContent = `${rem} ${rem === 1 ? 'sello' : 'sellos'}`;
+                    }
+                    const elBackAvail = document.getElementById('back-val-available-rewards');
+                    if (elBackAvail) {
+                        const av = data.stamps >= goal ? 1 : 0;
+                        elBackAvail.textContent = `${av} ${av === 1 ? 'premio' : 'premios'}`;
+                    }
                     document.getElementById('card-strip-img').src = `/card/${SERIAL}/strip.png?v=${encodeURIComponent(data.updated_at)}`;
 
                     const saveBtn = document.getElementById('btn-save-wallet-top');
@@ -4455,26 +4520,74 @@ BARISTA_HTML = """
                                 </div>
                             </div>
 
-                            <!-- CARA REVERSO (TÉRMINOS, MENÚ Y UBICACIÓN) -->
-                            <div id="ca-preview-back" style="display:none; padding:18px; font-size:12.5px;">
-                                <div style="font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:0.6px; margin-bottom:12px; opacity:0.8;">
-                                    Reverso del Pase (Apple & Google Wallet)
+                            <!-- CARA REVERSO (ESTILO NATIVO APPLE WALLET iOS) -->
+                            <div id="ca-preview-back" style="display:none; background:#1C1C1E; color:#FFFFFF; padding:4px 16px; font-size:13px;">
+                                <div style="padding:11px 0; border-bottom:1px solid rgba(255,255,255,0.12);">
+                                    <div style="font-size:13px; font-weight:600; color:#FFFFFF;">Último Mensaje</div>
+                                    <div id="ca-back-val-gps" style="margin-top:3px; color:#98989F; line-height:1.35;">{{ campaign.relevantText }}</div>
                                 </div>
-                                <div style="padding:10px 0; border-bottom:1px solid rgba(255,255,255,0.12);">
-                                    <div id="ca-back-lbl-reward" style="font-size:10px; font-weight:800; text-transform:uppercase; color:{{ campaign.labelColor }};">Beneficio del Programa</div>
-                                    <div id="ca-back-val-reward" style="margin-top:3px;">Meta de {{ campaign.stampGoal }} sellos: {{ campaign.rewardText }}</div>
+                                <div style="padding:11px 0; border-bottom:1px solid rgba(255,255,255,0.12);">
+                                    <div style="font-size:12px; color:#98989F;">Formulario de comentarios</div>
+                                    <div style="margin-top:3px;">
+                                        <a href="/" target="_blank" style="color:#0A84FF; text-decoration:none; font-weight:500;">⭐ ¿Disfrutaste tu última visita?</a>
+                                    </div>
                                 </div>
-                                <div style="padding:10px 0; border-bottom:1px solid rgba(255,255,255,0.12);">
-                                    <div id="ca-back-lbl-menu" style="font-size:10px; font-weight:800; text-transform:uppercase; color:{{ campaign.labelColor }};">Menú Digital / WhatsApp</div>
-                                    <div id="ca-back-val-menu" style="margin-top:3px; word-break:break-all; text-decoration:underline;">{{ campaign.menuUrl }}</div>
+                                <div style="padding:11px 0; border-bottom:1px solid rgba(255,255,255,0.12); display:flex; justify-content:space-between; align-items:center;">
+                                    <span style="color:#FFFFFF;">Total acumulado</span>
+                                    <span id="ca-back-total-stamps" style="color:#98989F;">3 sellos</span>
                                 </div>
-                                <div style="padding:10px 0; border-bottom:1px solid rgba(255,255,255,0.12);">
-                                    <div id="ca-back-lbl-gps" style="font-size:10px; font-weight:800; text-transform:uppercase; color:{{ campaign.labelColor }};">Notificación por Cercanía GPS</div>
-                                    <div id="ca-back-val-gps" style="margin-top:3px;">{{ campaign.relevantText }} ({{ campaign.lat }}, {{ campaign.lng }})</div>
+                                <div style="padding:11px 0; border-bottom:1px solid rgba(255,255,255,0.12); display:flex; justify-content:space-between; align-items:center;">
+                                    <span style="color:#FFFFFF;">Para la siguiente recompensa</span>
+                                    <span id="ca-back-remaining-stamps" style="color:#98989F;">{{ campaign.stampGoal - 3 }} sellos</span>
                                 </div>
-                                <div style="padding:10px 0;">
-                                    <div id="ca-back-lbl-terms" style="font-size:10px; font-weight:800; text-transform:uppercase; color:{{ campaign.labelColor }};">Términos y Condiciones Legales</div>
-                                    <div id="ca-back-val-terms" style="margin-top:3px; line-height:1.45; opacity:0.92;">{{ campaign.termsText }}</div>
+                                <div style="padding:11px 0; border-bottom:1px solid rgba(255,255,255,0.12); display:flex; justify-content:space-between; align-items:center;">
+                                    <span style="color:#FFFFFF;">Disponible</span>
+                                    <span id="ca-back-available-rewards" style="color:#98989F;">0 premios</span>
+                                </div>
+                                <div style="padding:11px 0; border-bottom:1px solid rgba(255,255,255,0.12);">
+                                    <div style="color:#FFFFFF;">Cómo conseguir un sello</div>
+                                    <div style="margin-top:2px; color:#98989F;">Un sello = Una visita</div>
+                                </div>
+                                <div style="padding:11px 0; border-bottom:1px solid rgba(255,255,255,0.12); display:flex; justify-content:space-between; align-items:center;">
+                                    <span style="color:#FFFFFF;">Total acumulado</span>
+                                    <span id="ca-back-total-rewards" style="color:#98989F;">0 premios</span>
+                                </div>
+                                <div style="padding:11px 0; border-bottom:1px solid rgba(255,255,255,0.12);">
+                                    <div id="ca-back-lbl-reward" style="font-size:12px; color:#98989F;">Descripción del premio</div>
+                                    <div id="ca-back-val-reward" style="margin-top:2px; color:#98989F;">{{ campaign.stampGoal }} sellos = {{ campaign.rewardText }}</div>
+                                </div>
+                                <div style="padding:11px 0; border-bottom:1px solid rgba(255,255,255,0.12); display:flex; justify-content:space-between; align-items:center;">
+                                    <span style="color:#FFFFFF;">La tarjeta es válida hasta</span>
+                                    <span style="color:#98989F;">Ilimitado</span>
+                                </div>
+                                <div style="padding:11px 0; border-bottom:1px solid rgba(255,255,255,0.12);">
+                                    <div id="ca-back-lbl-terms" style="color:#FFFFFF; margin-bottom:4px;">Términos de Uso</div>
+                                    <div id="ca-back-val-terms" style="color:#98989F; font-size:12px; line-height:1.45; white-space:pre-line;">{{ campaign.termsText }}</div>
+                                </div>
+                                <div style="padding:11px 0; border-bottom:1px solid rgba(255,255,255,0.12);">
+                                    <a href="tel:+526421138069" style="color:#0A84FF; text-decoration:none; font-weight:500;">📱 Teléfono</a>
+                                </div>
+                                <div style="padding:11px 0; border-bottom:1px solid rgba(255,255,255,0.12);">
+                                    <a href="https://www.instagram.com/maishascafe/" target="_blank" rel="noopener" style="color:#0A84FF; text-decoration:none; font-weight:500;">Instagram</a>
+                                    <span id="ca-back-lbl-menu" style="display:none;"></span>
+                                    <span id="ca-back-val-menu" style="display:none;">{{ campaign.menuUrl }}</span>
+                                </div>
+                                <div style="padding:11px 0; border-bottom:1px solid rgba(255,255,255,0.12); display:flex; justify-content:space-between; align-items:center;">
+                                    <span style="color:#FFFFFF;">Nombre de empresa</span>
+                                    <span id="ca-back-company-name" style="color:#98989F;">{{ campaign.shopName }}</span>
+                                </div>
+                                <div style="padding:11px 0; border-bottom:1px solid rgba(255,255,255,0.12);">
+                                    <div style="font-size:12px; color:#98989F;">Información del emisor</div>
+                                    <div id="ca-back-issuer-name" style="color:#98989F; margin-top:2px;">{{ campaign.shopName }}</div>
+                                    <div><a href="tel:+526421138069" style="color:#0A84FF; text-decoration:none;">+526421138069</a></div>
+                                </div>
+                                <div style="padding:11px 0; border-bottom:1px solid rgba(255,255,255,0.12); display:flex; justify-content:space-between; align-items:center;">
+                                    <span style="color:#FFFFFF;">Número de serie</span>
+                                    <span style="color:#98989F; font-family:ui-monospace, monospace; font-size:12px;">MAISHAS-DEMO01</span>
+                                </div>
+                                <div style="padding:11px 0; display:flex; justify-content:space-between; align-items:center;">
+                                    <span style="color:#FFFFFF;">Actualizado</span>
+                                    <span id="ca-back-updated-at" style="color:#98989F; font-size:12px;">Hoy</span>
                                 </div>
                             </div>
                         </div>
@@ -5109,10 +5222,11 @@ BARISTA_HTML = """
             document.getElementById('ca-prev-strip-footer').style.color = lbl;
             document.getElementById('ca-prev-strip-footer').textContent = `Premio: ${rewardText}`;
 
-            // Renderizar círculos dinámicos según la meta (4..12)
+            // Renderizar círculos dinámicos según la meta (4..12) con grano de café vertical simétrico
             const grid = document.getElementById('ca-prev-stamps-grid');
             const cols = goal <= 4 ? 4 : (goal <= 6 ? 3 : (goal <= 8 ? 4 : (goal === 9 ? 5 : (goal === 10 ? 5 : 6))));
             grid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+            const beanSvgSim = `<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M10.95 3.12 C7.35 3.85 5.35 7.45 5.35 12.0 C5.35 16.45 7.25 19.95 10.75 20.82 C12.95 15.65 8.55 8.25 10.95 3.12 Z"/><path d="M13.05 20.88 C16.65 20.15 18.65 16.55 18.65 12.0 C18.65 7.55 16.75 4.05 13.25 3.18 C11.05 8.35 15.45 15.75 13.05 20.88 Z"/></svg>`;
             let dotsHtml = '';
             for (let i = 1; i <= goal; i++) {
                 const filled = i <= caPreviewStamps;
@@ -5120,7 +5234,7 @@ BARISTA_HTML = """
                 const borderCol = filled ? lbl : 'rgba(255,255,255,0.24)';
                 const bgCol = filled ? lbl : 'rgba(255,255,255,0.05)';
                 const txtCol = filled ? bg : 'rgba(255,255,255,0.45)';
-                const icon = filled ? '☕️' : (isLast ? '🎁' : i);
+                const icon = filled ? beanSvgSim : (isLast ? '🎁' : i);
                 dotsHtml += `<div style="width:36px; height:36px; border-radius:50%; border:2px solid ${borderCol}; background:${bgCol}; color:${txtCol}; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:800; box-shadow:${filled ? '0 0 10px rgba(212,175,55,0.35)' : 'none'};">${icon}</div>`;
             }
             grid.innerHTML = dotsHtml;
@@ -5129,15 +5243,35 @@ BARISTA_HTML = """
             document.getElementById('ca-prev-sec2-lbl').style.color = lbl;
             document.getElementById('ca-prev-reward-val').textContent = rewardText;
 
-            // Reverso y pantalla bloqueo GPS
-            document.getElementById('ca-back-lbl-reward').style.color = lbl;
-            document.getElementById('ca-back-val-reward').textContent = `Meta de ${goal} sellos: ${rewardText}`;
-            document.getElementById('ca-back-lbl-menu').style.color = lbl;
-            document.getElementById('ca-back-val-menu').textContent = menuUrl || '—';
-            document.getElementById('ca-back-lbl-gps').style.color = lbl;
-            document.getElementById('ca-back-val-gps').textContent = `${relevantText} (${lat}, ${lng})`;
-            document.getElementById('ca-back-lbl-terms').style.color = lbl;
-            document.getElementById('ca-back-val-terms').textContent = termsText;
+            // Reverso estilo Apple Wallet nativo y pantalla bloqueo GPS
+            const remStamps = Math.max(0, goal - caPreviewStamps);
+            const availRew = caPreviewStamps >= goal ? 1 : 0;
+            const elTotSt = document.getElementById('ca-back-total-stamps');
+            if (elTotSt) elTotSt.textContent = `${caPreviewStamps} ${caPreviewStamps === 1 ? 'sello' : 'sellos'}`;
+            const elRemSt = document.getElementById('ca-back-remaining-stamps');
+            if (elRemSt) elRemSt.textContent = `${remStamps} ${remStamps === 1 ? 'sello' : 'sellos'}`;
+            const elAvRew = document.getElementById('ca-back-available-rewards');
+            if (elAvRew) elAvRew.textContent = `${availRew} ${availRew === 1 ? 'premio' : 'premios'}`;
+            const elTotRew = document.getElementById('ca-back-total-rewards');
+            if (elTotRew) elTotRew.textContent = `${availRew} ${availRew === 1 ? 'premio' : 'premios'}`;
+            const elRewDesc = document.getElementById('ca-back-val-reward');
+            if (elRewDesc) elRewDesc.textContent = `${goal} sellos = ${rewardText}`;
+            const elMenuVal = document.getElementById('ca-back-val-menu');
+            if (elMenuVal) elMenuVal.textContent = menuUrl || '—';
+            const elGpsVal = document.getElementById('ca-back-val-gps');
+            if (elGpsVal) elGpsVal.textContent = relevantText || `¡Bienvenido a ${shopName}!`;
+            const elTermsVal = document.getElementById('ca-back-val-terms');
+            if (elTermsVal) elTermsVal.textContent = termsText;
+            const elComp = document.getElementById('ca-back-company-name');
+            if (elComp) elComp.textContent = shopName;
+            const elIss = document.getElementById('ca-back-issuer-name');
+            if (elIss) elIss.textContent = shopName;
+            const elUpd = document.getElementById('ca-back-updated-at');
+            if (elUpd) {
+                const now = new Date();
+                const pad = (n) => String(n).padStart(2, '0');
+                elUpd.textContent = `${pad(now.getDate())}/${pad(now.getMonth() + 1)}/${now.getFullYear()} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+            }
 
             document.getElementById('ca-gps-lock-brand').textContent = `${shopName.toUpperCase()} · CERCA DE TI`;
             document.getElementById('ca-gps-lock-msg').textContent = relevantText;
@@ -5633,59 +5767,99 @@ def generate_signed_pkpass(
         pass_data["webServiceURL"] = f"{clean_host}/"
         pass_data["authenticationToken"] = AUTH_TOKEN
 
-        # Actualizar términos y enlace al menú en el reverso de la tarjeta
+        # Actualizar el reverso de la tarjeta (.pkpass) con la estructura completa de Maisha's Café
+        remaining_stamps_back = max(0, goal - stamps)
+        avail_rewards_back = 1 if stamps >= goal else 0
+        wa_link_back = cfg.get("menuUrl") or "https://wa.me/526421138069"
+        now_str_back = datetime.now().strftime("%d/%m/%Y, %H:%M")
+
         back_fields = [
             {
-                "key": "memberSerialId",
-                "label": "Código Único de Socio (ID)",
-                "value": serial_number
-            },
-            {
                 "key": "news",
-                "label": f"Mensaje de {shop_name}",
+                "label": "Último Mensaje",
                 "value": message or DEFAULT_MESSAGE,
                 "changeMessage": "📣 %@"
             },
             {
-                "key": "vipHistory",
-                "label": "Historial y Nivel de Socio",
-                "value": f"Nivel: {tier['name']} | Visitas históricas: {visits} | Canjes: {redeemed_count} ({tier['next_goal']})"
+                "key": "feedbackForm",
+                "label": "Formulario de comentarios",
+                "value": "⭐ ¿Disfrutaste tu última visita?",
+                "attributedValue": f"<a href='{clean_host}/'>⭐ ¿Disfrutaste tu última visita?</a>"
+            },
+            {
+                "key": "totalStamps",
+                "label": "Total acumulado",
+                "value": str(stamps)
+            },
+            {
+                "key": "nextRewardRemaining",
+                "label": "Para la siguiente recompensa",
+                "value": f"{remaining_stamps_back} sellos"
+            },
+            {
+                "key": "availableRewards",
+                "label": "Disponible",
+                "value": f"{avail_rewards_back} premios"
+            },
+            {
+                "key": "howToGetStamp",
+                "label": "Cómo conseguir un sello",
+                "value": "Por cada compra de una bebida participante o consumo en sucursal obtienes 1 sello digital."
+            },
+            {
+                "key": "totalRewardsAccumulated",
+                "label": "Total acumulado",
+                "value": f"{redeemed_count} premios"
             },
             {
                 "key": "rewardInfo",
-                "label": "Premio del Programa",
-                "value": f"Al completar {goal} sellos: {reward_text}"
+                "label": "Descripción del premio",
+                "value": f"Obtienes un premio después de acumular {goal} sellos ({reward_text})."
             },
             {
-                "key": "liveCardLink",
-                "label": "Tarjeta Digital en Vivo (Sellos y Notificaciones)",
-                "value": f"{clean_host}/card/{serial_number}"
+                "key": "validUntil",
+                "label": "La tarjeta es válida hasta",
+                "value": "Ilimitado"
+            },
+            {
+                "key": "terms",
+                "label": "Términos de Uso",
+                "value": cfg.get("termsText") or CampaignDefaults["termsText"]
+            },
+            {
+                "key": "phoneLink",
+                "label": "Teléfono",
+                "value": "📱 Teléfono (+52 642 113 8069)",
+                "attributedValue": f"<a href='{wa_link_back}'>📱 Teléfono</a>"
+            },
+            {
+                "key": "instagramLink",
+                "label": "Instagram",
+                "value": "Instagram (@maishascafe)",
+                "attributedValue": "<a href='https://www.instagram.com/maishascafe'>Instagram</a>"
+            },
+            {
+                "key": "companyName",
+                "label": "Nombre de empresa",
+                "value": shop_name
+            },
+            {
+                "key": "issuerInfo",
+                "label": "Información del emisor",
+                "value": f"{shop_name}\nhola@maishascafe.com\n+526421138069",
+                "attributedValue": f"{shop_name}\n<a href='mailto:hola@maishascafe.com'>hola@maishascafe.com</a>\n<a href='tel:+526421138069'>+526421138069</a>"
+            },
+            {
+                "key": "memberSerialId",
+                "label": "Número de serie",
+                "value": serial_number
+            },
+            {
+                "key": "updatedAt",
+                "label": "Actualizado",
+                "value": now_str_back
             }
         ]
-        if cfg.get("menuUrl"):
-            back_fields.append({
-                "key": "menuLink",
-                "label": "Menú Digital / WhatsApp",
-                "value": cfg["menuUrl"]
-            })
-
-        extra_info = []
-        if phone:
-            extra_info.append(f"Celular: {phone}")
-        if birthdate:
-            extra_info.append(f"Cumpleaños: {birthdate}")
-        if extra_info:
-            back_fields.append({
-                "key": "memberDetails",
-                "label": "Datos del Cliente",
-                "value": " | ".join(extra_info)
-            })
-
-        back_fields.append({
-            "key": "terms",
-            "label": "Términos y Condiciones",
-            "value": cfg.get("termsText") or CampaignDefaults["termsText"]
-        })
         pass_data["storeCard"]["backFields"] = back_fields
 
         with open(pass_json_path, "w", encoding="utf-8") as f:
