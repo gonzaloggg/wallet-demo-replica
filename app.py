@@ -500,12 +500,11 @@ def calculate_birthday_info(birthdate_str, ref_date=None):
 
 
 def _load_strip_font(size=26):
-    """Carga fuente TrueType con soporte completo de acentos si está disponible en el sistema; si no, usa la fuente base de Pillow."""
+    """Carga la fuente geométrica ExtraBold del diseño (Plus Jakarta Sans) o respaldo TrueType con soporte UTF-8."""
     candidates = [
+        os.path.join(BASE_DIR, "static", "PlusJakartaSans-ExtraBold.ttf"),
         "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
-        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
         "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
-        "/usr/share/fonts/truetype/freefont/FreeSansBold.ttf",
         "/System/Library/Fonts/Supplemental/Arial Bold.ttf",
         "/System/Library/Fonts/Helvetica.ttc",
     ]
@@ -565,8 +564,8 @@ def _cubic_bezier_pts(p0, p1, p2, p3, steps=22):
 
 
 def _draw_vertical_coffee_bean_pil(draw, cx, cy, radius, fill_color):
-    """Dibuja un grano de café vertical y simétrico de dos mitades con hendidura en S."""
-    scale = radius * 0.056
+    """Dibuja un grano de café vertical y simétrico de dos mitades con hendidura en S (idéntico al SVG del Simulador)."""
+    scale = radius * 0.052
 
     def _tr(pt):
         return (cx + (pt[0] - 12.0) * scale, cy + (pt[1] - 12.0) * scale)
@@ -585,180 +584,193 @@ def _draw_vertical_coffee_bean_pil(draw, cx, cy, radius, fill_color):
     draw.polygon([_tr(p) for p in right_pts], fill=fill_color)
 
 
+def _draw_gift_box_pil(draw, cx, cy, radius):
+    """Dibuja el ícono de regalo 🎁 en el último círculo pendiente (idéntico al Simulador Apple Wallet)."""
+    s = radius * 0.44
+    box_w = int(s * 1.15)
+    box_h = int(s * 0.85)
+    lid_w = int(s * 1.28)
+    lid_h = int(s * 0.34)
+    by_top = int(cy - s * 0.12)
+    by_bot = int(cy + box_h)
+    ly_top = int(by_top - lid_h)
+
+    # Moño superior dorado
+    ribbon_gold = (248, 196, 46)
+    ribbon_dark = (214, 154, 18)
+    draw.ellipse([cx - int(s * 0.62), ly_top - int(s * 0.42), cx - int(s * 0.04), ly_top + int(s * 0.12)], fill=ribbon_gold, outline=ribbon_dark, width=2)
+    draw.ellipse([cx + int(s * 0.04), ly_top - int(s * 0.42), cx + int(s * 0.62), ly_top + int(s * 0.12)], fill=ribbon_gold, outline=ribbon_dark, width=2)
+
+    # Caja base roja/coral y tapa
+    draw.rounded_rectangle([cx - box_w, by_top, cx + box_w, by_bot], radius=6, fill=(224, 67, 67))
+    draw.rounded_rectangle([cx - lid_w, ly_top, cx + lid_w, by_top + 2], radius=5, fill=(238, 82, 83))
+
+    # Listón vertical y horizontal dorado
+    rw = max(4, int(s * 0.24))
+    draw.rectangle([cx - rw, ly_top, cx + rw, by_bot], fill=ribbon_gold)
+    draw.rectangle([cx - box_w, int((by_top + by_bot) / 2) - rw // 2, cx + box_w, int((by_top + by_bot) / 2) + rw // 2], fill=ribbon_gold)
+
+
+def _render_circular_logo_rgba(src_path, size):
+    """Recorta cualquier logotipo en formato circular perfecto con antialiasing 4x (igual que border-radius:50% en el Simulador)."""
+    ss = size * 4
+    src = Image.open(src_path).convert("RGBA")
+    w, h = src.size
+    if w != h:
+        m = min(w, h)
+        left = (w - m) // 2
+        top = (h - m) // 2
+        src = src.crop((left, top, left + m, top + m))
+    src = src.resize((ss, ss), Image.Resampling.LANCZOS)
+
+    mask = Image.new("L", (ss, ss), 0)
+    mdraw = ImageDraw.Draw(mask)
+    mdraw.ellipse([2, 2, ss - 3, ss - 3], fill=255)
+
+    out = Image.new("RGBA", (ss, ss), (0, 0, 0, 0))
+    out.paste(src, (0, 0), mask)
+
+    bdraw = ImageDraw.Draw(out)
+    bdraw.ellipse([2, 2, ss - 3, ss - 3], outline=(255, 255, 255, 68), width=max(2, ss // 32))
+
+    return out.resize((size, size), Image.Resampling.LANCZOS)
+
+
 def _create_dynamic_strip_pil(stamps_count, message=None, campaign=None):
     """
-    Crea el objeto PIL Image (1500x500 super-sampled) adaptándose dinámicamente
-    a la configuración de campaña (meta de sellos ej. 8 o 10, colores, premio y banner opcional).
+    Crea el objeto PIL Image (1500x500 super-sampled) replicando con exactitud milimétrica
+    el diseño del Simulador Apple Wallet del Dashboard de Campaña.
     """
     cfg = campaign if isinstance(campaign, dict) else get_campaign_config()
     goal = max(4, min(12, int(cfg.get("stampGoal") or 10)))
     stamps = max(0, min(goal, int(stamps_count or 0)))
     W, H = 1500, 500
 
-    bg_rgb = _hex_to_rgb_tuple(cfg.get("backgroundColor"), (18, 16, 14))
-    fg_rgb = _hex_to_rgb_tuple(cfg.get("foregroundColor"), (245, 242, 235))
-    accent_rgb = _hex_to_rgb_tuple(cfg.get("labelColor"), (212, 175, 55))
+    bg_rgb = _hex_to_rgb_tuple(cfg.get("backgroundColor"), (28, 19, 14))
+    fg_rgb = _hex_to_rgb_tuple(cfg.get("foregroundColor"), (250, 246, 243))
+    accent_rgb = _hex_to_rgb_tuple(cfg.get("labelColor"), (197, 168, 105))
 
-    img = Image.new("RGB", (W, H), bg_rgb)
+    # Color base de la tira: rgba(0, 0, 0, 0.28) sobre backgroundColor (idéntico a #ca-prev-strip-box en el Simulador)
+    strip_bg_rgb = (
+        int(bg_rgb[0] * 0.72),
+        int(bg_rgb[1] * 0.72),
+        int(bg_rgb[2] * 0.72),
+    )
+    img = Image.new("RGB", (W, H), strip_bg_rgb)
 
     if (cfg.get("useCustomStrip") or cfg.get("useCustomStripBg")) and os.path.isfile(CUSTOM_STRIP_BG_PATH):
         try:
             bg_img = Image.open(CUSTOM_STRIP_BG_PATH).convert("RGB").resize((W, H), Image.Resampling.LANCZOS)
-            overlay = Image.new("RGB", (W, H), bg_rgb)
-            img = Image.blend(bg_img, overlay, 0.48)
+            overlay = Image.new("RGB", (W, H), (12, 10, 9))
+            img = Image.blend(bg_img, overlay, 0.62)
+            strip_bg_rgb = (36, 32, 28)
         except Exception:
             pass
-    else:
-        draw_bg = ImageDraw.Draw(img)
-        for y in range(H):
-            t = y / float(H)
-            mid = 1.0 - abs(t - 0.5) * 2.0
-            boost = 24 if stamps >= goal else 12
-            r = min(255, int(bg_rgb[0] + boost * mid))
-            g = min(255, int(bg_rgb[1] + int(boost * 0.85) * mid))
-            b = min(255, int(bg_rgb[2] + int(boost * 0.65) * mid))
-            draw_bg.line([(0, y), (W, y)], fill=(r, g, b))
 
     draw = ImageDraw.Draw(img)
 
-    border_col = accent_rgb if stamps >= goal else (
-        max(30, int(accent_rgb[0] * 0.45)),
-        max(25, int(accent_rgb[1] * 0.45)),
-        max(20, int(accent_rgb[2] * 0.45)),
-    )
-    inner_border_col = (
-        max(25, int(accent_rgb[0] * 0.65)),
-        max(20, int(accent_rgb[1] * 0.65)),
-        max(18, int(accent_rgb[2] * 0.65)),
-    ) if stamps >= goal else (50, 42, 33)
-    draw.rounded_rectangle([24, 18, W - 25, H - 19], radius=36, outline=border_col, width=4)
-    draw.rounded_rectangle([36, 30, W - 37, H - 31], radius=28, outline=inner_border_col, width=2)
+    # Líneas sutiles superior e inferior: border-top / border-bottom 1px solid rgba(255,255,255,0.12)
+    line_col = tuple(min(255, int(strip_bg_rgb[c] * 0.88 + 255 * 0.12)) for c in range(3))
+    draw.line([(0, 1), (W, 1)], fill=line_col, width=3)
+    draw.line([(0, H - 2), (W, H - 2)], fill=line_col, width=3)
 
-    cols_per_row = math.ceil(goal / 2.0) if goal > 5 else goal
-    num_rows = 2 if goal > 5 else 1
-    rows_y = [125, 282] if num_rows == 2 else [205]
+    # Encabezado superior dentro del Strip: "TARJETA DE FIDELIDAD" (izq) y "X/Y SELLOS" (der)
+    font_hdr, has_utf8 = _load_strip_font(size=31)
+    title_left = "TARJETA DE FIDELIDAD"
+    status_right = ("¡META COMPLETADA!" if has_utf8 else "META COMPLETADA!") if stamps >= goal else f"{stamps}/{goal} SELLOS"
+
+    pad_x = 76
+    hdr_y = 28
+    draw.text((pad_x, hdr_y), title_left, fill=accent_rgb, font=font_hdr)
+    rb = draw.textbbox((0, 0), status_right, font=font_hdr)
+    rw = rb[2] - rb[0]
+    draw.text((W - pad_x - rw, hdr_y), status_right, fill=fg_rgb, font=font_hdr)
+
+    # Distribución de columnas idéntica al Simulador (goal <= 4 -> 4, <= 6 -> 3, <= 8 -> 4, <= 10 -> 5, else 6)
+    cols_per_row = 4 if goal <= 4 else (3 if goal <= 6 else (4 if goal <= 8 else (5 if goal <= 10 else 6)))
+    num_rows = int(math.ceil(goal / float(cols_per_row)))
+    rows_y = [174, 318] if num_rows >= 2 else [246]
     radius = 58 if cols_per_row <= 5 else 50
-    margin_x = 230 if cols_per_row <= 5 else 195
-    span_x = W - 2 * margin_x
+
+    # Espaciado horizontal equivalente a CSS grid-template-columns: repeat(cols, 1fr); justify-items: center
+    grid_left = 76
+    grid_width = W - 2 * grid_left
+    cell_w = grid_width / float(cols_per_row)
+
+    font_num, _ = _load_strip_font(size=40)
+
+    # Color del grano de café dentro del círculo ganado: bg_rgb (igual que txtCol = filled ? bg : ... en el Simulador)
+    bean_luma = 0.299 * bg_rgb[0] + 0.587 * bg_rgb[1] + 0.114 * bg_rgb[2]
+    acc_luma = 0.299 * accent_rgb[0] + 0.587 * accent_rgb[1] + 0.114 * accent_rgb[2]
+    bean_col = bg_rgb if abs(bean_luma - acc_luma) >= 35 else ((250, 246, 243) if acc_luma < 150 else (18, 16, 14))
+
+    pending_fill = tuple(min(255, int(strip_bg_rgb[c] * 0.95 + 255 * 0.05)) for c in range(3))
+    pending_border = tuple(min(255, int(strip_bg_rgb[c] * 0.76 + 255 * 0.24)) for c in range(3))
+    pending_txt = tuple(min(255, int(strip_bg_rgb[c] * 0.55 + 255 * 0.45)) for c in range(3))
 
     for idx in range(goal):
         row = idx // cols_per_row
         col = idx % cols_per_row
-        items_in_this_row = min(cols_per_row, goal - row * cols_per_row)
-        if items_in_this_row <= 1:
-            cx = W // 2
-        else:
-            cx = int(margin_x + col * (span_x / float(cols_per_row - 1)))
+        cx = int(grid_left + (col + 0.5) * cell_w)
         cy = rows_y[min(row, len(rows_y) - 1)]
         is_earned = (idx < stamps)
         is_last = (idx == goal - 1)
 
         if is_earned:
-            halo_r = radius + 10
-            draw.ellipse(
-                [cx - halo_r, cy - halo_r, cx + halo_r, cy + halo_r],
-                fill=(max(10, bg_rgb[0] + 20), max(10, bg_rgb[1] + 16), max(10, bg_rgb[2] + 10)),
-                outline=(int(accent_rgb[0] * 0.55), int(accent_rgb[1] * 0.55), int(accent_rgb[2] * 0.55)),
-                width=2
-            )
-            fill_gold = accent_rgb
-            rim_gold = (
-                min(255, accent_rgb[0] + 35),
-                min(255, accent_rgb[1] + 35),
-                min(255, accent_rgb[2] + 35),
-            )
+            # Resplandor suave exterior (box-shadow: 0 0 10px rgba(212,175,55,0.35))
+            for glow_extra, alpha_g in ((10, 0.12), (6, 0.22), (3, 0.34)):
+                gr = radius + glow_extra
+                g_col = tuple(min(255, int(strip_bg_rgb[c] * (1.0 - alpha_g) + accent_rgb[c] * alpha_g)) for c in range(3))
+                draw.ellipse([cx - gr, cy - gr, cx + gr, cy + gr], fill=g_col)
+
+            # Círculo sólido limpio del color acento (sin aros oscuros concéntricos)
             draw.ellipse(
                 [cx - radius, cy - radius, cx + radius, cy + radius],
-                fill=fill_gold,
-                outline=rim_gold,
+                fill=accent_rgb,
+                outline=accent_rgb,
+                width=4
+            )
+            _draw_vertical_coffee_bean_pil(draw, cx, cy, radius, bean_col)
+        else:
+            # Círculo pendiente limpio con borde translúcido suave
+            draw.ellipse(
+                [cx - radius, cy - radius, cx + radius, cy + radius],
+                fill=pending_fill,
+                outline=pending_border,
                 width=5
             )
-            in_r = radius - 12
-            draw.ellipse(
-                [cx - in_r, cy - in_r, cx + in_r, cy + in_r],
-                outline=(max(0, accent_rgb[0] - 55), max(0, accent_rgb[1] - 55), max(0, accent_rgb[2] - 55)),
-                width=3
-            )
-
             if is_last:
-                pts = []
-                for i in range(10):
-                    ang = -math.pi / 2 + i * (math.pi / 5)
-                    rad_p = 26 if i % 2 == 0 else 11
-                    pts.append((cx + rad_p * math.cos(ang), cy + rad_p * math.sin(ang)))
-                draw.polygon(pts, fill=bg_rgb)
+                _draw_gift_box_pil(draw, cx, cy, radius)
             else:
-                _draw_vertical_coffee_bean_pil(draw, cx, cy, radius, bg_rgb)
-        else:
-            bg_pending = (max(8, bg_rgb[0] + 4), max(8, bg_rgb[1] + 3), max(8, bg_rgb[2] + 2))
-            ring_color = accent_rgb if is_last else (76, 64, 50)
-            ring_width = 6 if is_last else 4
-            draw.ellipse(
-                [cx - radius, cy - radius, cx + radius, cy + radius],
-                fill=bg_pending,
-                outline=ring_color,
-                width=ring_width
-            )
-            in_r = radius - 13
-            draw.ellipse(
-                [cx - in_r, cy - in_r, cx + in_r, cy + in_r],
-                outline=(52, 44, 35) if not is_last else (110, 90, 58),
-                width=2
-            )
+                num_str = str(idx + 1)
+                nb = draw.textbbox((0, 0), num_str, font=font_num)
+                nw = nb[2] - nb[0]
+                nh = nb[3] - nb[1]
+                draw.text((cx - nw // 2 - nb[0], cy - nh // 2 - nb[1]), num_str, fill=pending_txt, font=font_num)
 
-            if is_last:
-                pts = []
-                for i in range(10):
-                    ang = -math.pi / 2 + i * (math.pi / 5)
-                    rad_p = 21 if i % 2 == 0 else 9
-                    pts.append((cx + rad_p * math.cos(ang), cy + rad_p * math.sin(ang)))
-                draw.polygon(pts, outline=accent_rgb, fill=(42, 35, 26))
-            else:
-                dot_r = 7
-                draw.ellipse(
-                    [cx - dot_r, cy - dot_r, cx + dot_r, cy + dot_r],
-                    fill=(66, 56, 44)
-                )
-
-    font_banner, has_utf8 = _load_strip_font(size=26)
-    shop_name_clean = _clean_text_for_pil(cfg.get("shopName") or "Maishas Café", has_utf8_font=has_utf8)
-    reward_cfg_clean = _clean_text_for_pil(cfg.get("rewardText") or "Café Gratis", has_utf8_font=has_utf8)
-    raw_msg = _clean_text_for_pil((message or f"Bienvenido a {shop_name_clean}").replace("\u200b", ""), has_utf8_font=has_utf8)
-    if not raw_msg:
-        raw_msg = f"Bienvenido a {shop_name_clean}"
-    if stamps >= goal:
-        reward_txt = f"¡PREMIO LISTO: {reward_cfg_clean.upper()}!" if has_utf8 else f"PREMIO LISTO: {reward_cfg_clean.upper()}!"
-    else:
-        reward_txt = f"Faltan {goal - stamps} sellos ({reward_cfg_clean})"
-    banner_text = f"{reward_txt}  |  AVISO: {raw_msg}"
-    if len(banner_text) > 88:
-        banner_text = banner_text[:85] + "..."
-
-    draw.rounded_rectangle(
-        [64, 382, W - 64, 452],
-        radius=22,
-        fill=(max(10, bg_rgb[0] + 6), max(10, bg_rgb[1] + 5), max(10, bg_rgb[2] + 4)),
-        outline=accent_rgb,
-        width=2
-    )
-
-    bbox = draw.textbbox((0, 0), banner_text, font=font_banner)
-    tw = bbox[2] - bbox[0]
-    th = bbox[3] - bbox[1]
-    tx = max(80, (W - tw) // 2)
-    ty = 382 + (70 - th) // 2 - 3
-    draw.text((tx, ty), banner_text, fill=fg_rgb, font=font_banner)
+    # Pie inferior dentro del Strip: "Premio: <rewardText>" centrado en color acento (sin recuadro)
+    font_footer, has_utf8_f = _load_strip_font(size=32)
+    reward_cfg_clean = _clean_text_for_pil(cfg.get("rewardText") or "1 Café Gratis", has_utf8_font=has_utf8_f)
+    footer_text = f"Premio: {reward_cfg_clean}"
+    if len(footer_text) > 58:
+        footer_text = footer_text[:55] + "..."
+    fb = draw.textbbox((0, 0), footer_text, font=font_footer)
+    fw = fb[2] - fb[0]
+    fh = fb[3] - fb[1]
+    draw.text(((W - fw) // 2 - fb[0], 438 - fh // 2 - fb[1]), footer_text, fill=accent_rgb, font=font_footer)
 
     return img
 
 
 def render_dynamic_strip(stamps_count, output_dir, total_visits=0, message=None, campaign=None):
     """
-    Guarda strip.png (375x125) y strip@2x.png (750x250) para Apple Wallet .pkpass.
+    Guarda strip.png (375x125), strip@2x.png (750x250) y strip@3x.png (1125x375) para Apple Wallet .pkpass.
     """
     img = _create_dynamic_strip_pil(stamps_count, message=message, campaign=campaign)
+    img_3x = img.resize((1125, 375), Image.Resampling.LANCZOS)
     img_2x = img.resize((750, 250), Image.Resampling.LANCZOS)
     img_1x = img.resize((375, 125), Image.Resampling.LANCZOS)
+    img_3x.save(os.path.join(output_dir, "strip@3x.png"), format="PNG", optimize=True)
     img_2x.save(os.path.join(output_dir, "strip@2x.png"), format="PNG", optimize=True)
     img_1x.save(os.path.join(output_dir, "strip.png"), format="PNG", optimize=True)
 
@@ -3768,7 +3780,6 @@ BARISTA_HTML = """
                         </form>
                         {% endif %}
 
-                        <a href="/card/{{ client.serial }}" target="_blank" class="btn-icon-sec" title="Abrir Tarjeta Digital de {{ client.name }}">📲</a>
                         <button type="button" class="btn-icon-sec" title="Generar PIN temporal de 4 dígitos para recuperar tarjeta de {{ client.name }}"
                                 data-serial="{{ client.serial }}"
                                 data-name="{{ client.name|e }}"
@@ -4077,6 +4088,9 @@ BARISTA_HTML = """
                     </p>
                 </div>
                 <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+                    <a href="#buzon-sugerencias-section" class="action-chip" style="text-decoration:none; border-color:rgba(78,48,27,0.35); color:var(--gold-light); padding:8px 13px; font-size:12.5px;">
+                        💬 Buzón de Sugerencias ({{ (feedback_list or [])|length }})
+                    </a>
                     <button type="button" class="btn-export-csv" onclick="downloadClientsCsv(this)">
                         📥 Descargar Clientes (.CSV)
                     </button>
@@ -4340,6 +4354,73 @@ BARISTA_HTML = """
                         <tr>
                             <td colspan="7" style="text-align:center; padding:24px; color:var(--text-secondary);">
                                 Aún no se han registrado movimientos en la bitácora.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- BUZÓN DE SUGERENCIAS Y COMENTARIOS DEL HUB EN MESA (TABLA hub_feedback) -->
+            <div id="buzon-sugerencias-section" class="db-header-card" style="margin-top:22px; border-color:rgba(78,48,27,0.32);">
+                <div>
+                    <div style="display:inline-flex; align-items:center; gap:6px; background:rgba(78,48,27,0.12); border:1px solid rgba(78,48,27,0.32); color:var(--gold-light); padding:3px 10px; border-radius:99px; font-size:11px; font-weight:800; margin-bottom:6px;">
+                        💬 BUZÓN DE SUGERENCIAS EN MESA · SQLite (tabla hub_feedback)
+                    </div>
+                    <h2 style="margin:0; font-size:18px; font-weight:800; color:var(--text-primary);">
+                        Mensajes Recibidos del Buzón de Sugerencias ({{ (feedback_list or [])|length }})
+                    </h2>
+                    <p style="margin:4px 0 0; font-size:12.5px; color:var(--text-secondary);">
+                        Todos los mensajes enviados por los clientes desde el <strong>Buzón de Sugerencias</strong> del Hub Principal (<code>/</code>) se guardan automáticamente en la base de datos SQLite (tabla <code>hub_feedback</code>) con fecha y hora de Sonora.
+                    </p>
+                </div>
+            </div>
+
+            <div class="db-table-wrap" tabindex="0" role="region" aria-label="Buzón de sugerencias recibidas">
+                <table class="db-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Fecha / Hora (Sonora)</th>
+                            <th>Tipo</th>
+                            <th>Cliente / Serial</th>
+                            <th>Mensaje o Sugerencia</th>
+                            <th>Acción</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for fb in feedback_list or [] %}
+                        <tr>
+                            <td><span class="serial-tag">#{{ fb.id }}</span></td>
+                            <td style="font-size:12px; color:var(--text-secondary); white-space:nowrap;">{{ fb.created_at_sonora }}</td>
+                            <td>
+                                {% if fb.sentiment == 'positive' %}
+                                    <span class="status-pill-on">😍 Felicitación</span>
+                                {% else %}
+                                    <span class="status-pill-off" style="color:var(--gold-light); border-color:rgba(78,48,27,0.35); background:rgba(78,48,27,0.10);">💡 Sugerencia</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if fb.client_name %}
+                                    <strong>{{ fb.client_name }}</strong> <span class="serial-tag" style="margin-left:4px;">{{ fb.serial }}</span>
+                                {% elif fb.serial %}
+                                    <span class="serial-tag">{{ fb.serial }}</span>
+                                {% else %}
+                                    <span style="color:var(--text-secondary); font-size:12px;">Cliente en mesa (Anónimo)</span>
+                                {% endif %}
+                            </td>
+                            <td style="max-width:520px; white-space:pre-wrap; line-height:1.45; font-weight:600; color:var(--text-primary);">{{ fb.message }}</td>
+                            <td>
+                                <form action="/api/delete-feedback" method="POST" style="margin:0;">
+                                    <input type="hidden" name="feedback_id" value="{{ fb.id }}">
+                                    <button type="submit" class="btn-icon-sec btn-del-subtle" title="Eliminar este mensaje del buzón">🗑️</button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="6" style="text-align:center; padding:24px; color:var(--text-secondary);">
+                                Aún no se han recibido mensajes en el Buzón de Sugerencias.
                             </td>
                         </tr>
                         {% endfor %}
@@ -5797,14 +5878,23 @@ def generate_signed_pkpass(
         shop_name = (cfg.get("shopName") or "Maishas Café").strip()
         reward_text = (cfg.get("rewardText") or "1 Café Gratis").strip()
 
-        # Si hay un logo personalizado subido en el Dashboard, aplicarlo también a icon.png y logo.png del .pkpass
-        if os.path.isfile(CUSTOM_LOGO_PATH):
-            try:
-                custom_logo_img = Image.open(CUSTOM_LOGO_PATH).convert("RGBA")
-                for fname, sz in [("icon.png", (29, 29)), ("icon@2x.png", (58, 58)), ("logo.png", (50, 50)), ("logo@2x.png", (100, 100))]:
-                    custom_logo_img.resize(sz, Image.Resampling.LANCZOS).save(os.path.join(temp_dir, fname), format="PNG")
-            except Exception:
-                pass
+        # Aplicar SIEMPRE el logo oficial de la cafetería (brand_logo.png o personalizado) en círculo a icon.png y logo.png del .pkpass
+        active_logo_path = _active_logo_file_path()
+        if os.path.isfile(active_logo_path):
+            for fname, px_size in [
+                ("icon.png", 29),
+                ("icon@2x.png", 58),
+                ("icon@3x.png", 87),
+                ("logo.png", 50),
+                ("logo@2x.png", 100),
+                ("logo@3x.png", 150),
+            ]:
+                try:
+                    circ_img = _render_circular_logo_rgba(active_logo_path, px_size)
+                    if circ_img is not None:
+                        circ_img.save(os.path.join(temp_dir, fname), format="PNG")
+                except Exception:
+                    pass
 
         stamps = max(0, min(goal, int(stamps_count or 0)))
         visits = total_visits if total_visits is not None else stamps
@@ -5861,6 +5951,14 @@ def generate_signed_pkpass(
         ]
 
         reward_status = "¡RECOMPENSA LISTA! 🎉" if stamps >= goal else f"Faltan {goal - stamps} sellos"
+        tier_clean_label = (
+            tier["short"]
+            .replace("👑", "")
+            .replace("🥈", "")
+            .replace("🥉", "")
+            .strip()
+            .upper()
+        )
 
         if for_android:
             # Google Wallet y lectores .pkpass de Android requieren primaryFields y auxiliaryFields no vacíos
@@ -5874,13 +5972,13 @@ def generate_signed_pkpass(
             pass_data["storeCard"]["secondaryFields"] = [
                 {
                     "key": "memberName",
-                    "label": "CLIENTE",
+                    "label": f"CLIENTE · {tier_clean_label}",
                     "value": client_name
                 },
                 {
-                    "key": "vipTier",
-                    "label": "NIVEL VIP",
-                    "value": tier["short"]
+                    "key": "rewardGoal",
+                    "label": "¡PREMIO LISTO! 🎉" if stamps >= goal else "PREMIO META",
+                    "value": reward_text
                 }
             ]
             pass_data["storeCard"]["auxiliaryFields"] = [
@@ -5897,17 +5995,18 @@ def generate_signed_pkpass(
             ]
         else:
             # En iPhone (iOS Apple Wallet), primaryFields vacío evita texto sobre el strip.png
+            # secondaryFields idéntico al Simulador Apple Wallet (CLIENTE · <NIVEL> a la izq, PREMIO META a la der)
             pass_data["storeCard"]["primaryFields"] = []
             pass_data["storeCard"]["secondaryFields"] = [
                 {
                     "key": "memberName",
-                    "label": f"CLIENTE · {tier['short'].upper()}",
+                    "label": f"CLIENTE · {tier_clean_label}",
                     "value": client_name
                 },
                 {
-                    "key": "promo",
-                    "label": f"AVISO · {reward_status.upper()}",
-                    "value": clean_visible_msg,
+                    "key": "rewardGoal",
+                    "label": "¡PREMIO LISTO! 🎉" if stamps >= goal else "PREMIO META",
+                    "value": reward_text,
                     "textAlignment": "PKTextAlignmentRight"
                 }
             ]
@@ -6576,6 +6675,28 @@ def barista():
     except Exception:
         pass
 
+    # Cargar mensajes recibidos en el Buzón de Sugerencias (tabla hub_feedback)
+    feedback_list = []
+    try:
+        fb_rows = c.execute("""
+            SELECT f.id, COALESCE(f.serial, ''), COALESCE(c.name, ''), f.message, COALESCE(f.sentiment, 'constructive'), COALESCE(f.created_at_sonora, '')
+            FROM hub_feedback f
+            LEFT JOIN clients c ON c.serial = f.serial
+            ORDER BY f.id DESC
+            LIMIT 100
+        """).fetchall()
+        for fbr in fb_rows:
+            feedback_list.append({
+                "id": fbr[0],
+                "serial": fbr[1] or "",
+                "client_name": fbr[2] or "",
+                "message": fbr[3] or "",
+                "sentiment": fbr[4] or "constructive",
+                "created_at_sonora": fbr[5] or "",
+            })
+    except Exception:
+        pass
+
     conn.close()
 
     campaign_cfg = get_campaign_config()
@@ -6728,6 +6849,7 @@ def barista():
         server_now_epoch=round(datetime.now(timezone.utc).timestamp(), 2),
         dup_confirm=dup_confirm,
         recent_transactions=recent_transactions,
+        feedback_list=feedback_list,
         ok=request.args.get("ok"),
         updated_serial=request.args.get("updated")
     )
@@ -6740,6 +6862,18 @@ def barista():
         samesite="Lax"
     )
     return resp
+
+
+@app.route("/api/delete-feedback", methods=["POST"])
+@requires_auth
+def api_delete_feedback():
+    fb_id = (request.form.get("feedback_id") or "").strip()
+    if fb_id.isdigit():
+        conn = sqlite3.connect(DB_PATH)
+        conn.execute("DELETE FROM hub_feedback WHERE id = ?", (int(fb_id),))
+        conn.commit()
+        conn.close()
+    return redirect(url_for("barista", ok="🗑️ Mensaje eliminado del Buzón de Sugerencias"))
 
 
 @app.route("/api/export-clients.csv")
