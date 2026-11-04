@@ -787,7 +787,9 @@ def init_db():
             created_at TEXT,
             last_action TEXT DEFAULT 'add',
             status TEXT DEFAULT 'active',
-            deactivated_at TEXT DEFAULT ''
+            deactivated_at TEXT DEFAULT '',
+            recovery_pin TEXT DEFAULT '',
+            recovery_pin_expires INTEGER DEFAULT 0
         )
     ''')
     cols = [r[1] for r in c.execute("PRAGMA table_info(clients)")]
@@ -805,6 +807,8 @@ def init_db():
         ("last_action", "ALTER TABLE clients ADD COLUMN last_action TEXT DEFAULT 'add'"),
         ("status", "ALTER TABLE clients ADD COLUMN status TEXT DEFAULT 'active'"),
         ("deactivated_at", "ALTER TABLE clients ADD COLUMN deactivated_at TEXT DEFAULT ''"),
+        ("recovery_pin", "ALTER TABLE clients ADD COLUMN recovery_pin TEXT DEFAULT ''"),
+        ("recovery_pin_expires", "ALTER TABLE clients ADD COLUMN recovery_pin_expires INTEGER DEFAULT 0"),
     ]
     for col_name, sql in migrations:
         if col_name not in cols:
@@ -3503,6 +3507,37 @@ BARISTA_HTML = """
         </div>
     </div>
 
+    <!-- MODAL DE PIN TEMPORAL DE RECUPERACIÓN (4 DÍGITOS · VÁLIDO 10 MIN) -->
+    <div class="custom-modal-backdrop" id="maishas-pin-modal">
+        <div class="custom-modal-box" style="max-width:410px; text-align:center;">
+            <div class="cm-icon warn" style="font-size:24px;">🔑</div>
+            <div class="cm-brand">Seguridad Anti-Robo de Sellos</div>
+            <h3 class="cm-title">PIN de Recuperación</h3>
+            <p class="cm-desc" style="margin-bottom:12px;">
+                Comparte este código temporal de <strong>4 dígitos</strong> con <strong id="pin-modal-client-name" style="color:var(--text-primary);">Cliente</strong> (<span id="pin-modal-client-serial" style="font-family:monospace;">MAISHAS-000000</span>) para que recupere su tarjeta en su celular:
+            </p>
+            <div style="background:#EADFD7; border:2px dashed rgba(78,48,27,0.35); border-radius:18px; padding:16px 14px; margin-bottom:12px;">
+                <div id="pin-modal-digits" style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:38px; font-weight:900; letter-spacing:10px; color:#121212; line-height:1.1;">
+                    ••••
+                </div>
+                <div id="pin-modal-status" style="font-size:11.5px; font-weight:700; color:#4A5D23; margin-top:6px;">
+                    ⏳ Válido por 10 minutos · Un solo uso
+                </div>
+            </div>
+            <div style="display:flex; flex-direction:column; gap:8px;">
+                <a id="pin-modal-wa-link" href="#" target="_blank" rel="noopener noreferrer"
+                   style="display:none; width:100%; padding:12px 14px; border-radius:13px; background:#1E7A34; color:#FFFFFF; font-weight:800; font-size:13.5px; text-decoration:none; align-items:center; justify-content:center; gap:7px;">
+                    <span>📲</span>
+                    <span>Enviar PIN al WhatsApp registrado</span>
+                </a>
+                <div class="cm-actions" style="margin-top:4px;">
+                    <button type="button" class="cm-btn-cancel" onclick="regenerateRecoveryPin()">🔄 Nuevo PIN</button>
+                    <button type="button" class="cm-btn-confirm warn" onclick="closeRecoveryPinModal()">Listo</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <header class="sticky-header">
         <div class="header-inner">
             <div class="brand-Cluster">
@@ -3726,6 +3761,11 @@ BARISTA_HTML = """
                         {% endif %}
 
                         <a href="/card/{{ client.serial }}" target="_blank" class="btn-icon-sec" title="Abrir Tarjeta Digital de {{ client.name }}">📲</a>
+                        <button type="button" class="btn-icon-sec" title="Generar PIN temporal de 4 dígitos para recuperar tarjeta de {{ client.name }}"
+                                data-serial="{{ client.serial }}"
+                                data-name="{{ client.name|e }}"
+                                data-phone="{{ client.phone|e }}"
+                                onclick="openRecoveryPinModal(this)">🔑</button>
                         <button type="button" class="btn-icon-sec" title="Enviar mensaje directo a {{ client.name }}" data-name="{{ client.name|e }}" onclick="selectClientForPush('{{ client.serial }}', this.dataset.name)">💬</button>
                         <button type="button" class="btn-icon-sec" title="Editar datos de {{ client.name }}"
                                 data-serial="{{ client.serial }}"
@@ -4094,6 +4134,11 @@ BARISTA_HTML = """
                             </td>
                             <td>
                                 <div style="display:inline-flex; align-items:center; gap:6px;">
+                                    <button type="button" class="btn-icon-sec" title="Generar PIN de 4 dígitos para recuperar tarjeta de {{ client.name }}"
+                                            data-serial="{{ client.serial }}"
+                                            data-name="{{ client.name|e }}"
+                                            data-phone="{{ client.phone|e }}"
+                                            onclick="openRecoveryPinModal(this)">🔑</button>
                                     <button type="button" class="btn-icon-sec" title="Editar datos de {{ client.name }}"
                                             data-serial="{{ client.serial }}"
                                             data-name="{{ client.name|e }}"
@@ -4784,6 +4829,66 @@ BARISTA_HTML = """
 
         function closeEditClientModal() {
             const modal = document.getElementById('maishas-edit-modal');
+            if (modal) modal.classList.remove('open');
+        }
+
+        // Modal de PIN Temporal de Recuperación (4 dígitos · Válido 10 min)
+        let activePinClient = { serial: '', name: '', phone: '' };
+
+        async function openRecoveryPinModal(btnEl) {
+            if (!btnEl) return;
+            activePinClient = {
+                serial: btnEl.dataset.serial || '',
+                name: btnEl.dataset.name || 'Cliente',
+                phone: btnEl.dataset.phone || ''
+            };
+            document.getElementById('pin-modal-client-name').textContent = activePinClient.name;
+            document.getElementById('pin-modal-client-serial').textContent = activePinClient.serial;
+            document.getElementById('pin-modal-digits').textContent = '••••';
+            document.getElementById('pin-modal-status').textContent = 'Generando código seguro de 4 dígitos...';
+            document.getElementById('pin-modal-wa-link').style.display = 'none';
+            document.getElementById('maishas-pin-modal').classList.add('open');
+            await regenerateRecoveryPin();
+        }
+
+        async function regenerateRecoveryPin() {
+            if (!activePinClient.serial) return;
+            const digitsEl = document.getElementById('pin-modal-digits');
+            const statusEl = document.getElementById('pin-modal-status');
+            const waLink = document.getElementById('pin-modal-wa-link');
+            digitsEl.textContent = '••••';
+            statusEl.textContent = 'Generando PIN...';
+            try {
+                const res = await fetch('/api/barista/recovery-pin', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ serial: activePinClient.serial })
+                });
+                const data = await res.json();
+                if (res.ok && data.ok && data.pin) {
+                    digitsEl.textContent = data.pin;
+                    statusEl.textContent = '⏳ Válido por 10 minutos · Un solo uso';
+                    const rawDigits = (data.phone || activePinClient.phone || '').replace(/\D+/g, '');
+                    if (rawDigits.length >= 10) {
+                        const ten = rawDigits.slice(-10);
+                        const msg = encodeURIComponent(`Hola ${activePinClient.name} ☕️ Tu PIN temporal de seguridad para recuperar tu tarjeta de Maishas Café es: *${data.pin}* (válido por 10 minutos).`);
+                        waLink.href = `https://wa.me/52${ten}?text=${msg}`;
+                        waLink.style.display = 'inline-flex';
+                    } else {
+                        waLink.style.display = 'none';
+                    }
+                } else {
+                    digitsEl.textContent = 'ERR';
+                    statusEl.textContent = data.error || 'No se pudo generar el PIN.';
+                }
+            } catch (e) {
+                digitsEl.textContent = 'ERR';
+                statusEl.textContent = 'Error de red al generar PIN.';
+            }
+        }
+
+        function closeRecoveryPinModal() {
+            const modal = document.getElementById('maishas-pin-modal');
             if (modal) modal.classList.remove('open');
         }
 
@@ -6018,46 +6123,56 @@ def api_hub_register():
     c = conn.cursor()
 
     existing = None
+    conflict_field = ""
     norm_phone = _normalize_phone_digits(phone)
-    if email:
-        existing = c.execute(
-            "SELECT serial, stamps, total_visits, redeemed_count, message, phone, birthdate, email FROM clients WHERE COALESCE(status, 'active') != 'hidden' AND LOWER(TRIM(email)) = LOWER(?) ORDER BY rowid DESC LIMIT 1",
-            (email,)
-        ).fetchone()
-    if not existing and len(norm_phone) == 10:
+    if len(norm_phone) == 10:
         all_with_phone = c.execute(
             "SELECT serial, stamps, total_visits, redeemed_count, message, phone, birthdate, email FROM clients WHERE COALESCE(status, 'active') != 'hidden' AND phone IS NOT NULL AND TRIM(phone) != '' ORDER BY rowid DESC"
         ).fetchall()
         for row_p in all_with_phone:
             if _normalize_phone_digits(row_p[5]) == norm_phone:
                 existing = row_p
+                conflict_field = "phone"
                 break
+    if not existing and email:
+        existing = c.execute(
+            "SELECT serial, stamps, total_visits, redeemed_count, message, phone, birthdate, email FROM clients WHERE COALESCE(status, 'active') != 'hidden' AND LOWER(TRIM(email)) = LOWER(?) ORDER BY rowid DESC LIMIT 1",
+            (email,)
+        ).fetchone()
+        if existing:
+            conflict_field = "email"
 
     if existing:
-        serial_number = existing[0]
-        stamps_val = existing[1] or 0
-        final_phone = phone if phone else (existing[5] or "")
-        final_bdate = birthdate if birthdate else (existing[6] or "")
-        final_email = email if email else (existing[7] or "")
+        existing_serial = existing[0]
         c.execute(
-            """UPDATE clients
-               SET name = ?, email = ?, phone = ?, birthdate = ?, updated_at = ?,
-                   platform = ?, android_active = CASE WHEN ? = 1 THEN 1 ELSE android_active END,
-                   status = 'active', deactivated_at = ''
-               WHERE serial = ?""",
-            (name or "Cliente", final_email, final_phone, final_bdate, now_ts, platform, android_active, serial_number)
+            "INSERT INTO wallet_logs (created_at, log_text) VALUES (?, ?)",
+            (now_ts, f"🛡️ Alta bloqueada por seguridad ({conflict_field} ya registrado en {existing_serial})")
         )
-    else:
-        serial_number = f"MAISHAS-{uuid.uuid4().hex[:6].upper()}"
-        stamps_val = 0
-        final_phone = phone
-        final_bdate = birthdate
-        final_email = email
-        c.execute(
-            """INSERT INTO clients (serial, name, email, phone, birthdate, stamps, total_visits, redeemed_count, message, updated_at, platform, android_active, created_at, last_action, status, deactivated_at)
-               VALUES (?, ?, ?, ?, ?, 0, 0, 0, ?, ?, ?, ?, ?, 'add', 'active', '')""",
-            (serial_number, name or "Cliente", final_email, final_phone, final_bdate, DEFAULT_MESSAGE, now_ts, platform, android_active, created_sonora)
+        conn.commit()
+        conn.close()
+        conflict_msg = (
+            "Este número de celular ya tiene una tarjeta registrada en Maishas Café."
+            if conflict_field == "phone"
+            else "Este correo electrónico ya tiene una tarjeta registrada en Maishas Café."
         )
+        return jsonify({
+            "ok": False,
+            "code": "ALREADY_EXISTS",
+            "conflict_field": conflict_field,
+            "conflict_value": phone if conflict_field == "phone" else email,
+            "error": f"{conflict_msg} Por seguridad y para proteger tus sellos, solicita al barista tu PIN temporal de 4 dígitos para recuperar tu tarjeta."
+        }), 409
+
+    serial_number = f"MAISHAS-{uuid.uuid4().hex[:6].upper()}"
+    stamps_val = 0
+    final_phone = phone
+    final_bdate = birthdate
+    final_email = email
+    c.execute(
+        """INSERT INTO clients (serial, name, email, phone, birthdate, stamps, total_visits, redeemed_count, message, updated_at, platform, android_active, created_at, last_action, status, deactivated_at, recovery_pin, recovery_pin_expires)
+           VALUES (?, ?, ?, ?, ?, 0, 0, 0, ?, ?, ?, ?, ?, 'add', 'active', '', '', 0)""",
+        (serial_number, name or "Cliente", final_email, final_phone, final_bdate, DEFAULT_MESSAGE, now_ts, platform, android_active, created_sonora)
+    )
 
     conn.commit()
     conn.close()
@@ -6078,10 +6193,53 @@ def api_hub_register():
     })
 
 
+@app.route("/api/barista/recovery-pin", methods=["POST"])
+@requires_auth
+def api_barista_recovery_pin():
+    import secrets
+    data = request.get_json(force=True, silent=True) or {}
+    serial = (data.get("serial") or request.form.get("serial") or "").strip().upper()
+    if not serial:
+        return jsonify({"ok": False, "error": "Código de cliente requerido."}), 400
+
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    row = c.execute(
+        "SELECT serial, name, phone FROM clients WHERE UPPER(serial) = ? AND COALESCE(status, 'active') != 'hidden' LIMIT 1",
+        (serial,)
+    ).fetchone()
+    if not row:
+        conn.close()
+        return jsonify({"ok": False, "error": "Cliente no encontrado."}), 404
+
+    pin = f"{secrets.randbelow(9000) + 1000}"
+    expires_epoch = int(time.time()) + 600  # 10 minutos
+    c.execute(
+        "UPDATE clients SET recovery_pin = ?, recovery_pin_expires = ? WHERE serial = ?",
+        (pin, expires_epoch, row[0])
+    )
+    c.execute(
+        "INSERT INTO wallet_logs (created_at, log_text) VALUES (?, ?)",
+        (get_utc_timestamp(), f"🔑 PIN de recuperación generado para {row[1]} ({row[0]}): {pin} (válido 10 min)")
+    )
+    conn.commit()
+    conn.close()
+
+    return jsonify({
+        "ok": True,
+        "serial": row[0],
+        "name": row[1] or "Cliente",
+        "phone": row[2] or "",
+        "pin": pin,
+        "expires_in_seconds": 600
+    })
+
+
 @app.route("/api/hub/lookup", methods=["POST"])
 def api_hub_lookup():
     data = request.get_json(force=True, silent=True) or {}
     query = (data.get("query") or "").strip()
+    pin = (data.get("pin") or "").strip()
     demo_first = bool(data.get("demo_first"))
 
     conn = sqlite3.connect(DB_PATH)
@@ -6090,24 +6248,75 @@ def api_hub_lookup():
 
     if demo_first and not query:
         found = c.execute(
-            "SELECT serial, name, email, phone, birthdate, stamps FROM clients WHERE COALESCE(status, 'active') = 'active' ORDER BY rowid ASC LIMIT 1"
+            "SELECT serial, name, email, phone, birthdate, stamps, recovery_pin, recovery_pin_expires FROM clients WHERE COALESCE(status, 'active') = 'active' ORDER BY rowid ASC LIMIT 1"
         ).fetchone()
+        conn.close()
     elif query:
+        if not pin or len(pin) != 4 or not pin.isdigit():
+            conn.close()
+            return jsonify({
+                "ok": False,
+                "code": "PIN_REQUIRED",
+                "error": "Por seguridad, ingresa también el PIN temporal de 4 dígitos que te proporcione el barista en mostrador."
+            }), 400
+
         q_up = query.upper()
         norm_p = _normalize_phone_digits(query)
         found = c.execute(
-            "SELECT serial, name, email, phone, birthdate, stamps FROM clients WHERE COALESCE(status, 'active') = 'active' AND (UPPER(serial) = ? OR LOWER(TRIM(email)) = LOWER(?)) ORDER BY rowid DESC LIMIT 1",
+            "SELECT serial, name, email, phone, birthdate, stamps, recovery_pin, recovery_pin_expires FROM clients WHERE COALESCE(status, 'active') = 'active' AND (UPPER(serial) = ? OR LOWER(TRIM(email)) = LOWER(?)) ORDER BY rowid DESC LIMIT 1",
             (q_up if q_up.startswith("MAISHAS-") else f"MAISHAS-{q_up}", query)
         ).fetchone()
         if not found and len(norm_p) == 10:
             rows = c.execute(
-                "SELECT serial, name, email, phone, birthdate, stamps FROM clients WHERE COALESCE(status, 'active') = 'active' AND phone IS NOT NULL AND TRIM(phone) != '' ORDER BY rowid DESC"
+                "SELECT serial, name, email, phone, birthdate, stamps, recovery_pin, recovery_pin_expires FROM clients WHERE COALESCE(status, 'active') = 'active' AND phone IS NOT NULL AND TRIM(phone) != '' ORDER BY rowid DESC"
             ).fetchall()
             for r in rows:
                 if _normalize_phone_digits(r[3]) == norm_p:
                     found = r
                     break
-    conn.close()
+
+        if not found:
+            conn.close()
+            return jsonify({"ok": False, "error": "No encontramos una tarjeta activa con ese celular o correo."}), 404
+
+        db_pin = (found[6] or "").strip()
+        db_exp = int(found[7] or 0)
+        now_epoch = int(time.time())
+
+        if not db_pin or db_pin != pin:
+            c.execute(
+                "INSERT INTO wallet_logs (created_at, log_text) VALUES (?, ?)",
+                (get_utc_timestamp(), f"⚠️ Intento fallido de recuperación con PIN inválido para {found[0]}")
+            )
+            conn.commit()
+            conn.close()
+            return jsonify({
+                "ok": False,
+                "code": "PIN_INVALID",
+                "error": "El PIN de 4 dígitos es incorrecto. Acércate con el barista para pedir tu código de recuperación vigente."
+            }), 403
+
+        if now_epoch > db_exp:
+            conn.close()
+            return jsonify({
+                "ok": False,
+                "code": "PIN_EXPIRED",
+                "error": "El PIN temporal ya expiró (tiene vigencia de 10 minutos). Pide al barista que genere uno nuevo."
+            }), 403
+
+        # Consumir el PIN tras el uso exitoso (One-Time Password)
+        c.execute(
+            "UPDATE clients SET recovery_pin = '', recovery_pin_expires = 0 WHERE serial = ?",
+            (found[0],)
+        )
+        c.execute(
+            "INSERT INTO wallet_logs (created_at, log_text) VALUES (?, ?)",
+            (get_utc_timestamp(), f"✅ Tarjeta recuperada con PIN verificado: {found[1]} ({found[0]})")
+        )
+        conn.commit()
+        conn.close()
+    else:
+        conn.close()
 
     if not found:
         return jsonify({"ok": False, "error": "No encontramos una tarjeta activa con ese dato."}), 404
@@ -6610,15 +6819,9 @@ def register():
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
 
-    # Evitar duplicados: reutilizar ID MAISHAS-XXXXXX si coincide correo, celular (10 dígitos) o nombre (excepto registros ocultos/purgados)
     existing = None
     norm_phone = _normalize_phone_digits(phone)
-    if email:
-        existing = c.execute(
-            "SELECT serial, stamps, total_visits, redeemed_count, message, phone, birthdate, email FROM clients WHERE COALESCE(status, 'active') != 'hidden' AND LOWER(TRIM(email)) = LOWER(?) ORDER BY rowid DESC LIMIT 1",
-            (email,)
-        ).fetchone()
-    if not existing and len(norm_phone) == 10:
+    if len(norm_phone) == 10:
         all_with_phone = c.execute(
             "SELECT serial, stamps, total_visits, redeemed_count, message, phone, birthdate, email FROM clients WHERE COALESCE(status, 'active') != 'hidden' AND phone IS NOT NULL AND TRIM(phone) != '' ORDER BY rowid DESC"
         ).fetchall()
@@ -6626,42 +6829,28 @@ def register():
             if _normalize_phone_digits(row_p[5]) == norm_phone:
                 existing = row_p
                 break
-    if not existing and name and not email and len(norm_phone) < 10:
+    if not existing and email:
         existing = c.execute(
-            "SELECT serial, stamps, total_visits, redeemed_count, message, phone, birthdate, email FROM clients WHERE COALESCE(status, 'active') != 'hidden' AND LOWER(TRIM(name)) = LOWER(?) ORDER BY rowid DESC LIMIT 1",
-            (name,)
+            "SELECT serial, stamps, total_visits, redeemed_count, message, phone, birthdate, email FROM clients WHERE COALESCE(status, 'active') != 'hidden' AND LOWER(TRIM(email)) = LOWER(?) ORDER BY rowid DESC LIMIT 1",
+            (email,)
         ).fetchone()
 
     if existing:
-        serial_number = existing[0]
-        stamps_val = existing[1] or 0
-        visits_val = existing[2] if existing[2] is not None else stamps_val
-        redeemed_val = existing[3] or 0
-        msg_val = existing[4] or DEFAULT_MESSAGE
-        final_phone = phone if phone else (existing[5] or "")
-        final_bdate = birthdate if birthdate else (existing[6] or "")
-        final_email = email if email else (existing[7] or "")
-        c.execute(
-            """UPDATE clients
-               SET name = ?, email = ?, phone = ?, birthdate = ?, updated_at = ?,
-                   platform = ?, android_active = CASE WHEN ? = 1 THEN 1 ELSE android_active END,
-                   status = 'active', deactivated_at = ''
-               WHERE serial = ?""",
-            (name or "Cliente", final_email, final_phone, final_bdate, now_ts, platform, android_active, serial_number)
-        )
-    else:
-        serial_number = f"MAISHAS-{uuid.uuid4().hex[:6].upper()}"
-        stamps_val = 0
-        visits_val = 0
-        redeemed_val = 0
-        msg_val = DEFAULT_MESSAGE
-        final_phone = phone
-        final_bdate = birthdate
-        c.execute(
-            """INSERT INTO clients (serial, name, email, phone, birthdate, stamps, total_visits, redeemed_count, message, updated_at, platform, android_active, created_at, last_action, status, deactivated_at)
-               VALUES (?, ?, ?, ?, ?, 0, 0, 0, ?, ?, ?, ?, ?, 'add', 'active', '')""",
-            (serial_number, name, email, final_phone, final_bdate, msg_val, now_ts, platform, android_active, created_sonora)
-        )
+        conn.close()
+        return redirect("/?recover=1")
+
+    serial_number = f"MAISHAS-{uuid.uuid4().hex[:6].upper()}"
+    stamps_val = 0
+    visits_val = 0
+    redeemed_val = 0
+    msg_val = DEFAULT_MESSAGE
+    final_phone = phone
+    final_bdate = birthdate
+    c.execute(
+        """INSERT INTO clients (serial, name, email, phone, birthdate, stamps, total_visits, redeemed_count, message, updated_at, platform, android_active, created_at, last_action, status, deactivated_at, recovery_pin, recovery_pin_expires)
+           VALUES (?, ?, ?, ?, ?, 0, 0, 0, ?, ?, ?, ?, ?, 'add', 'active', '', '', 0)""",
+        (serial_number, name, email, final_phone, final_bdate, msg_val, now_ts, platform, android_active, created_sonora)
+    )
 
     conn.commit()
     conn.close()
