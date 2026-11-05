@@ -6021,7 +6021,8 @@ def generate_signed_pkpass(
         ]
         pass_data["maxDistance"] = 150
 
-        clean_host = host_url.rstrip("/")
+        explicit_base = (os.environ.get("PUBLIC_BASE_URL") or "").strip().rstrip("/")
+        clean_host = explicit_base if explicit_base else host_url.rstrip("/")
         if not ("localhost" in clean_host or "127.0.0.1" in clean_host):
             clean_host = clean_host.replace("http://", "https://", 1)
         pass_data["webServiceURL"] = f"{clean_host}/"
@@ -8408,6 +8409,9 @@ def google_wallet_enabled():
 
 
 def _public_base_url():
+    explicit_env = (os.environ.get("PUBLIC_BASE_URL") or "").strip().rstrip("/")
+    if explicit_env:
+        return explicit_env.replace("http://", "https://", 1)
     try:
         if request:
             host = request.host_url.rstrip("/")
