@@ -3,9 +3,9 @@
   "passTypeIdentifier": "pass.com.maishascafe.loyalty",
   "serialNumber": "MAISHAS-10001",
   "teamIdentifier": "8ST5HCY9ZB",
-  "organizationName": "Maishas Café",
-  "description": "Tarjeta de Fidelización Maishas Café",
-  "logoText": "MAISHAS CAFÉ",
+  "organizationName": "Demo Café",
+  "description": "Tarjeta de Fidelización Demo Café",
+  "logoText": "DEMO CAFÉ",
   "foregroundColor": "rgb(245, 242, 235)",
   "backgroundColor": "rgb(18, 16, 14)",
   "labelColor": "rgb(198, 166, 117)",
@@ -23,7 +23,7 @@
       {
         "key": "memberName",
         "label": "CLIENTE",
-        "value": "Gonzalo Gómez"
+        "value": "Socio Demo"
       },
       {
         "key": "balance",
@@ -40,25 +40,25 @@
     "auxiliaryFields": [
       {
         "key": "promo",
-        "label": "AVISO MAISHAS",
-        "value": "¡Bienvenido a Maishas Café! Aquí verás nuestras promociones."
+        "label": "AVISO DEMO",
+        "value": "¡Bienvenido a Demo Café! Aquí verás nuestras promociones."
       }
     ],
     "backFields": [
       {
         "key": "terms",
         "label": "Términos y Condiciones",
-        "value": "Acumula 1 sello por cada compra de café. Al completar 10 sellos, obtén un café de cualquier tamaño totalmente gratis. Válido únicamente en sucursal Maishas Café."
+        "value": "Acumula 1 sello por cada compra de café. Al completar 10 sellos, obtén un café de cualquier tamaño totalmente gratis. Válido únicamente en sucursal Demo Café."
       },
       {
         "key": "instagram",
         "label": "Instagram",
-        "value": "@maishascafe"
+        "value": "@democafe"
       },
       {
         "key": "slogan",
         "label": "Especialidad",
-        "value": "Artisan Coffee · Maishas Café"
+        "value": "Artisan Coffee · Demo Café"
       }
     ]
   },

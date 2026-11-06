@@ -79,7 +79,7 @@ BARISTA_LOGIN_HTML = """
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Maisha's Café — Barista POS</title>
+    <title>Demo Café — Barista POS</title>
     <meta name="theme-color" content="#F4ECE6">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -200,7 +200,7 @@ BARISTA_LOGIN_HTML = """
             margin-bottom: 14px;
         }
     </style>
-    <title>[DEMO] Maisha's Café — Barista POS</title>
+    <title>[DEMO] Demo Café — Barista POS</title>
 </head>
 <body>
     <div class="login-card">
@@ -209,7 +209,7 @@ BARISTA_LOGIN_HTML = """
         </div>
         <div class="login-emblem">☕️</div>
         <h1 class="login-title">Iniciar sesión <span style="color:#4A5D23; font-size:15px;">(DEMO)</span></h1>
-        <p class="login-sub">Maisha's Café · Consola Barista DEMO</p>
+        <p class="login-sub">Demo Café · Consola Barista DEMO</p>
         {% if error %}
         <div class="login-error">{{ error }}</div>
         {% endif %}
@@ -290,10 +290,10 @@ for env_var, file_path in [("ENV_KEY_PEM", KEY_PEM), ("ENV_CERT_PEM", CERT_PEM),
             f.write(val)
 
 PASS_TYPE_ID = "pass.com.maishascafe.loyalty"
-DEFAULT_MESSAGE = "¡Bienvenido a Maishas Café! ☕️"
+DEFAULT_MESSAGE = "¡Bienvenido a Demo Café! ☕️"
 DEFAULT_LAT = 27.0706
 DEFAULT_LNG = -109.4437
-DEFAULT_GEO_TEXT = "☕️ ¡Estás cerca de Maishas Café! Pasa por tu café favorito y suma tu sello de hoy ✨"
+DEFAULT_GEO_TEXT = "☕️ ¡Estás cerca de Demo Café! Pasa por tu café favorito y suma tu sello de hoy ✨"
 
 # Zona horaria de Navojoa, Sonora (America/Hermosillo: UTC-7 fijo todo el año)
 SONORA_TZ = timezone(timedelta(hours=-7))
@@ -927,18 +927,56 @@ def init_db():
         "shop_relevant_text": DEFAULT_GEO_TEXT,
         "bday_auto_enabled": "1",
         "bday_auto_hour": "08:00",
-        "bday_auto_template": "🎂 ¡Feliz cumpleaños, {nombre}! Hoy tienes una bebida o postre de cortesía en Maishas Café ☕️✨",
-        "hub_slogan": "Tu rincón favorito de café en Navojoa",
-        "hub_wifi_ssid": "Maishas_Cafe",
-        "hub_wifi_pass": "cafemaishas",
-        "hub_google_review_url": "https://www.google.com/maps/search/?api=1&query=Maishas+Cafe+Matamoros+220+Navojoa+Sonora",
-        "hub_instagram_url": "https://www.instagram.com/maishascafe/",
-        "hub_instagram_handle": "@maishascafe",
-        "hub_address": "Matamoros entre No Reelección y Pesqueira #220",
+        "bday_auto_template": "🎂 ¡Feliz cumpleaños, {nombre}! Hoy tienes una bebida o postre de cortesía en Demo Café ☕️✨",
+        "hub_slogan": "Tu rincón favorito de café de especialidad",
+        "hub_wifi_ssid": "Demo_Cafe_WiFi",
+        "hub_wifi_pass": "democafe2026",
+        "hub_google_review_url": "https://www.google.com/maps",
+        "hub_instagram_url": "https://www.instagram.com/",
+        "hub_instagram_handle": "@democafe",
+        "hub_address": "Av. Principal #100, Col. Centro",
         "hub_phone": "642 113 8069",
     }
     for k, v in default_settings.items():
         c.execute("INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)", (k, v))
+
+    # Migrar valores preexistentes de Maisha's Café a Demo Café en la base de datos DEMO
+    rebrand_done = c.execute("SELECT value FROM settings WHERE key = 'demo_rebrand_v1'").fetchone()
+    if not rebrand_done:
+        for k, v in default_settings.items():
+            if k in ("shop_relevant_text", "bday_auto_template", "hub_slogan", "hub_wifi_ssid", "hub_wifi_pass", "hub_google_review_url", "hub_instagram_url", "hub_instagram_handle", "hub_address"):
+                c.execute("UPDATE settings SET value = ? WHERE key = ?", (v, k))
+        cfg_row = c.execute("SELECT value FROM settings WHERE key = 'campaign_config_json'").fetchone()
+        if cfg_row and cfg_row[0]:
+            try:
+                cfg_obj = json.loads(cfg_row[0])
+                if isinstance(cfg_obj, dict):
+                    for field_k in ("shopName", "termsText", "relevantText"):
+                        if isinstance(cfg_obj.get(field_k), str):
+                            cfg_obj[field_k] = (
+                                cfg_obj[field_k]
+                                .replace("Maisha's Café", "Demo Café")
+                                .replace("Maishas Café", "Demo Café")
+                                .replace("MAISHA'S CAFÉ", "DEMO CAFÉ")
+                                .replace("MAISHAS CAFÉ", "DEMO CAFÉ")
+                                .replace("Maisha's", "Demo Café")
+                                .replace("Maishas", "Demo Café")
+                            )
+                    c.execute(
+                        "UPDATE settings SET value = ? WHERE key = 'campaign_config_json'",
+                        (json.dumps(cfg_obj, ensure_ascii=False),)
+                    )
+            except Exception:
+                pass
+        c.execute(
+            "UPDATE clients SET message = REPLACE(REPLACE(message, 'Maisha''s Café', 'Demo Café'), 'Maishas Café', 'Demo Café') WHERE message LIKE '%Maisha%'"
+        )
+        if os.path.isfile(CUSTOM_LOGO_PATH):
+            try:
+                os.remove(CUSTOM_LOGO_PATH)
+            except Exception:
+                pass
+        c.execute("INSERT OR REPLACE INTO settings (key, value) VALUES ('demo_rebrand_v1', '1')")
 
     conn.commit()
     conn.close()
@@ -955,19 +993,37 @@ def get_hub_config():
         "SELECT key, value FROM settings WHERE key LIKE 'hub_%'"
     ).fetchall())
     conn.close()
+
+    def _clean_maisha(val, fallback):
+        s = (val or fallback).strip()
+        for old, new in [
+            ("Maisha's Café", "Demo Café"),
+            ("Maishas Café", "Demo Café"),
+            ("Maishas_Cafe", "Demo_Cafe_WiFi"),
+            ("cafemaishas", "democafe2026"),
+            ("https://www.instagram.com/maishascafe/", "https://www.instagram.com/"),
+            ("@maishascafe", "@democafe"),
+            ("Matamoros entre No Reelección y Pesqueira #220", "Av. Principal #100, Col. Centro"),
+            ("Tu rincón favorito de café en Navojoa", "Tu rincón favorito de café de especialidad"),
+        ]:
+            s = s.replace(old, new)
+        if "Maishas+Cafe" in s:
+            s = "https://www.google.com/maps"
+        return s
+
     return {
-        "slogan": (rows.get("hub_slogan") or "Tu rincón favorito de café en Navojoa").strip(),
-        "wifi_ssid": (rows.get("hub_wifi_ssid") or "Maishas_Cafe").strip(),
-        "wifi_pass": (rows.get("hub_wifi_pass") or "cafemaishas").strip(),
-        "google_review_url": (rows.get("hub_google_review_url") or "https://www.google.com/maps/search/?api=1&query=Maishas+Cafe+Matamoros+220+Navojoa+Sonora").strip(),
-        "instagram_url": (rows.get("hub_instagram_url") or "https://www.instagram.com/maishascafe/").strip(),
-        "instagram_handle": (rows.get("hub_instagram_handle") or "@maishascafe").strip(),
-        "address": (rows.get("hub_address") or "Matamoros entre No Reelección y Pesqueira #220").strip(),
+        "slogan": _clean_maisha(rows.get("hub_slogan"), "Tu rincón favorito de café de especialidad"),
+        "wifi_ssid": _clean_maisha(rows.get("hub_wifi_ssid"), "Demo_Cafe_WiFi"),
+        "wifi_pass": _clean_maisha(rows.get("hub_wifi_pass"), "democafe2026"),
+        "google_review_url": _clean_maisha(rows.get("hub_google_review_url"), "https://www.google.com/maps"),
+        "instagram_url": _clean_maisha(rows.get("hub_instagram_url"), "https://www.instagram.com/"),
+        "instagram_handle": _clean_maisha(rows.get("hub_instagram_handle"), "@democafe"),
+        "address": _clean_maisha(rows.get("hub_address"), "Av. Principal #100, Col. Centro"),
         "phone": (rows.get("hub_phone") or "642 113 8069").strip(),
     }
 
 
-DEFAULT_BDAY_AUTO_TEMPLATE = "🎂 ¡Feliz cumpleaños, {nombre}! Hoy tienes una bebida o postre de cortesía en Maishas Café ☕️✨"
+DEFAULT_BDAY_AUTO_TEMPLATE = "🎂 ¡Feliz cumpleaños, {nombre}! Hoy tienes una bebida o postre de cortesía en Demo Café ☕️✨"
 
 
 def get_birthday_auto_config():
@@ -984,6 +1040,7 @@ def get_birthday_auto_config():
     enabled = str(rows.get("bday_auto_enabled", "1")).strip() == "1"
     hour_str = (rows.get("bday_auto_hour") or "08:00").strip()
     template = (rows.get("bday_auto_template") or DEFAULT_BDAY_AUTO_TEMPLATE).strip() or DEFAULT_BDAY_AUTO_TEMPLATE
+    template = template.replace("Maisha's Café", "Demo Café").replace("Maishas Café", "Demo Café")
     sent_map = {r[0]: {"sent_at": r[1], "mode": r[2]} for r in sent_rows}
     return {
         "enabled": enabled,
@@ -1077,7 +1134,7 @@ def get_shop_location():
         lng = float(rows.get("shop_lng", DEFAULT_LNG))
     except (TypeError, ValueError):
         lng = DEFAULT_LNG
-    relevant_text = rows.get("shop_relevant_text") or DEFAULT_GEO_TEXT
+    relevant_text = (rows.get("shop_relevant_text") or DEFAULT_GEO_TEXT).replace("Maisha's Café", "Demo Café").replace("Maishas Café", "Demo Café")
     return {"lat": lat, "lng": lng, "relevant_text": relevant_text}
 
 
@@ -1088,7 +1145,7 @@ def get_campaign_config():
     logo_ver = str(int(os.path.getmtime(CUSTOM_LOGO_PATH))) if os.path.isfile(CUSTOM_LOGO_PATH) else "1"
     strip_ver = str(int(os.path.getmtime(CUSTOM_STRIP_BG_PATH))) if has_custom_strip else "1"
     defaults = {
-        "shopName": "Maishas Café",
+        "shopName": "Demo Café",
         "backgroundColor": "#12100E",
         "foregroundColor": "#F5F2EB",
         "labelColor": "#D4AF37",
@@ -1105,7 +1162,7 @@ def get_campaign_config():
             "3. La validez de las tarjetas, sellos y premios es ilimitada.\n"
             "4. Los sellos y las recompensas no se pueden cambiar, devolver, reemplazar ni comprar con efectivo.\n"
             "5. Las tarjetas no se pueden transferir ni combinar con otras tarjetas.\n"
-            "6. Maishas Café se reserva el derecho de rechazar los servicios o modificar el programa."
+            "6. Demo Café se reserva el derecho de rechazar los servicios o modificar el programa."
         ),
         "menuUrl": "https://wa.me/526421138069",
         "lat": loc["lat"],
@@ -1124,6 +1181,17 @@ def get_campaign_config():
                 defaults.update(saved)
     except Exception:
         pass
+    for k_str in ("shopName", "termsText", "relevantText"):
+        if isinstance(defaults.get(k_str), str):
+            defaults[k_str] = (
+                defaults[k_str]
+                .replace("Maisha's Café", "Demo Café")
+                .replace("Maishas Café", "Demo Café")
+                .replace("MAISHA'S CAFÉ", "DEMO CAFÉ")
+                .replace("MAISHAS CAFÉ", "DEMO CAFÉ")
+                .replace("Maisha's", "Demo Café")
+                .replace("Maishas", "Demo Café")
+            )
     defaults["lat"] = loc["lat"]
     defaults["lng"] = loc["lng"]
     defaults["relevantText"] = loc["relevant_text"]
@@ -1146,7 +1214,7 @@ REGISTRATION_HTML = """
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Maishas Café — Club de Fidelización Digital</title>
+    <title>Demo Café — Club de Fidelización Digital</title>
     <style>
         :root {
             --bg-deep: #0D0C0B;
@@ -1319,7 +1387,7 @@ REGISTRATION_HTML = """
             box-shadow: 0 4px 18px rgba(56, 189, 248, 0.2);
         }
     </style>
-    <title>[DEMO] {{ campaign.shopName if campaign is defined else 'Maishas Café' }} — Club de Fidelización Digital</title>
+    <title>[DEMO] {{ campaign.shopName if campaign is defined else 'Demo Café' }} — Club de Fidelización Digital</title>
 </head>
 <body>
     <div class="layout-wrapper">
@@ -1327,8 +1395,8 @@ REGISTRATION_HTML = """
             <div>
                 <span class="demo-top-banner">🧪 SITIO DEMO · PRUEBAS Y DEMOSTRACIÓN</span>
             </div>
-            <span class="brand-pill">☕️ {{ campaign.shopName if campaign is defined else 'Maishas' }} Loyalty Club</span>
-            <h1>{{ campaign.shopName if campaign is defined else 'Maishas Café' }} <span style="font-size:15px; color:#38BDF8; font-weight:800; vertical-align:middle;">(DEMO)</span></h1>
+            <span class="brand-pill">☕️ {{ campaign.shopName if campaign is defined else 'Demo Café' }} Loyalty Club</span>
+            <h1>{{ campaign.shopName if campaign is defined else 'Demo Café' }} <span style="font-size:15px; color:#38BDF8; font-weight:800; vertical-align:middle;">(DEMO)</span></h1>
             <p>Regístrate y acumula {{ campaign.stampGoal if campaign is defined else 10 }} sellos para ganar: {{ campaign.rewardText if campaign is defined else '¡1 Café Gratis!' }}</p>
         </div>
 
@@ -1433,7 +1501,7 @@ ANDROID_CARD_HTML = """
     <meta name="mobile-web-app-capable" content="yes">
     <link rel="manifest" href="/card/{{ client.serial }}/manifest.webmanifest">
     <link rel="icon" type="image/png" href="/card/icon-192.png">
-    <title>Maishas Café — Tarjeta {{ client.name }}</title>
+    <title>Demo Café — Tarjeta {{ client.name }}</title>
     <style>
         :root {
             --bg-deep: #0D0C0B;
@@ -1892,7 +1960,7 @@ ANDROID_CARD_HTML = """
         <div class="pb-icon">☕️</div>
         <div class="pb-content">
             <div class="pb-title">
-                <span>MAISHAS CAFÉ</span>
+                <span>DEMO CAFÉ</span>
                 <span>ahora</span>
             </div>
             <div class="pb-body" id="live-push-text">¡Tarjeta sincronizada!</div>
@@ -2065,7 +2133,7 @@ ANDROID_CARD_HTML = """
                 <a href="tel:+526421138069" style="color:#0A84FF; text-decoration:none; font-weight:500;">📱 Teléfono</a>
             </div>
             <div class="back-section">
-                <a href="https://www.instagram.com/maishascafe/" target="_blank" rel="noopener" style="color:#0A84FF; text-decoration:none; font-weight:500;">Instagram</a>
+                <a href="https://www.instagram.com/" target="_blank" rel="noopener" style="color:#0A84FF; text-decoration:none; font-weight:500;">Instagram</a>
             </div>
             <div class="back-section" style="display:flex; justify-content:space-between; align-items:center;">
                 <span style="color:#FFFFFF;">Nombre de empresa</span>
@@ -2365,7 +2433,7 @@ BARISTA_HTML = """
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Maisha's Café — Barista POS</title>
+    <title>Demo Café — Barista POS</title>
     <meta name="theme-color" content="#F4ECE6">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -3454,11 +3522,11 @@ BARISTA_HTML = """
     </div>
     {% endif %}
 
-    <!-- MODAL DE CONFIRMACIÓN PERSONALIZADO MAISHAS CAFÉ (Sin alerta del navegador) -->
+    <!-- MODAL DE CONFIRMACIÓN PERSONALIZADO DEMO CAFÉ (Sin alerta del navegador) -->
     <div class="custom-modal-backdrop" id="maishas-confirm-modal">
         <div class="custom-modal-box">
             <div class="cm-icon warn" id="cm-icon-box">⚠️</div>
-            <div class="cm-brand">Maishas Café · Confirmación</div>
+            <div class="cm-brand">Demo Café · Confirmación</div>
             <h3 class="cm-title" id="cm-title-text">¿Confirmar acción?</h3>
             <p class="cm-desc" id="cm-desc-text"></p>
             <div class="cm-actions">
@@ -3473,7 +3541,7 @@ BARISTA_HTML = """
         <div class="custom-modal-box" style="max-width:450px; text-align:left;">
             <div style="text-align:center;">
                 <div class="cm-icon warn" style="font-size:26px;">📲</div>
-                <div class="cm-brand">Maishas Café · App Barista POS</div>
+                <div class="cm-brand">Demo Café · App Barista POS</div>
                 <h3 class="cm-title">Instalar en tu Teléfono o Tablet</h3>
                 <p class="cm-desc" style="margin-bottom:14px;">Agrega la consola a tu pantalla de inicio para abrirla a pantalla completa como aplicación nativa:</p>
             </div>
@@ -3498,7 +3566,7 @@ BARISTA_HTML = """
         <div class="custom-modal-box" style="max-width:440px; text-align:left;">
             <div style="text-align:center;">
                 <div class="cm-icon warn" style="font-size:22px;">✏️</div>
-                <div class="cm-brand">Maishas Café · Ficha del Socio</div>
+                <div class="cm-brand">Demo Café · Ficha del Socio</div>
                 <h3 class="cm-title">Editar Datos del Cliente</h3>
             </div>
             <form action="/api/update-client" method="POST" style="margin-top:12px;">
@@ -3534,7 +3602,7 @@ BARISTA_HTML = """
             <div class="cm-brand">Seguridad Anti-Robo de Sellos</div>
             <h3 class="cm-title">PIN de Recuperación</h3>
             <p class="cm-desc" style="margin-bottom:12px;">
-                Comparte este código temporal de <strong>4 dígitos</strong> con <strong id="pin-modal-client-name" style="color:var(--text-primary);">Cliente</strong> (<span id="pin-modal-client-serial" style="font-family:monospace;">MAISHAS-000000</span>) para que recupere su tarjeta en su celular:
+                Comparte este código temporal de <strong>4 dígitos</strong> con <strong id="pin-modal-client-name" style="color:var(--text-primary);">Cliente</strong> (<span id="pin-modal-client-serial" style="font-family:monospace;">DEMO-000000</span>) para que recupere su tarjeta en su celular:
             </p>
             <div style="background:#EADFD7; border:2px dashed rgba(78,48,27,0.35); border-radius:18px; padding:16px 14px; margin-bottom:12px;">
                 <div id="pin-modal-digits" style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:38px; font-weight:900; letter-spacing:10px; color:#121212; line-height:1.1;">
@@ -3569,7 +3637,7 @@ BARISTA_HTML = """
                         <span id="hdr-shop-name">{{ campaign.shopName }}</span>
                         <span style="background:rgba(74,93,35,0.14); border:1px solid rgba(74,93,35,0.38); color:#4A5D23; padding:2px 8px; border-radius:99px; font-size:10.5px; font-weight:800; letter-spacing:0.6px;">🧪 DEMO</span>
                     </h1>
-                    <span class="brand-sub">Navojoa, Sonora · Consola Barista (Entorno DEMO)</span>
+                    <span class="brand-sub">Demo Café · Consola Barista (Entorno DEMO)</span>
                 </div>
             </div>
 
@@ -3642,7 +3710,7 @@ BARISTA_HTML = """
                 <form id="scan-form" action="/api/scan-action" method="POST" class="quick-scan-form" onsubmit="return checkDuplicateScanBeforeSubmit(event, this)">
                     <input type="hidden" id="auto-stamp-flag" value="1">
                     <input type="hidden" name="force_duplicate" id="scan-force-dup" value="0">
-                    <input type="text" id="scan-serial-input" name="serial" class="input-dark" placeholder="Serial ej. MAISHAS-AD58E5" required>
+                    <input type="text" id="scan-serial-input" name="serial" class="input-dark" placeholder="Código de socio (QR)" required>
                     <input type="hidden" name="action" id="scan-action-input" value="add">
                     <button type="submit" class="btn-gold-sm">+1 Sello ☕️</button>
                 </form>
@@ -3845,7 +3913,7 @@ BARISTA_HTML = """
                             </span>
                         </div>
                         <p style="margin:0; font-size:12.5px; color:var(--text-secondary); line-height:1.45;">
-                            Cuando la casilla está marcada, el sistema envía automáticamente a las <strong>8:00 AM (hora de Navojoa, Sonora)</strong> la notificación de cumpleaños al celular de cada socio activo que cumpla años ese día, sin necesidad de presionar el botón manualmente.
+                            Cuando la casilla está marcada, el sistema envía automáticamente a las <strong>8:00 AM (hora de Sonora)</strong> la notificación de cumpleaños al celular de cada socio activo que cumpla años ese día, sin necesidad de presionar el botón manualmente.
                         </p>
                     </div>
 
@@ -3905,7 +3973,7 @@ BARISTA_HTML = """
                                     <form action="/api/send-message" method="POST" style="margin:0;">
                                         <input type="hidden" name="target" value="{{ bclient.serial }}">
                                         <input type="hidden" name="is_bday" value="1">
-                                        <input type="hidden" name="message" value="🎂 ¡Feliz cumpleaños, {{ bclient.first_name }}! Hoy tienes una bebida o postre de cortesía en Maishas Café ☕️✨">
+                                        <input type="hidden" name="message" value="🎂 ¡Feliz cumpleaños, {{ bclient.first_name }}! Hoy tienes una bebida o postre de cortesía en Demo Café ☕️✨">
                                         <button type="submit" class="btn-bday-gift">
                                             🎁 Enviar Regalo Push
                                         </button>
@@ -3958,7 +4026,7 @@ BARISTA_HTML = """
                                         <form action="/api/send-message" method="POST" style="margin:0;">
                                             <input type="hidden" name="target" value="{{ client.serial }}">
                                             <input type="hidden" name="is_bday" value="1">
-                                            <input type="hidden" name="message" value="🎂 ¡Feliz cumpleaños, {{ client.first_name }}! Hoy tienes una bebida o postre de cortesía en Maishas Café ☕️✨">
+                                            <input type="hidden" name="message" value="🎂 ¡Feliz cumpleaños, {{ client.first_name }}! Hoy tienes una bebida o postre de cortesía en Demo Café ☕️✨">
                                             <button type="submit" class="btn-bday-gift">
                                                 🎁 Felicitación
                                             </button>
@@ -4007,8 +4075,8 @@ BARISTA_HTML = """
                         <div id="mkt-pane-push">
                             <div class="chip-row" style="margin-bottom:12px;">
                                 <button type="button" class="action-chip" onclick="setTemplate('🥐 ¡Recién salidos del horno! Ven por tu pan calientito y suma tu sello de hoy ☕️')">🥐 Pan horneado</button>
-                                <button type="button" class="action-chip" onclick="setTemplate('✨ ¡Hora Feliz en Maishas Café! 2x1 en bebidas seleccionadas hoy de 4 a 6 pm ☕️')">✨ Hora Feliz 2x1</button>
-                                <button type="button" class="action-chip" onclick="setTemplate('🔥 ¡Hoy tus compras valen DOBLE sello en Maishas Café! Te esperamos ☕️')">🔥 Doble Sello</button>
+                                <button type="button" class="action-chip" onclick="setTemplate('✨ ¡Hora Feliz en Demo Café! 2x1 en bebidas seleccionadas hoy de 4 a 6 pm ☕️')">✨ Hora Feliz 2x1</button>
+                                <button type="button" class="action-chip" onclick="setTemplate('🔥 ¡Hoy tus compras valen DOBLE sello en Demo Café! Te esperamos ☕️')">🔥 Doble Sello</button>
                             </div>
 
                             <form action="/api/send-message" method="POST">
@@ -4018,7 +4086,7 @@ BARISTA_HTML = """
                                     <div class="ios-notif-icon">☕️</div>
                                     <div class="ios-notif-body">
                                         <div class="ios-notif-top">
-                                            <span>MAISHAS CAFÉ</span>
+                                            <span>DEMO CAFÉ</span>
                                             <span>ahora</span>
                                         </div>
                                         <div class="ios-notif-text" id="ios-preview-text">📣 Escribe un mensaje para previsualizar...</div>
@@ -4045,7 +4113,7 @@ BARISTA_HTML = """
                         <div class="bento-header">
                             <h2 class="bento-title">📍 Geovalla GPS ({{ "%.4f"|format(shop_loc.lat) }}, {{ "%.4f"|format(shop_loc.lng) }})</h2>
                         </div>
-                        <p class="bento-subtitle">Alerta automática en pantalla de bloqueo cuando el cliente pasa a ~150m de Maishas Café.</p>
+                        <p class="bento-subtitle">Alerta automática en pantalla de bloqueo cuando el cliente pasa a ~150m de Demo Café.</p>
 
                         <div id="mkt-pane-gps">
                             <form action="/api/update-location" method="POST">
@@ -4475,7 +4543,7 @@ BARISTA_HTML = """
                                 <label for="ca-shop-name" style="font-size:11.5px; color:var(--gold-light); font-weight:700; display:block; margin-bottom:6px; text-transform:uppercase; letter-spacing:0.5px;">
                                     ☕️ Nombre de la Cafetería / Marca
                                 </label>
-                                <input type="text" id="ca-shop-name" class="input-dark" maxlength="40" required value="{{ campaign.shopName }}" placeholder="Ej. Maishas Café" oninput="onCampaignFieldInput()">
+                                <input type="text" id="ca-shop-name" class="input-dark" maxlength="40" required value="{{ campaign.shopName }}" placeholder="Ej. Demo Café" oninput="onCampaignFieldInput()">
                             </div>
 
                             <!-- Selectores de Color -->
@@ -4698,7 +4766,7 @@ BARISTA_HTML = """
                                             <span style="background:#FFFFFF; color:#12100E; font-size:10px; font-weight:900; padding:2px 5px; border-radius:4px;">QR PASS</span>
                                         </div>
                                     </div>
-                                    <div style="font-family:ui-monospace, monospace; font-size:11px; opacity:0.75; margin-top:6px; letter-spacing:1px;">MAISHAS-DEMO01</div>
+                                    <div style="font-family:ui-monospace, monospace; font-size:11px; opacity:0.75; margin-top:6px; letter-spacing:1px;">DEMO-000001</div>
                                 </div>
                             </div>
 
@@ -4750,7 +4818,7 @@ BARISTA_HTML = """
                                     <a href="tel:+526421138069" style="color:#0A84FF; text-decoration:none; font-weight:500;">📱 Teléfono</a>
                                 </div>
                                 <div style="padding:11px 0; border-bottom:1px solid rgba(255,255,255,0.12);">
-                                    <a href="https://www.instagram.com/maishascafe/" target="_blank" rel="noopener" style="color:#0A84FF; text-decoration:none; font-weight:500;">Instagram</a>
+                                    <a href="https://www.instagram.com/" target="_blank" rel="noopener" style="color:#0A84FF; text-decoration:none; font-weight:500;">Instagram</a>
                                     <span id="ca-back-lbl-menu" style="display:none;"></span>
                                     <span id="ca-back-val-menu" style="display:none;">{{ campaign.menuUrl }}</span>
                                 </div>
@@ -4765,7 +4833,7 @@ BARISTA_HTML = """
                                 </div>
                                 <div style="padding:11px 0; border-bottom:1px solid rgba(255,255,255,0.12); display:flex; justify-content:space-between; align-items:center;">
                                     <span style="color:#FFFFFF;">Número de serie</span>
-                                    <span style="color:#98989F; font-family:ui-monospace, monospace; font-size:12px;">MAISHAS-DEMO01</span>
+                                    <span style="color:#98989F; font-family:ui-monospace, monospace; font-size:12px;">DEMO-000001</span>
                                 </div>
                                 <div style="padding:11px 0; display:flex; justify-content:space-between; align-items:center;">
                                     <span style="color:#FFFFFF;">Actualizado</span>
@@ -4790,16 +4858,16 @@ BARISTA_HTML = """
                 </div>
                 <form action="/api/hub/settings" method="POST" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:12px;">
                     <div>
-                        <label style="font-size:11.5px; color:var(--gold-light); font-weight:700; display:block; margin-bottom:5px;">Eslogan debajo de Maisha's Café</label>
-                        <input type="text" name="slogan" class="input-dark" value="{{ hub.slogan if hub is defined else 'Tu rincón favorito de café en Navojoa' }}" required>
+                        <label style="font-size:11.5px; color:var(--gold-light); font-weight:700; display:block; margin-bottom:5px;">Eslogan debajo de Demo Café</label>
+                        <input type="text" name="slogan" class="input-dark" value="{{ hub.slogan if hub is defined else 'Tu rincón favorito de café de especialidad' }}" required>
                     </div>
                     <div>
                         <label style="font-size:11.5px; color:var(--gold-light); font-weight:700; display:block; margin-bottom:5px;">Nombre de Red Wi-Fi (SSID)</label>
-                        <input type="text" name="wifi_ssid" class="input-dark" value="{{ hub.wifi_ssid if hub is defined else 'Maishas_Cafe' }}" required>
+                        <input type="text" name="wifi_ssid" class="input-dark" value="{{ hub.wifi_ssid if hub is defined else 'Demo_Cafe_WiFi' }}" required>
                     </div>
                     <div>
                         <label style="font-size:11.5px; color:var(--gold-light); font-weight:700; display:block; margin-bottom:5px;">Contraseña del Wi-Fi</label>
-                        <input type="text" name="wifi_pass" class="input-dark" value="{{ hub.wifi_pass if hub is defined else 'cafemaishas' }}" required>
+                        <input type="text" name="wifi_pass" class="input-dark" value="{{ hub.wifi_pass if hub is defined else 'democafe2026' }}" required>
                     </div>
                     <div>
                         <label style="font-size:11.5px; color:var(--gold-light); font-weight:700; display:block; margin-bottom:5px;">Enlace de Google Reviews / Maps</label>
@@ -4807,7 +4875,7 @@ BARISTA_HTML = """
                     </div>
                     <div>
                         <label style="font-size:11.5px; color:var(--gold-light); font-weight:700; display:block; margin-bottom:5px;">Usuario de Instagram</label>
-                        <input type="text" name="instagram_handle" class="input-dark" value="{{ hub.instagram_handle if hub is defined else '@maishascafe' }}">
+                        <input type="text" name="instagram_handle" class="input-dark" value="{{ hub.instagram_handle if hub is defined else '@democafe' }}">
                     </div>
                     <div style="display:flex; align-items:flex-end;">
                         <button type="submit" class="btn-cam-launch" style="width:100%; justify-content:center;">
@@ -4960,7 +5028,7 @@ BARISTA_HTML = """
                     const rawDigits = (data.phone || activePinClient.phone || '').replace(/\\D+/g, '');
                     if (rawDigits.length >= 10) {
                         const ten = rawDigits.slice(-10);
-                        const msg = encodeURIComponent(`Hola ${activePinClient.name} ☕️ Tu PIN temporal de seguridad para recuperar tu tarjeta de Maishas Café es: *${data.pin}* (válido por 10 minutos).`);
+                        const msg = encodeURIComponent(`Hola ${activePinClient.name} ☕️ Tu PIN temporal de seguridad para recuperar tu tarjeta de Demo Café es: *${data.pin}* (válido por 10 minutos).`);
                         waLink.href = `https://wa.me/52${ten}?text=${msg}`;
                         waLink.style.display = 'inline-flex';
                     } else {
@@ -5427,7 +5495,7 @@ BARISTA_HTML = """
         }
 
         function renderCampaignLivePreview() {
-            const shopName = (document.getElementById('ca-shop-name').value || 'Maishas Café').trim();
+            const shopName = (document.getElementById('ca-shop-name').value || 'Demo Café').trim();
             const bg = document.getElementById('ca-bg-hex').value || '#12100E';
             const fg = document.getElementById('ca-fg-hex').value || '#F5F2EB';
             const lbl = document.getElementById('ca-lbl-hex').value || '#D4AF37';
@@ -5524,7 +5592,7 @@ BARISTA_HTML = """
             const btnBot = document.getElementById('btn-save-campaign-bottom');
             const banner = document.getElementById('ca-save-banner');
             const payload = {
-                shopName: (document.getElementById('ca-shop-name').value || 'Maishas Café').trim(),
+                shopName: (document.getElementById('ca-shop-name').value || 'Demo Café').trim(),
                 backgroundColor: (document.getElementById('ca-bg-hex').value || '#12100E').trim(),
                 foregroundColor: (document.getElementById('ca-fg-hex').value || '#F5F2EB').trim(),
                 labelColor: (document.getElementById('ca-lbl-hex').value || '#D4AF37').trim(),
@@ -5802,7 +5870,7 @@ BARISTA_HTML = """
                 if (!res.ok) throw new Error('Error al generar archivo');
                 const blob = await res.blob();
                 const today = new Date().toISOString().slice(0, 10);
-                const filename = `Clientes_MaishasCafe_${today}.csv`;
+                const filename = `Clientes_DemoCafe_${today}.csv`;
 
                 const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent || '');
                 if (isMobile && navigator.canShare) {
@@ -5810,7 +5878,7 @@ BARISTA_HTML = """
                     if (navigator.canShare({ files: [file] })) {
                         await navigator.share({
                             files: [file],
-                            title: 'Clientes Maishas Café'
+                            title: 'Clientes Demo Café'
                         });
                         if (btnEl) btnEl.innerHTML = origText;
                         return;
@@ -5875,7 +5943,7 @@ def generate_signed_pkpass(
 
         cfg = get_campaign_config()
         goal = max(4, min(12, int(cfg.get("stampGoal") or 10)))
-        shop_name = (cfg.get("shopName") or "Maishas Café").strip()
+        shop_name = (cfg.get("shopName") or "Demo Café").strip()
         reward_text = (cfg.get("rewardText") or "1 Café Gratis").strip()
 
         # Aplicar SIEMPRE el logo oficial de la cafetería (brand_logo.png o personalizado) en círculo a icon.png y logo.png del .pkpass
@@ -6028,7 +6096,7 @@ def generate_signed_pkpass(
         pass_data["webServiceURL"] = f"{clean_host}/"
         pass_data["authenticationToken"] = AUTH_TOKEN
 
-        # Actualizar el reverso de la tarjeta (.pkpass) con la estructura completa de Maisha's Café
+        # Actualizar el reverso de la tarjeta (.pkpass) con la estructura completa de Demo Café
         remaining_stamps_back = max(0, goal - stamps)
         avail_rewards_back = 1 if stamps >= goal else 0
         wa_link_back = cfg.get("menuUrl") or "https://wa.me/526421138069"
@@ -6096,8 +6164,8 @@ def generate_signed_pkpass(
             {
                 "key": "instagramLink",
                 "label": "Instagram",
-                "value": "Instagram (@maishascafe)",
-                "attributedValue": "<a href='https://www.instagram.com/maishascafe'>Instagram</a>"
+                "value": "Instagram (@democafe)",
+                "attributedValue": "<a href='https://www.instagram.com/'>Instagram</a>"
             },
             {
                 "key": "companyName",
@@ -6107,8 +6175,8 @@ def generate_signed_pkpass(
             {
                 "key": "issuerInfo",
                 "label": "Información del emisor",
-                "value": f"{shop_name}\nhola@maishascafe.com\n+526421138069",
-                "attributedValue": f"{shop_name}\n<a href='mailto:hola@maishascafe.com'>hola@maishascafe.com</a>\n<a href='tel:+526421138069'>+526421138069</a>"
+                "value": f"{shop_name}\nhola@democafe.com\n+526421138069",
+                "attributedValue": f"{shop_name}\n<a href='mailto:hola@democafe.com'>hola@democafe.com</a>\n<a href='tel:+526421138069'>+526421138069</a>"
             },
             {
                 "key": "memberSerialId",
@@ -6271,9 +6339,9 @@ def api_hub_register():
         conn.commit()
         conn.close()
         conflict_msg = (
-            "Este número de celular ya tiene una tarjeta registrada en Maishas Café."
+            "Este número de celular ya tiene una tarjeta registrada en Demo Café."
             if conflict_field == "phone"
-            else "Este correo electrónico ya tiene una tarjeta registrada en Maishas Café."
+            else "Este correo electrónico ya tiene una tarjeta registrada en Demo Café."
         )
         return jsonify({
             "ok": False,
@@ -6966,7 +7034,7 @@ def export_clients_csv():
         csv_bytes,
         mimetype="text/csv; charset=utf-8",
         headers={
-            "Content-Disposition": f'attachment; filename="Clientes_MaishasCafe_{now_str}.csv"'
+            "Content-Disposition": f'attachment; filename="Clientes_DemoCafe_{now_str}.csv"'
         }
     )
 
@@ -7043,7 +7111,7 @@ def register():
         pkpass_path,
         mimetype="application/vnd.apple.pkpass",
         as_attachment=True,
-        download_name=f"MaishasCafe_{serial_number}.pkpass"
+        download_name=f"DemoCafe_{serial_number}.pkpass"
     )
     resp.headers["Cache-Control"] = "no-cache, no-store, must-revalidate, max-age=0"
     return resp
@@ -7183,7 +7251,7 @@ def download_pkpass_direct(serial_number):
         pkpass_path,
         mimetype="application/vnd.apple.pkpass",
         as_attachment=True,
-        download_name=f"MaishasCafe_{row[0]}.pkpass"
+        download_name=f"DemoCafe_{row[0]}.pkpass"
     )
     resp.headers["Cache-Control"] = "no-cache, no-store, must-revalidate, max-age=0"
     return resp
@@ -7278,7 +7346,7 @@ self.addEventListener('fetch', event => {});
 
 self.addEventListener('push', event => {
     let data = {
-        title: 'Maishas Café ☕️',
+        title: 'Demo Café ☕️',
         body: 'Tu tarjeta de fidelidad se ha actualizado.',
         url: '/',
         pkpass_url: '',
@@ -7642,7 +7710,7 @@ def api_campaign_settings():
     payload = request.get_json(force=True, silent=True) or {}
     current = get_campaign_config()
 
-    shop_name = (payload.get("shopName") or current["shopName"] or "Maishas Café").strip()[:40]
+    shop_name = (payload.get("shopName") or current["shopName"] or "Demo Café").strip()[:40]
     bg_hex = (payload.get("backgroundColor") or current["backgroundColor"] or "#12100E").strip()
     fg_hex = (payload.get("foregroundColor") or current["foregroundColor"] or "#F5F2EB").strip()
     lbl_hex = (payload.get("labelColor") or current["labelColor"] or "#D4AF37").strip()
@@ -7780,7 +7848,7 @@ def update_client():
     conn.commit()
     conn.close()
 
-    send_apns_push_for_serial(serial_id, notification_body="✨ Tus datos de socio fueron actualizados en Maishas Café")
+    send_apns_push_for_serial(serial_id, notification_body="✨ Tus datos de socio fueron actualizados en Demo Café")
     return redirect(url_for("barista", ok=f"✏️ Datos de {name} ({serial_id}) actualizados correctamente", updated=serial_id))
 
 
@@ -8192,7 +8260,7 @@ def send_android_webpush(sub_dict, serial, body_text, stamps=None):
     """Envía notificación Web Push RFC 8291 (VAPID) a un teléfono Android con imagen en vivo del pase."""
     try:
         ts_val = int(datetime.now(timezone.utc).timestamp())
-        title_str = f"Maishas Café ☕️ ({stamps}/10 sellos)" if stamps is not None else "Maishas Café ☕️"
+        title_str = f"Demo Café ☕️ ({stamps}/10 sellos)" if stamps is not None else "Demo Café ☕️"
         payload = json.dumps({
             "title": title_str,
             "body": body_text,
@@ -8206,7 +8274,7 @@ def send_android_webpush(sub_dict, serial, body_text, stamps=None):
             subscription_info=sub_dict,
             data=payload,
             vapid_private_key=_get_vapid_signer(),
-            vapid_claims={"sub": "mailto:contacto@maishascafe.com"},
+            vapid_claims={"sub": "mailto:contacto@democafe.com"},
             ttl=86400,
             headers={"Urgency": "high"},
             timeout=10
@@ -8239,7 +8307,7 @@ def _log_wallet_event(text):
         pass
 
 
-def send_apns_push_for_serial(serial, notification_body="Tu tarjeta Maishas Café se ha actualizado ☕️"):
+def send_apns_push_for_serial(serial, notification_body="Tu tarjeta Demo Café se ha actualizado ☕️"):
     """Despacha notificaciones Push a iPhone y Android y devuelve un estado claro en hora local de Navojoa, Sonora."""
     serial_clean = (serial or "").strip().upper()
     conn = sqlite3.connect(DB_PATH)
@@ -8498,7 +8566,7 @@ def _gw_text(value):
 
 def build_google_loyalty_class(base_url):
     cfg = get_campaign_config()
-    shop_name = cfg.get("shopName") or "Maishas Café"
+    shop_name = cfg.get("shopName") or "Demo Café"
     return {
         "id": _gw_class_id(),
         "issuerName": shop_name,
@@ -8529,7 +8597,7 @@ def build_google_loyalty_object(serial, base_url):
         return None
     cfg = get_campaign_config()
     goal = cfg.get("stampGoal") or 10
-    shop_name = cfg.get("shopName") or "Maishas Café"
+    shop_name = cfg.get("shopName") or "Demo Café"
     reward_text = cfg.get("rewardText") or "¡1 Café Gratis!"
     serial_id, name, stamps, message, visits, updated_at, status_val = row
     stamps = max(0, min(goal, stamps or 0))
@@ -8642,7 +8710,7 @@ def _google_wallet_push_worker(serial_clean, base_url, message=None, notify=True
             st2, resp2 = _gw_api("POST", f"loyaltyObject/{obj_id}/addMessage", {
                 "message": {
                     "id": msg_id,
-                    "header": "Maishas Café ☕️",
+                    "header": "Demo Café ☕️",
                     "body": message[:180],
                     "messageType": "TEXT_AND_NOTIFY",
                 }
@@ -8718,7 +8786,7 @@ def test_android_push(serial_number):
     conn.close()
     results = []
     for endpoint, sub_json_str, created_at in subs:
-        ok, code, detail = send_android_webpush(json.loads(sub_json_str), serial_clean, "🔔 Prueba de notificación Maishas Café", stamps=(row[0] if row else 0))
+        ok, code, detail = send_android_webpush(json.loads(sub_json_str), serial_clean, "🔔 Prueba de notificación Demo Café", stamps=(row[0] if row else 0))
         results.append({"endpoint_host": endpoint.split("/")[2], "created_at": created_at, "ok": ok, "http_status": code, "detail": detail[:300]})
     return jsonify({
         "serial": serial_clean,

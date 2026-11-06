@@ -156,12 +156,6 @@
                 <img src="/api/hub/hero.jpg" alt="Interior de {{ campaign.shopName }}" class="w-full h-full object-cover object-center" />
                 <div class="absolute inset-0 bg-gradient-to-t from-black/50 via-black/15 to-black/25"></div>
 
-                <!-- Botón discreto Superior Izquierdo: Modo Staff POS -->
-                <button type="button" onclick="openModal('modal-staff')" class="absolute top-3.5 left-3.5 z-10 px-3 py-1.5 rounded-full bg-black/45 text-white text-xs font-semibold backdrop-blur-md border border-white/20 flex items-center gap-1.5 active:scale-95 transition">
-                    <span>☕️</span>
-                    <span>Modo Staff POS</span>
-                </button>
-
                 <!-- Botón Superior Derecho: Listo (Done) -->
                 <button type="button" onclick="handleTopDone()" class="absolute top-3.5 right-3.5 z-10 px-3.5 py-1.5 rounded-full bg-white/85 text-[#121212] text-xs font-bold backdrop-blur-md shadow-sm active:scale-95 transition">
                     Listo
@@ -172,13 +166,10 @@
             <div class="px-5">
                 <div class="relative -mt-9 mb-2.5 flex items-end justify-between">
                     <div id="brand-avatar"
-                         oncontextmenu="event.preventDefault(); openModal('modal-staff');"
-                         onclick="handleAvatarTap()"
-                         title="Toca 3 veces o mantén presionado para abrir Modo Staff POS"
-                         class="w-[72px] h-[72px] rounded-full bg-[#FAF6F3] border-[3px] border-[#4A5D23] shadow-md flex items-center justify-center overflow-hidden cursor-pointer select-none">
+                         class="w-[72px] h-[72px] rounded-full bg-[#FAF6F3] border-[3px] border-[#4A5D23] shadow-md flex items-center justify-center overflow-hidden select-none">
                         <img src="/api/campaign/logo.png" alt="{{ campaign.shopName }}" class="w-full h-full object-cover" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" />
                         <div style="display:none;" class="w-full h-full items-center justify-center bg-[#4A5D23] text-[#FAF6F3] font-extrabold text-[10px] text-center leading-tight px-1">
-                            MAISHA'S CAFÉ
+                            DEMO CAFÉ
                         </div>
                     </div>
                     <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-[#EADFD7] text-[#4A5D23]">
@@ -211,7 +202,7 @@
                         </div>
                         <div>
                             <div class="text-[15.5px] font-bold text-[#121212] tracking-[-0.01em]">Empieza a ganar recompensas</div>
-                            <div class="text-[12.5px] font-semibold text-[#4A5D23]">Maisha's Rewards</div>
+                            <div class="text-[12.5px] font-semibold text-[#4A5D23]">Demo Rewards</div>
                         </div>
                     </div>
                     <svg class="w-5 h-5 text-[#6E655F] shrink-0" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
@@ -230,7 +221,7 @@
                                 0 / {{ campaign.stampGoal }} sellos para tu café gratis
                             </div>
                             <div id="hub-member-sub" class="text-[12px] text-[#6E655F]">
-                                <span class="font-semibold text-[#4A5D23]">Maisha's Rewards</span> · <span id="hub-member-name" class="font-semibold text-[#121212]">Cliente</span> (<span id="hub-member-serial" class="font-mono">MAISHAS-000000</span>)
+                                <span class="font-semibold text-[#4A5D23]">Demo Rewards</span> · <span id="hub-member-name" class="font-semibold text-[#121212]">Cliente</span> (<span id="hub-member-serial" class="font-mono">DEMO-000000</span>)
                             </div>
                         </div>
                     </div>
@@ -495,7 +486,7 @@
                     </div>
                     <div>
                         <label for="hub-recover-input" class="block text-[12.5px] font-bold text-[#121212] mb-1">
-                            1. Tu celular (10 dígitos), correo o código MAISHAS
+                            1. Tu celular (10 dígitos), correo o código de socio
                         </label>
                         <input id="hub-recover-input" type="text" required enterkeyhint="next"
                                placeholder="Ej. 642 101 4512 o tu@correo.com"
@@ -616,7 +607,7 @@
                             <img id="pkpass-qr-img" src="" alt="Código QR de Socio" class="w-36 h-36 object-contain" />
                         </div>
                         <div id="pkpass-serial-code" class="font-mono text-[11.5px] font-bold mt-2 tracking-wider opacity-75">
-                            MAISHAS-000000
+                            DEMO-000000
                         </div>
                     </div>
                 </div>
@@ -691,7 +682,7 @@
                     </div>
                     <div class="px-4 py-3 flex items-center justify-between">
                         <span class="text-white">Número de serie</span>
-                        <span id="pkpass-back-serial" class="text-[#98989F] font-mono text-[12.5px]">MAISHAS-000000</span>
+                        <span id="pkpass-back-serial" class="text-[#98989F] font-mono text-[12.5px]">DEMO-000000</span>
                     </div>
                     <div class="px-4 py-3 flex items-center justify-between">
                         <span class="text-white">Actualizado</span>
@@ -799,7 +790,7 @@
                 </div>
 
                 <div id="menu-sections-wrapper" class="space-y-6">
-                    <!-- Renderizado dinámico por JS con todos los productos oficiales de Maisha's Café -->
+                    <!-- Renderizado dinámico por JS con todos los productos oficiales de Demo Café -->
                 </div>
             </div>
 
@@ -1039,107 +1030,13 @@
     </dialog>
 
     <!-- =========================================================
-         MÓDULO G: MODO CAJERO / STAFF POS SIMULATOR (CONECTADO A BD REAL)
-         ========================================================= -->
-    <dialog id="modal-staff" class="bottom-sheet max-h-[90dvh] overflow-y-auto">
-        <div class="p-5 safe-bottom">
-            <div class="w-10 h-1.5 bg-black/15 rounded-full mx-auto mb-4"></div>
-            <div class="flex items-center justify-between mb-2">
-                <div>
-                    <span class="text-[10.5px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded bg-[#4A5D23] text-white">Simulador en Vivo</span>
-                    <h3 class="text-[20px] font-bold text-[#121212] mt-1">Modo Cajero / Staff POS</h3>
-                </div>
-                <button type="button" onclick="closeModal('modal-staff')" class="px-3 py-1.5 rounded-full bg-[#EADFD7] text-xs font-bold">Cerrar</button>
-            </div>
-            <p class="text-[13px] text-[#6E655F] mb-3.5">
-                Simula el escaneo del QR del cliente desde aquí para ver cómo se actualizan sus círculos en vivo y en la consola <strong>/barista</strong>.
-            </p>
-
-            <div class="p-4 rounded-2xl bg-[#EADFD7] mb-3">
-                <div class="flex items-center justify-between gap-2">
-                    <div class="text-xs font-bold text-[#6E655F] uppercase">Cliente Activo en este Teléfono</div>
-                    <button type="button" onclick="staffLoadDemoClient()" class="text-[11px] font-bold text-[#4A5D23] underline">
-                        ⚡ Cargar Socio Demo
-                    </button>
-                </div>
-                <div id="staff-client-summary" class="text-[14.5px] font-bold text-[#121212] mt-1">
-                    Ningún cliente registrado aún en este navegador
-                </div>
-                <div id="staff-action-feedback" class="hidden mt-2 p-2 rounded-lg bg-[#FAF6F3] text-xs font-bold text-[#4A5D23]"></div>
-            </div>
-
-            <div class="grid grid-cols-3 gap-2 mb-4">
-                <button type="button" onclick="staffSimulateStamp('add')"
-                        class="py-3.5 px-2 rounded-[14px] bg-[#121212] text-white font-bold text-[13px] active:scale-95 transition flex items-center justify-center gap-1">
-                    <span>☕️</span>
-                    <span>+1 Sello</span>
-                </button>
-                <button type="button" onclick="staffSimulateStamp('sub')"
-                        class="py-3.5 px-2 rounded-[14px] bg-[#EADFD7] text-[#121212] font-bold text-[13px] active:scale-95 transition flex items-center justify-center gap-1 border border-black/10">
-                    <span>➖</span>
-                    <span>-1 Sello</span>
-                </button>
-                <button type="button" onclick="staffSimulateStamp('reset')"
-                        class="py-3.5 px-2 rounded-[14px] bg-[#E86C78] text-white font-bold text-[13px] active:scale-95 transition flex items-center justify-center gap-1">
-                    <span>🎁</span>
-                    <span>Canjear</span>
-                </button>
-            </div>
-
-            <a href="/barista" target="_blank"
-               class="w-full py-3 px-4 rounded-[14px] bg-white border border-black/15 text-[#121212] font-bold text-[13.5px] flex items-center justify-center gap-2 no-underline mb-4">
-                <span>🖥️</span>
-                <span>Abrir Consola Completa del Barista (/barista)</span>
-            </a>
-
-            <!-- Documentación de Arquitectura PassKit & SQL integrada -->
-            <details class="rounded-2xl bg-white border border-black/10 p-3.5 text-xs">
-                <summary class="font-bold text-[#121212] cursor-pointer">
-                    📐 Ver Esquema SQL y Estructura Apple PassKit (pass.json)
-                </summary>
-                <div class="mt-3 space-y-2 text-[11px] font-mono text-[#6E655F] overflow-x-auto">
-                    <div class="font-bold text-[#121212]">1. Tabla SQLite / PostgreSQL (clients & stamp_transactions):</div>
-                    <pre class="bg-[#FAF6F3] p-2.5 rounded-lg overflow-x-auto">CREATE TABLE clients (
-  serial TEXT PRIMARY KEY, -- Ej. MAISHAS-74DEDF
-  name TEXT NOT NULL,
-  email TEXT,
-  phone TEXT,
-  birthdate TEXT,          -- YYYY-MM-DD
-  stamps INTEGER DEFAULT 0,
-  total_visits INTEGER DEFAULT 0,
-  redeemed_count INTEGER DEFAULT 0,
-  status TEXT DEFAULT 'active'
-);</pre>
-                    <div class="font-bold text-[#121212] pt-1">2. Estructura Apple Wallet PassKit (pass.json · storeCard):</div>
-                    <pre class="bg-[#FAF6F3] p-2.5 rounded-lg overflow-x-auto">{
-  "formatVersion": 1,
-  "passTypeIdentifier": "pass.com.maishascafe.loyalty",
-  "organizationName": "{{ campaign.shopName }}",
-  "description": "Tarjeta de Lealtad {{ campaign.shopName }}",
-  "backgroundColor": "{{ campaign.backgroundColor }}",
-  "foregroundColor": "{{ campaign.foregroundColor }}",
-  "labelColor": "{{ campaign.labelColor }}",
-  "webServiceURL": "https://web-production-f7cd4.up.railway.app/",
-  "storeCard": {
-    "headerFields": [{"key": "stamps", "label": "SELLOS", "value": "0/{{ campaign.stampGoal }}"}],
-    "secondaryFields": [{"key": "memberName", "label": "CLIENTE", "value": "Socio"}],
-    "backFields": [{"key": "terms", "label": "Términos", "value": "{{ campaign.rewardText }}"}]
-  },
-  "barcodes": [{"format": "PKBarcodeFormatQR", "message": "MAISHAS-XXXXXX"}]
-}</pre>
-                </div>
-            </details>
-        </div>
-    </dialog>
-
-    <!-- =========================================================
          LÓGICA REACTIVA, SINCRONIZACIÓN REAL CON BACKEND Y SUDOKU
          ========================================================= -->
     <script>
         const STAMP_GOAL = {{ campaign.stampGoal | int }};
         const STORAGE_KEY = 'maishas_demo_hub_member_v1';
 
-        // Menú Oficial Real de Maisha's Café (extraído fielmente de la carta oficial)
+        // Menú Oficial de Demo Café
         const MAISHA_MENU = [
             {
                 id: 'sec-calientes',
@@ -1201,8 +1098,8 @@
                 mainTab: 'ALIMENTOS',
                 title: '🧁 Especialidad de la Casa',
                 items: [
-                    { name: "Maisha's Frappé", allergen: 'Receta insignia de la casa · Contiene: Leche', price: '$95' },
-                    { name: 'Panini Maishas', allergen: 'Preparado al grill · Contiene: Gluten, Queso', price: '$95' }
+                    { name: 'Demo Frappé', allergen: 'Receta insignia de la casa · Contiene: Leche', price: '$95' },
+                    { name: 'Panini Especial', allergen: 'Preparado al grill · Contiene: Gluten, Queso', price: '$95' }
                 ]
             },
             {
@@ -1233,8 +1130,6 @@
         ];
 
         let currentMember = null;
-        let avatarTapCount = 0;
-        let avatarTapTimer = null;
         let toastTimer = null;
 
         function showHubToast(msg) {
@@ -1259,7 +1154,6 @@
             const dlg = document.getElementById(id);
             if (!dlg) return;
             if (!dlg.open) dlg.showModal();
-            if (id === 'modal-staff') refreshStaffSummary();
         }
 
         function closeModal(id) {
@@ -1287,17 +1181,6 @@
             } else {
                 openLoyaltyRegisterModal('register');
             }
-        }
-
-        function handleAvatarTap() {
-            avatarTapCount++;
-            clearTimeout(avatarTapTimer);
-            if (avatarTapCount >= 3) {
-                avatarTapCount = 0;
-                openModal('modal-staff');
-                return;
-            }
-            avatarTapTimer = setTimeout(() => { avatarTapCount = 0; }, 900);
         }
 
         // =========================================================
@@ -1917,14 +1800,14 @@
                 document.getElementById('feedback-result-icon').textContent = '🌟';
                 document.getElementById('feedback-result-title').textContent = '¡Qué alegría leer tu comentario!';
                 document.getElementById('feedback-result-desc').textContent =
-                    'Nos encanta saber que disfrutaste tu experiencia en Maisha\'s Café. ¿Nos ayudarías compartiendo tu reseña en Google?';
+                    'Nos encanta saber que disfrutaste tu experiencia en Demo Café. ¿Nos ayudarías compartiendo tu reseña en Google?';
                 googleBtn.classList.remove('hidden');
                 googleBtn.classList.add('flex');
             } else {
                 document.getElementById('feedback-result-icon').textContent = '💌';
                 document.getElementById('feedback-result-title').textContent = 'Gracias por ayudarnos a mejorar';
                 document.getElementById('feedback-result-desc').textContent =
-                    'Tu comentario ha sido recibido de forma privada por la gerencia de Maisha\'s Café para atenderlo de inmediato.';
+                    'Tu comentario ha sido recibido de forma privada por la gerencia de Demo Café para atenderlo de inmediato.';
                 googleBtn.classList.add('hidden');
                 googleBtn.classList.remove('flex');
             }
@@ -2155,8 +2038,8 @@
             }
             if (completed) {
                 clearInterval(sudokuState.timerId);
-                document.getElementById('sudoku-status-msg').textContent = '🎉 ¡Felicidades! Completaste el Sudoku de Maisha\'s Café';
-                showHubToast('🏆 ¡Completaste el Sudoku de Maisha\'s Café!');
+                document.getElementById('sudoku-status-msg').textContent = '🎉 ¡Felicidades! Completaste el Sudoku de Demo Café';
+                showHubToast('🏆 ¡Completaste el Sudoku de Demo Café!');
             }
         }
 
@@ -2195,66 +2078,6 @@
             sudokuState.grid[r][c] = sudokuState.solution[r][c];
             document.getElementById('sudoku-status-msg').textContent = `💡 Pista revelada en fila ${r+1}, columna ${c+1}`;
             renderSudokuBoard();
-        }
-
-        // =========================================================
-        // MÓDULO G: MODO CAJERO / STAFF POS SIMULATOR
-        // =========================================================
-        function refreshStaffSummary() {
-            const el = document.getElementById('staff-client-summary');
-            if (!currentMember || !currentMember.serial) {
-                el.textContent = 'Ningún cliente activo. Pulsa "⚡ Cargar Socio Demo" o regístrate primero.';
-                return;
-            }
-            el.textContent = `${currentMember.name} (${currentMember.serial}) · ${currentMember.stamps || 0}/${currentMember.stamp_goal || STAMP_GOAL} sellos`;
-        }
-
-        async function staffLoadDemoClient() {
-            try {
-                const res = await fetch('/api/hub/lookup', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ demo_first: true })
-                });
-                const data = await res.json();
-                if (res.ok && data.ok) {
-                    saveMemberToStorage(data);
-                    refreshStaffSummary();
-                    const fb = document.getElementById('staff-action-feedback');
-                    fb.textContent = `✅ Socio cargado: ${data.name} (${data.serial}) con ${data.stamps}/${data.stamp_goal} sellos`;
-                    fb.classList.remove('hidden');
-                }
-            } catch (e) {}
-        }
-
-        async function staffSimulateStamp(action) {
-            if (!currentMember || !currentMember.serial) {
-                await staffLoadDemoClient();
-                if (!currentMember || !currentMember.serial) return;
-            }
-            try {
-                const res = await fetch('/api/hub/staff-stamp', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ serial: currentMember.serial, action })
-                });
-                const data = await res.json();
-                const fb = document.getElementById('staff-action-feedback');
-                if (data && data.ok) {
-                    currentMember.stamps = data.stamps;
-                    currentMember.stamp_goal = data.stamp_goal || STAMP_GOAL;
-                    saveMemberToStorage(currentMember);
-                    refreshStaffSummary();
-                    fb.textContent = data.message || `✅ Ahora tiene ${data.stamps}/${currentMember.stamp_goal} sellos`;
-                    fb.classList.remove('hidden');
-                    showHubToast(`☕️ ${currentMember.name}: ${data.stamps}/${currentMember.stamp_goal} sellos`);
-                } else if (data && data.error) {
-                    fb.textContent = data.error;
-                    fb.classList.remove('hidden');
-                }
-            } catch (e) {
-                showHubToast('⚠️ Error al conectar con el servidor DEMO.');
-            }
         }
 
         // Inicializar al cargar
