@@ -741,7 +741,7 @@
                         Regala café a quien quieras
                     </h2>
                     <p class="text-[12px] text-[#6E655F] mt-0.5">
-                        Tu amigo recibe un sobre digital y guarda su Gift Card en Apple Wallet o Google Wallet
+                        Esa persona especial recibe su regalo digital y guarda su Gift Card en Apple Wallet o Google Wallet
                     </p>
                 </div>
                 <button type="button" onclick="closeModal('modal-giftcard')" class="px-3 py-1.5 rounded-full bg-[#EADFD7] text-[#121212] text-xs font-bold shrink-0">
@@ -786,12 +786,12 @@
                             $500
                         </button>
                     </div>
-                    <div class="flex items-center gap-2 bg-white rounded-xl px-3.5 py-2 border border-black/10">
-                        <span class="text-[13px] font-bold text-[#6E655F]">Otro monto ($50 - $5,000): $</span>
+                    <div class="flex items-center gap-2 bg-white rounded-xl px-3.5 py-2.5 border border-black/10">
+                        <span class="text-[13.5px] font-bold text-[#6E655F] whitespace-nowrap shrink-0">Otro monto $</span>
                         <input type="number" id="hub-gift-custom-amount" min="50" max="5000" step="10" value="200"
                                oninput="onHubGiftCustomAmountInput(this.value)"
                                class="w-full text-[15px] font-extrabold text-[#121212] bg-transparent focus:outline-none" />
-                        <span class="text-[11px] font-bold text-[#6E655F]">MXN</span>
+                        <span class="text-[11px] font-bold text-[#6E655F] shrink-0">MXN</span>
                     </div>
                 </div>
 
@@ -860,7 +860,7 @@
                     </div>
                     <div class="mt-3 pt-2.5 border-t border-white/10 flex items-center justify-between text-[11.5px] text-[#D8CBB8]">
                         <div>Para: <strong id="hub-gift-preview-to" class="text-white">Tu persona favorita</strong></div>
-                        <div>De: <strong id="hub-gift-preview-from" class="text-[#E6C770]">Un amigo</strong></div>
+                        <div>De: <strong id="hub-gift-preview-from" class="text-[#E6C770]">Alguien especial</strong></div>
                     </div>
                     <div id="hub-gift-preview-msg" class="mt-1.5 text-[11.5px] italic text-[#E6C770]/90 truncate">
                         "¡Disfruta un delicioso café por mi cuenta! ☕✨"
@@ -901,63 +901,74 @@
 
                 <button type="button" id="hub-gift-submit-btn" onclick="submitHubGiftCard()"
                         class="w-full py-3.5 px-4 rounded-[14px] bg-gradient-to-r from-[#231914] to-[#12100E] text-[#F5E6C8] border border-[#D4AF37]/50 font-extrabold text-[15px] shadow-md active:scale-[0.98] transition flex items-center justify-center gap-2">
-                    <span>🎁 Crear Sobre Digital de Regalo</span>
+                    <span>🎁 Crear Gift Card</span>
                 </button>
             </div>
 
-            <!-- PASO 2: SOBRE DIGITAL CREADO Y LISTO PARA ENVIAR POR WHATSAPP -->
-            <div id="hub-gift-success-step" class="hidden space-y-4">
-                <div class="rounded-[20px] p-4 bg-gradient-to-br from-[#231914] to-[#120D0A] text-[#FAF6F0] border border-[#D4AF37]/50 shadow-lg text-center">
-                    <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#D4AF37]/20 text-[#E6C770] text-[11px] font-extrabold mb-2">
-                        <span>✨ SOBRE DIGITAL GENERADO</span>
+            <!-- PASO 2: VISTA PREVIA DE LA GIFT CARD CREADA + FLUJO DE ACTIVACIÓN POR BARISTA -->
+            <div id="hub-gift-success-step" class="hidden space-y-3.5">
+                <!-- 1. Leyenda primordial de estado de activación por el Barista -->
+                <div id="hub-gift-activation-banner" class="p-3.5 rounded-2xl bg-[#FFFBEB] border-2 border-[#F59E0B] text-[#92400E] shadow-xs">
+                    <div id="hub-gift-activation-headline" class="text-[13px] font-extrabold flex items-center gap-1.5">
+                        <span>⏳ Para poder enviarla debe ser activada por el barista</span>
                     </div>
-                    <div id="hub-gift-created-title" class="text-[22px] font-extrabold text-[#F7E3A8]">
+                    <p id="hub-gift-activation-desc" class="text-[11.5px] mt-1 leading-relaxed text-[#78350F]">
+                        Tu Gift Card ya quedó registrada y le aparece al barista en pantalla. Solicita su activación en mostrador o por transferencia en WhatsApp para que se desbloquee el envío a esa persona especial.
+                    </p>
+                </div>
+
+                <!-- 2. Vista Previa de la Gift Card Creada -->
+                <div class="rounded-[20px] p-4 bg-gradient-to-br from-[#231914] to-[#120D0A] text-[#FAF6F0] border border-[#D4AF37]/50 shadow-lg text-center">
+                    <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#D4AF37]/20 text-[#E6C770] text-[10.5px] font-extrabold mb-2">
+                        <span>✨ VISTA PREVIA DE TU GIFT CARD</span>
+                    </div>
+                    <img id="hub-gift-created-strip-img" src="" alt="Vista previa Gift Card"
+                         class="w-full rounded-xl border border-[#D4AF37]/35 shadow-md mb-2.5 object-cover" />
+                    <div id="hub-gift-created-title" class="text-[21px] font-extrabold text-[#F7E3A8] leading-tight">
                         $200.00 MXN
                     </div>
                     <div id="hub-gift-created-meta" class="text-[12.5px] text-[#D8CBB8] mt-0.5">
                         Para Sofía · De parte de Gonzalo
                     </div>
-                    <div class="mt-3 inline-block px-3.5 py-1.5 rounded-xl bg-black/40 border border-white/10 font-mono text-[13px] font-extrabold text-[#E6C770]" id="hub-gift-created-code">
+                    <div id="hub-gift-created-dedication" class="text-[11.5px] italic text-[#E6C770]/90 mt-1 truncate">
+                        "¡Disfruta un delicioso café por mi cuenta! ☕✨"
+                    </div>
+                    <div class="mt-2.5 inline-block px-3.5 py-1.5 rounded-xl bg-black/45 border border-white/15 font-mono text-[13px] font-extrabold text-[#E6C770]" id="hub-gift-created-code">
                         GIFT-000000
                     </div>
-                    <div id="hub-gift-created-status-pill" class="mt-2 text-[11.5px] font-bold text-[#F59E0B]">
-                        ⏳ Pendiente de activación en caja o modo demo
+                    <div id="hub-gift-created-status-pill" class="mt-2 text-[11.5px] font-extrabold text-[#FBBF24]">
+                        ⏳ En proceso de activación por el barista
                     </div>
                 </div>
 
-                <!-- Botón instantáneo de Modo Demo para probar sin fricción -->
-                <div id="hub-gift-demo-activate-box" class="p-3.5 rounded-2xl bg-[#ECFDF5] border border-[#10B981]/30 space-y-2">
-                    <div class="text-[12px] font-bold text-[#065F46]">
-                        🧪 ¿Estás probando el sistema Demo? Actívala con 1 clic:
-                    </div>
-                    <button type="button" id="hub-gift-demo-activate-btn" onclick="activateHubCreatedGiftDemo()"
-                            class="w-full py-2.5 px-3 rounded-xl bg-[#059669] text-white font-extrabold text-[13px] shadow-xs active:scale-95 transition">
-                        ⚡ Activar Gift Card al Instante (Modo Demo)
+                <!-- Aviso dinámico cuando el cliente presiona enviar/abrir/copiar antes de que el barista la active -->
+                <div id="hub-gift-locked-notice" class="hidden p-3.5 rounded-2xl bg-[#FEF2F2] border border-[#EF4444]/40 text-[#991B1B] text-[12px] font-bold leading-snug">
+                    ⏳ Esta Gift Card (<span id="hub-gift-locked-code" class="font-mono font-extrabold">GIFT-000000</span>) está en proceso de activación por el barista. En cuanto el barista registre el pago y la active, podrás enviarla por WhatsApp, abrirla o copiar su link.
+                </div>
+
+                <!-- Botón directo a WhatsApp de Demo Café con el identificador de la Gift Card -->
+                <a id="hub-gift-wa-shop-btn" href="#" target="_blank" rel="noopener"
+                   class="w-full py-3.5 px-4 rounded-[14px] bg-[#121212] text-[#F5E6C8] border border-[#D4AF37]/55 font-extrabold text-[13.5px] flex items-center justify-center gap-2 no-underline shadow-md active:scale-[0.98] transition text-center">
+                    <span>💬 Solicitar activación por transferencia al WhatsApp de {{ campaign.shopName }}</span>
+                </a>
+
+                <!-- Acciones de envío para el destinatario (bloqueadas con aviso mientras status !== 'active') -->
+                <div class="space-y-2 pt-1">
+                    <button type="button" id="hub-gift-wa-friend-btn" onclick="handleHubGiftSendWhatsApp()"
+                            class="w-full py-3.5 px-4 rounded-[14px] bg-[#25D366] text-white font-extrabold text-[14.5px] flex items-center justify-center gap-2 shadow-md active:scale-[0.98] transition">
+                        <span id="hub-gift-wa-friend-label">🔒 Enviar Gift Card por WhatsApp</span>
                     </button>
-                </div>
-
-                <!-- Acciones principales: Enviar a amigo por WhatsApp / Abrir Sobre Digital / Copiar Link -->
-                <div class="space-y-2.5">
-                    <a id="hub-gift-wa-friend-btn" href="#" target="_blank" rel="noopener"
-                       class="w-full py-3.5 px-4 rounded-[14px] bg-[#25D366] text-white font-extrabold text-[14.5px] flex items-center justify-center gap-2 no-underline shadow-md active:scale-[0.98] transition">
-                        <span>📲 Enviar Sobre Digital a mi Amigo por WhatsApp</span>
-                    </a>
 
                     <div class="grid grid-cols-2 gap-2">
-                        <a id="hub-gift-open-link-btn" href="#" target="_blank" rel="noopener"
-                           class="py-3 px-3 rounded-xl bg-[#121212] text-white font-bold text-[13px] text-center no-underline active:scale-95 transition">
-                            👀 Abrir Sobre Digital
-                        </a>
-                        <button type="button" onclick="copyHubGiftUrl()"
+                        <button type="button" id="hub-gift-open-link-btn" onclick="handleHubGiftOpenLink()"
+                                class="py-3 px-3 rounded-xl bg-[#121212] text-white font-bold text-[13px] text-center active:scale-95 transition">
+                            <span id="hub-gift-open-link-label">🔒 Abrir Gift Card</span>
+                        </button>
+                        <button type="button" id="hub-gift-copy-link-btn" onclick="copyHubGiftUrl()"
                                 class="py-3 px-3 rounded-xl bg-[#EADFD7] text-[#121212] font-bold text-[13px] active:scale-95 transition">
-                            📋 Copiar Link
+                            <span id="hub-gift-copy-link-label">🔒 Copiar Link</span>
                         </button>
                     </div>
-
-                    <a id="hub-gift-wa-shop-btn" href="#" target="_blank" rel="noopener"
-                       class="w-full py-2.5 px-3 rounded-xl bg-white border border-black/15 text-[#121212] font-bold text-[12.5px] flex items-center justify-center gap-1.5 no-underline">
-                        <span>💬 Solicitar activación por transferencia al WhatsApp de {{ campaign.shopName }}</span>
-                    </a>
                 </div>
 
                 <button type="button" onclick="resetHubGiftForm()"
@@ -2354,17 +2365,22 @@
             comboPrice: 85,
             comboEmoji: '☕',
             createdGift: null,
-            createdGiftUrl: ''
+            createdGiftUrl: '',
+            whatsappShareUrl: '',
+            whatsappActivateUrl: '',
+            pollTimerId: null
         };
 
         function openGiftCardModal() {
-            // Si el cliente ya está registrado en el Hub, pre-rellenar su nombre en "De parte de"
             const senderInput = document.getElementById('hub-gift-sender');
             if (senderInput && !senderInput.value.trim() && currentMember && currentMember.name) {
                 senderInput.value = currentMember.name;
             }
             updateHubGiftPreview();
             openModal('modal-giftcard');
+            if (hubGiftState.createdGift && hubGiftState.createdGift.code) {
+                checkHubGiftActivationStatus(true);
+            }
         }
 
         function setHubGiftMode(mode) {
@@ -2450,7 +2466,7 @@
             const msgVal = (document.getElementById('hub-gift-message')?.value || '').trim();
 
             if (toEl) toEl.textContent = recVal || 'Tu persona favorita';
-            if (fromEl) fromEl.textContent = sndVal || 'Un amigo';
+            if (fromEl) fromEl.textContent = sndVal || 'Alguien especial';
             if (msgEl) msgEl.textContent = `"${msgVal || '¡Disfruta un delicioso café por mi cuenta! ☕✨'}"`;
 
             if (hubGiftState.mode === 'combo') {
@@ -2463,6 +2479,176 @@
                 if (headline) headline.textContent = `$${amt.toFixed(2)} MXN`;
                 if (sub) sub.textContent = 'Saldo consumible en una o varias visitas';
             }
+        }
+
+        function renderHubCreatedGiftActivationUi() {
+            const g = hubGiftState.createdGift;
+            if (!g) return;
+            const isActive = (g.status === 'active' || g.status === 'redeemed');
+
+            const stripImg = document.getElementById('hub-gift-created-strip-img');
+            if (stripImg) {
+                stripImg.src = `/gift/${encodeURIComponent(g.code)}/strip.png?v=${encodeURIComponent(g.updated_at || '')}`;
+            }
+            document.getElementById('hub-gift-created-title').textContent =
+                g.gift_type === 'combo' ? (g.combo_title || g.package_title) : `$${Number(g.current_balance).toFixed(2)} MXN`;
+            document.getElementById('hub-gift-created-meta').textContent =
+                `Para ${g.recipient_name} · De parte de ${g.sender_name}`;
+            document.getElementById('hub-gift-created-dedication').textContent =
+                `"${g.dedication || '¡Disfruta un delicioso café por mi cuenta! ☕✨'}"`;
+            document.getElementById('hub-gift-created-code').textContent = g.code;
+
+            const lockedCodeEl = document.getElementById('hub-gift-locked-code');
+            if (lockedCodeEl) lockedCodeEl.textContent = g.code;
+
+            const waShopBtn = document.getElementById('hub-gift-wa-shop-btn');
+            if (waShopBtn && hubGiftState.whatsappActivateUrl) {
+                waShopBtn.href = hubGiftState.whatsappActivateUrl;
+            }
+
+            const banner = document.getElementById('hub-gift-activation-banner');
+            const bannerHeadline = document.getElementById('hub-gift-activation-headline');
+            const bannerDesc = document.getElementById('hub-gift-activation-desc');
+            const statusPill = document.getElementById('hub-gift-created-status-pill');
+            const lockedNotice = document.getElementById('hub-gift-locked-notice');
+
+            const waFriendBtn = document.getElementById('hub-gift-wa-friend-btn');
+            const waFriendLabel = document.getElementById('hub-gift-wa-friend-label');
+            const openLinkBtn = document.getElementById('hub-gift-open-link-btn');
+            const openLinkLabel = document.getElementById('hub-gift-open-link-label');
+            const copyLinkBtn = document.getElementById('hub-gift-copy-link-btn');
+            const copyLinkLabel = document.getElementById('hub-gift-copy-link-label');
+
+            if (isActive) {
+                banner.className = 'p-3.5 rounded-2xl bg-[#ECFDF5] border-2 border-[#10B981] text-[#065F46] shadow-xs';
+                bannerHeadline.innerHTML = '<span>✅ ¡Pago aplicado! Gift Card ACTIVA y lista para enviar</span>';
+                bannerDesc.className = 'text-[11.5px] mt-1 leading-relaxed text-[#047857]';
+                bannerDesc.textContent = `El barista ya activó tu Gift Card (${g.code}). Ahora puedes enviarla por WhatsApp o copiar el link para compartirla con ${g.recipient_name}.`;
+
+                statusPill.textContent = '✅ Gift Card ACTIVA y lista para canjear';
+                statusPill.className = 'mt-2 text-[11.5px] font-extrabold text-[#34D399]';
+                if (lockedNotice) lockedNotice.classList.add('hidden');
+                if (waShopBtn) waShopBtn.classList.add('hidden');
+
+                waFriendBtn.className = 'w-full py-3.5 px-4 rounded-[14px] bg-[#25D366] text-white font-extrabold text-[14.5px] flex items-center justify-center gap-2 shadow-md active:scale-[0.98] transition';
+                waFriendLabel.textContent = '📲 Enviar Gift Card por WhatsApp';
+
+                openLinkBtn.className = 'py-3 px-3 rounded-xl bg-[#121212] text-white font-bold text-[13px] text-center active:scale-95 transition';
+                openLinkLabel.textContent = '👀 Abrir Gift Card';
+
+                copyLinkBtn.className = 'py-3 px-3 rounded-xl bg-[#EADFD7] text-[#121212] font-bold text-[13px] active:scale-95 transition';
+                copyLinkLabel.textContent = '📋 Copiar Link';
+            } else {
+                banner.className = 'p-3.5 rounded-2xl bg-[#FFFBEB] border-2 border-[#F59E0B] text-[#92400E] shadow-xs';
+                bannerHeadline.innerHTML = '<span>⏳ Para poder enviarla debe ser activada por el barista</span>';
+                bannerDesc.className = 'text-[11.5px] mt-1 leading-relaxed text-[#78350F]';
+                bannerDesc.textContent = `Tu Gift Card (${g.code}) ya le aparece al barista para activarla. Solicita su activación en caja o por transferencia en WhatsApp para poder enviarla a quien desees.`;
+
+                statusPill.textContent = '⏳ En proceso de activación por el barista';
+                statusPill.className = 'mt-2 text-[11.5px] font-extrabold text-[#FBBF24]';
+                if (waShopBtn) waShopBtn.classList.remove('hidden');
+
+                waFriendBtn.className = 'w-full py-3.5 px-4 rounded-[14px] bg-[#25D366]/65 text-white font-extrabold text-[14.5px] flex items-center justify-center gap-2 shadow-xs transition';
+                waFriendLabel.textContent = '🔒 Enviar Gift Card por WhatsApp';
+
+                openLinkBtn.className = 'py-3 px-3 rounded-xl bg-[#121212]/65 text-white font-bold text-[13px] text-center transition';
+                openLinkLabel.textContent = '🔒 Abrir Gift Card';
+
+                copyLinkBtn.className = 'py-3 px-3 rounded-xl bg-[#EADFD7]/75 text-[#6E655F] font-bold text-[13px] transition';
+                copyLinkLabel.textContent = '🔒 Copiar Link';
+            }
+        }
+
+        function startHubGiftStatusPolling() {
+            if (hubGiftState.pollTimerId) {
+                clearInterval(hubGiftState.pollTimerId);
+            }
+            hubGiftState.pollTimerId = setInterval(() => {
+                checkHubGiftActivationStatus(true);
+            }, 3000);
+        }
+
+        async function checkHubGiftActivationStatus(silent) {
+            if (!hubGiftState.createdGift || !hubGiftState.createdGift.code) return false;
+            try {
+                const res = await fetch(`/api/gift/${encodeURIComponent(hubGiftState.createdGift.code)}/state`);
+                if (!res.ok) return false;
+                const data = await res.json();
+                const wasPending = hubGiftState.createdGift.status !== 'active';
+                hubGiftState.createdGift = data;
+                if (data.gift_url) hubGiftState.createdGiftUrl = data.gift_url;
+                if (data.whatsapp_share_url) hubGiftState.whatsappShareUrl = data.whatsapp_share_url;
+                if (data.whatsapp_activate_url) hubGiftState.whatsappActivateUrl = data.whatsapp_activate_url;
+                renderHubCreatedGiftActivationUi();
+
+                if (wasPending && data.status === 'active') {
+                    showHubToast('✅ ¡El barista activó tu Gift Card! Ya puedes enviarla');
+                    if (hubGiftState.pollTimerId) {
+                        clearInterval(hubGiftState.pollTimerId);
+                        hubGiftState.pollTimerId = null;
+                    }
+                    return true;
+                }
+                return data.status === 'active' || data.status === 'redeemed';
+            } catch (e) {
+                return false;
+            }
+        }
+
+        function showHubGiftPendingBarrier() {
+            const g = hubGiftState.createdGift;
+            const code = g ? g.code : '';
+            const lockedNotice = document.getElementById('hub-gift-locked-notice');
+            if (lockedNotice) {
+                lockedNotice.classList.remove('hidden');
+                lockedNotice.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
+            showHubToast(`⏳ La Gift Card ${code} está en proceso de activación por el barista`);
+        }
+
+        async function handleHubGiftSendWhatsApp() {
+            if (!hubGiftState.createdGift) return;
+            if (hubGiftState.createdGift.status !== 'active' && hubGiftState.createdGift.status !== 'redeemed') {
+                const nowActive = await checkHubGiftActivationStatus(true);
+                if (!nowActive) {
+                    showHubGiftPendingBarrier();
+                    return;
+                }
+            }
+            if (hubGiftState.whatsappShareUrl) {
+                window.open(hubGiftState.whatsappShareUrl, '_blank', 'noopener');
+            }
+        }
+
+        async function handleHubGiftOpenLink() {
+            if (!hubGiftState.createdGift) return;
+            if (hubGiftState.createdGift.status !== 'active' && hubGiftState.createdGift.status !== 'redeemed') {
+                const nowActive = await checkHubGiftActivationStatus(true);
+                if (!nowActive) {
+                    showHubGiftPendingBarrier();
+                    return;
+                }
+            }
+            if (hubGiftState.createdGiftUrl) {
+                window.open(hubGiftState.createdGiftUrl, '_blank', 'noopener');
+            }
+        }
+
+        async function copyHubGiftUrl() {
+            if (!hubGiftState.createdGift) return;
+            if (hubGiftState.createdGift.status !== 'active' && hubGiftState.createdGift.status !== 'redeemed') {
+                const nowActive = await checkHubGiftActivationStatus(true);
+                if (!nowActive) {
+                    showHubGiftPendingBarrier();
+                    return;
+                }
+            }
+            if (!hubGiftState.createdGiftUrl) return;
+            navigator.clipboard.writeText(hubGiftState.createdGiftUrl).then(() => {
+                showHubToast('📋 Link de la Gift Card copiado');
+            }).catch(() => {
+                showHubToast('Link: ' + hubGiftState.createdGiftUrl);
+            });
         }
 
         async function submitHubGiftCard() {
@@ -2500,7 +2686,7 @@
 
             const origText = btn.innerHTML;
             btn.disabled = true;
-            btn.innerHTML = '<span>⏳ Generando Sobre Digital...</span>';
+            btn.innerHTML = '<span>⏳ Creando Gift Card...</span>';
 
             try {
                 const res = await fetch('/api/gift/create', {
@@ -2515,38 +2701,18 @@
 
                 hubGiftState.createdGift = data.gift;
                 hubGiftState.createdGiftUrl = data.gift_url;
+                hubGiftState.whatsappShareUrl = data.whatsapp_share_url;
+                hubGiftState.whatsappActivateUrl = data.whatsapp_activate_url;
 
-                const g = data.gift;
-                document.getElementById('hub-gift-created-title').textContent =
-                    g.gift_type === 'combo' ? g.combo_title : `$${Number(g.current_balance).toFixed(2)} MXN`;
-                document.getElementById('hub-gift-created-meta').textContent =
-                    `Para ${g.recipient_name} · De parte de ${g.sender_name}`;
-                document.getElementById('hub-gift-created-code').textContent = g.code;
+                const lockedNotice = document.getElementById('hub-gift-locked-notice');
+                if (lockedNotice) lockedNotice.classList.add('hidden');
 
-                const statusPill = document.getElementById('hub-gift-created-status-pill');
-                const demoBox = document.getElementById('hub-gift-demo-activate-box');
-                if (g.status === 'active') {
-                    statusPill.textContent = '✅ Gift Card ACTIVA y lista para canjear';
-                    statusPill.className = 'mt-2 text-[11.5px] font-bold text-[#10B981]';
-                    demoBox.classList.add('hidden');
-                } else {
-                    statusPill.textContent = '⏳ Pendiente de activación en caja o modo demo';
-                    statusPill.className = 'mt-2 text-[11.5px] font-bold text-[#F59E0B]';
-                    demoBox.classList.remove('hidden');
-                    const demoBtn = document.getElementById('hub-gift-demo-activate-btn');
-                    if (demoBtn) {
-                        demoBtn.disabled = false;
-                        demoBtn.textContent = '⚡ Activar Gift Card al Instante (Modo Demo)';
-                    }
-                }
-
-                document.getElementById('hub-gift-wa-friend-btn').href = data.whatsapp_share_url;
-                document.getElementById('hub-gift-open-link-btn').href = data.gift_url;
-                document.getElementById('hub-gift-wa-shop-btn').href = data.whatsapp_activate_url;
+                renderHubCreatedGiftActivationUi();
+                startHubGiftStatusPolling();
 
                 document.getElementById('hub-gift-form-step').classList.add('hidden');
                 document.getElementById('hub-gift-success-step').classList.remove('hidden');
-                showHubToast('🎁 ¡Sobre Digital creado con éxito!');
+                showHubToast('🎁 Gift Card registrada · Pendiente de activación por barista');
             } catch (e) {
                 errBox.textContent = '⚠️ ' + e.message;
                 errBox.classList.remove('hidden');
@@ -2556,42 +2722,16 @@
             }
         }
 
-        async function activateHubCreatedGiftDemo() {
-            if (!hubGiftState.createdGift || !hubGiftState.createdGift.code) return;
-            const btn = document.getElementById('hub-gift-demo-activate-btn');
-            btn.disabled = true;
-            btn.textContent = '⏳ Activando Gift Card...';
-            try {
-                const res = await fetch(`/api/gift/${hubGiftState.createdGift.code}/demo-activate`, {
-                    method: 'POST'
-                });
-                const data = await res.json();
-                if (!res.ok || !data.ok) throw new Error(data.error || 'Error al activar');
-                hubGiftState.createdGift = data.gift;
-                const statusPill = document.getElementById('hub-gift-created-status-pill');
-                statusPill.textContent = '✅ Gift Card ACTIVA y lista para guardar en Wallet';
-                statusPill.className = 'mt-2 text-[11.5px] font-bold text-[#10B981]';
-                document.getElementById('hub-gift-demo-activate-box').classList.add('hidden');
-                showHubToast('✅ ¡Gift Card activada al instante!');
-            } catch (e) {
-                btn.disabled = false;
-                btn.textContent = '⚡ Activar Gift Card al Instante (Modo Demo)';
-                showHubToast('⚠️ ' + e.message);
-            }
-        }
-
-        function copyHubGiftUrl() {
-            if (!hubGiftState.createdGiftUrl) return;
-            navigator.clipboard.writeText(hubGiftState.createdGiftUrl).then(() => {
-                showHubToast('📋 Link del Sobre Digital copiado');
-            }).catch(() => {
-                showHubToast('Link: ' + hubGiftState.createdGiftUrl);
-            });
-        }
-
         function resetHubGiftForm() {
+            if (hubGiftState.pollTimerId) {
+                clearInterval(hubGiftState.pollTimerId);
+                hubGiftState.pollTimerId = null;
+            }
+            hubGiftState.createdGift = null;
             document.getElementById('hub-gift-recipient').value = '';
             document.getElementById('hub-gift-message').value = '';
+            const lockedNotice = document.getElementById('hub-gift-locked-notice');
+            if (lockedNotice) lockedNotice.classList.add('hidden');
             document.getElementById('hub-gift-success-step').classList.add('hidden');
             document.getElementById('hub-gift-form-step').classList.remove('hidden');
             updateHubGiftPreview();

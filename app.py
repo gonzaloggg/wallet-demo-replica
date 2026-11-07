@@ -785,6 +785,15 @@ GIFT_COMBO_CATALOG = {
         "price": 85.0,
         "uses": 1,
     },
+    "cafe_amigo": {
+        "key": "cafe_individual",
+        "icon": "☕",
+        "title": "Vale «Te invito un Café»",
+        "short_title": "Te invito un Café",
+        "desc": "1 bebida caliente o fría de cualquier tamaño",
+        "price": 85.0,
+        "uses": 1,
+    },
     "manana_perfecta": {
         "key": "manana_perfecta",
         "icon": "🥐",
@@ -795,6 +804,15 @@ GIFT_COMBO_CATALOG = {
         "uses": 1,
     },
     "cita_para_dos": {
+        "key": "cita_para_dos",
+        "icon": "👯",
+        "title": "Pack «Cita para Dos»",
+        "short_title": "Pack Cita para Dos",
+        "desc": "2 bebidas + 2 postres o paninis para compartir",
+        "price": 280.0,
+        "uses": 1,
+    },
+    "cita_dos": {
         "key": "cita_para_dos",
         "icon": "👯",
         "title": "Pack «Cita para Dos»",
@@ -3955,8 +3973,14 @@ BARISTA_HTML = """
                 <button type="button" id="nav-btn-pos" class="nav-tab-btn active" onclick="switchMainView('pos')">
                     ☕️ Mostrador POS
                 </button>
+                {% set pending_gifts_cnt = (gift_cards | selectattr('status', 'equalto', 'pending') | list | length) if gift_cards is defined else 0 %}
                 <button type="button" id="nav-btn-gifts" class="nav-tab-btn" onclick="switchMainView('gifts')">
                     🎁 Gift Cards ({{ gift_cards|length if gift_cards is defined else 0 }})
+                    {% if pending_gifts_cnt > 0 %}
+                        <span style="margin-left:5px; padding:2px 7px; border-radius:99px; background:#F59E0B; color:#12100E; font-size:10.5px; font-weight:900;">
+                            ⏳ {{ pending_gifts_cnt }} por activar
+                        </span>
+                    {% endif %}
                 </button>
                 <button type="button" id="nav-btn-campaign" class="nav-tab-btn" onclick="switchMainView('campaign')">
                     🎨 Diseño y Campaña
@@ -5243,7 +5267,7 @@ BARISTA_HTML = """
 
                         <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:10px;">
                             <div>
-                                <label style="font-size:11.5px; color:var(--gold-light); font-weight:700; display:block; margin-bottom:4px;">Para (Festejado/Amigo)</label>
+                                <label style="font-size:11.5px; color:var(--gold-light); font-weight:700; display:block; margin-bottom:4px;">Para (Destinatario)</label>
                                 <input type="text" name="recipient_name" class="input-dark" placeholder="Ej. Ana Sofía" required>
                             </div>
                             <div>
@@ -5271,16 +5295,16 @@ BARISTA_HTML = """
                         </div>
                         <div style="display:flex; flex-direction:column; gap:10px; font-size:13px; color:var(--text-primary); line-height:1.45; margin-top:6px;">
                             <div style="background:#FAF6F3; border:1px solid var(--border-subtle); border-radius:14px; padding:11px 13px;">
-                                <strong style="color:var(--gold-light);">1. Escaneo Directo en Mostrador:</strong><br>
-                                Usa la misma cámara QR de <strong>☕️ Mostrador POS</strong>. Al detectar un código <code style="font-weight:800;">GIFT-XXXXXX</code> se abrirá automáticamente la ventana para descontar saldo o canjear el paquete.
+                                <strong style="color:#B86200;">1. Activación de Gift Cards Creadas por Clientes:</strong><br>
+                                Cuando un cliente crea una Gift Card desde el Hub, aparece abajo como <strong>⏳ Por Activar</strong> con su identificador <code style="font-weight:800;">GIFT-XXXXXX</code>. Al recibir su pago en caja o transferencia por WhatsApp, toca <strong>✅ Activar Gift Card</strong> y al cliente se le habilitará de inmediato el envío por WhatsApp.
                             </div>
                             <div style="background:#FAF6F3; border:1px solid var(--border-subtle); border-radius:14px; padding:11px 13px;">
-                                <strong style="color:var(--gold-light);">2. Saldo Parcial o Combos:</strong><br>
-                                Las tarjetas de <strong>💳 Saldo</strong> pueden usarse en varias visitas hasta llegar a <code style="font-weight:800;">$0.00</code>. Cada descuento actualiza al instante el Apple Wallet / Google Wallet del cliente con una notificación Push.
+                                <strong style="color:var(--gold-light);">2. Escaneo Directo y Saldo Parcial:</strong><br>
+                                Usa la misma cámara QR de <strong>☕️ Mostrador POS</strong>. Cada descuento de saldo actualiza al instante el Apple Wallet / Google Wallet del cliente con una notificación Push.
                             </div>
                             <div style="background:#FAF6F3; border:1px solid var(--border-subtle); border-radius:14px; padding:11px 13px;">
                                 <strong style="color:#1E7A34;">3. Conversión a Cliente Frecuente (+1 Sello Gratis):</strong><br>
-                                Desde su Sobre Digital (<code style="font-weight:800;">/gift/GIFT-XXXXXX</code>), el amigo que recibió el regalo puede convertir su Gift Card en su propia Tarjeta de Lealtad empezando con <strong>1 sello gratis</strong>.
+                                Desde su regalo digital (<code style="font-weight:800;">/gift/GIFT-XXXXXX</code>), la persona que recibió el regalo puede convertir su Gift Card en su propia Tarjeta de Lealtad empezando con <strong>1 sello gratis</strong>.
                             </div>
                         </div>
                     </div>
@@ -5295,7 +5319,7 @@ BARISTA_HTML = """
                 <div class="client-list">
                     {% if gift_cards is defined and gift_cards %}
                         {% for g in gift_cards %}
-                        <div class="client-card-row {{ 'highlight-row' if gift_updated == g.code else '' }}" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+                        <div class="client-card-row {{ 'highlight-row' if gift_updated == g.code else '' }}" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; {{ 'border:1.5px solid rgba(245,158,11,0.55); background:rgba(245,158,11,0.06);' if g.status == 'pending' else '' }}">
                             <div style="display:flex; align-items:center; gap:12px; min-width:240px;">
                                 <div class="avatar-circle tier-gold" style="font-size:18px;">
                                     {{ '🥐' if g.gift_type == 'combo' else '🎁' }}
@@ -5309,7 +5333,7 @@ BARISTA_HTML = """
                                         {% elif g.status == 'redeemed' %}
                                             <span class="status-pill-off" style="color:#4A5D23; border-color:rgba(74,93,35,0.4);">🎉 Canjeada</span>
                                         {% else %}
-                                            <span class="status-pill-off" style="color:#B86200; border-color:rgba(184,98,0,0.45);">⏳ Por Activar</span>
+                                            <span class="status-pill-off" style="color:#B86200; background:rgba(245,158,11,0.18); border-color:rgba(184,98,0,0.55); font-weight:800;">⏳ Pendiente de Activar por Barista</span>
                                         {% endif %}
                                         {% if g.converted_serial %}
                                             <span class="status-pill-on" style="background:rgba(74,93,35,0.14); color:#4A5D23;">✨ Convertida a Socio ({{ g.converted_serial }})</span>
@@ -5325,6 +5349,15 @@ BARISTA_HTML = """
                             </div>
 
                             <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                                {% if g.status == 'pending' %}
+                                <form action="/api/barista/gift-action" method="POST" style="margin:0;" onsubmit="saveBaristaUiState()">
+                                    <input type="hidden" name="code" value="{{ g.code }}">
+                                    <input type="hidden" name="action" value="activate">
+                                    <button type="submit" style="padding:9px 14px; border-radius:10px; border:none; background:#1E7A34; color:#FFF; font-weight:800; font-size:12.5px; cursor:pointer; box-shadow:0 4px 12px rgba(30,122,52,0.28);">
+                                        ✅ Activar Gift Card (Pago Recibido)
+                                    </button>
+                                </form>
+                                {% endif %}
                                 <button type="button"
                                         class="btn-gold-sm"
                                         data-code="{{ g.code }}"
@@ -5337,7 +5370,7 @@ BARISTA_HTML = """
                                         data-sender="{{ g.sender_name }}"
                                         onclick="openGiftPosModalFromBtn(this)">
                                     {% if g.status == 'pending' %}
-                                        🟢 Activar / Operar
+                                        ⚙️ Opciones
                                     {% elif g.gift_type == 'combo' %}
                                         🎉 Canjear Paquete
                                     {% else %}
@@ -5345,7 +5378,7 @@ BARISTA_HTML = """
                                     {% endif %}
                                 </button>
                                 <a href="/gift/{{ g.code }}" target="_blank" class="action-chip" style="text-decoration:none;">
-                                    🎁 Sobre Digital ↗
+                                    🎁 Ver Regalo ↗
                                 </a>
                             </div>
                         </div>
@@ -6389,6 +6422,12 @@ BARISTA_HTML = """
         }, 60);
         {% endif %}
 
+        {% if gift_updated %}
+        setTimeout(() => {
+            switchMainView('gifts');
+        }, 40);
+        {% endif %}
+
         {% if gift_scan_obj %}
         setTimeout(() => {
             openGiftPosModalByObj({{ gift_scan_obj | tojson }});
@@ -6830,12 +6869,13 @@ def _row_to_gift_dict(row):
         "gift_type": gift_type,
         "package_key": row[2] or "",
         "package_title": pkg_title,
+        "combo_title": pkg_title,
         "package_desc": pkg_desc,
         "initial_amount": init_amt,
         "current_balance": curr_bal,
         "total_uses": tot_uses,
         "remaining_uses": rem_uses,
-        "sender_name": row[9] or "Un amigo",
+        "sender_name": row[9] or "Alguien especial",
         "sender_phone": row[10] or "",
         "recipient_name": row[11] or "Para ti",
         "recipient_phone": row[12] or "",
@@ -6884,7 +6924,7 @@ def list_gift_cards_for_barista():
                   created_at_sonora, activated_at_sonora, updated_at, last_action_detail
            FROM gift_cards
            WHERE COALESCE(status, 'pending') != 'cancelled'
-           ORDER BY rowid DESC"""
+           ORDER BY CASE WHEN COALESCE(status, 'pending') = 'pending' THEN 0 WHEN status = 'active' THEN 1 ELSE 2 END, rowid DESC"""
     ).fetchall()
     conn.close()
     return [_row_to_gift_dict(r) for r in rows if r]
@@ -7361,42 +7401,40 @@ GIFT_UNBOXING_HTML = """
                 </div>
             </div>
 
-            {% if gift.status == 'pending' %}
-            <div id="pending-activation-box" style="background:rgba(245,158,11,0.14); border:1.5px solid rgba(245,158,11,0.45); border-radius:16px; padding:14px; margin-bottom:14px; text-align:center;">
-                <div style="font-size:13px; font-weight:800; color:#FCD34D; margin-bottom:4px;">⏳ Esta Gift Card está pendiente de activación</div>
-                <div style="font-size:12px; color:var(--muted); margin-bottom:10px;">
-                    El comprador puede liquidarla en mostrador o por transferencia para habilitar el código QR.
+            <div id="pending-activation-box" style="{{ '' if gift.status == 'pending' else 'display:none;' }} background:rgba(245,158,11,0.14); border:1.5px solid rgba(245,158,11,0.45); border-radius:16px; padding:15px; margin-bottom:14px; text-align:center;">
+                <div style="font-size:13.5px; font-weight:800; color:#FCD34D; margin-bottom:5px;">
+                    ⏳ Gift Card en proceso de activación por el barista
                 </div>
-                <button type="button" onclick="activateDemoGiftCardNow()" id="btn-demo-activate" class="btn-gold" style="margin-bottom:6px;">
-                    <span>⚡</span>
-                    <span>Activar Gift Card Ahora (Modo Demo)</span>
-                </button>
-            </div>
-            {% endif %}
-
-            <!-- Botones Oficiales de Billetera Digital (Apple Wallet + Google Wallet) -->
-            <div style="margin-top:6px;">
-                <a href="/gift/{{ gift.code }}/download.pkpass" class="btn-gold">
-                    <span>🍎</span>
-                    <span>Agregar Gift Card a Apple Wallet</span>
-                </a>
-                <a href="/gift/{{ gift.code }}/google-wallet" class="btn-dark">
-                    <span>🤖</span>
-                    <span>Agregar a Google Wallet / Android</span>
-                </a>
+                <div style="font-size:12.5px; color:var(--cream); line-height:1.45;">
+                    Esta Gift Card (<strong>{{ gift.code }}</strong>) aún debe ser activada por el barista en <strong>{{ campaign.shopName }}</strong>. En cuanto quede activada, aparecerán aquí automáticamente tu código QR y los botones para guardarla en tu Wallet.
+                </div>
             </div>
 
-            <!-- QR para escanear en Mostrador -->
-            <div style="text-align:center; margin-top:14px; padding-top:14px; border-top:1px solid rgba(255,255,255,0.1);">
-                <div style="font-size:12px; font-weight:700; color:var(--gold-light);">
-                    📷 Muestra este QR al barista en {{ campaign.shopName }}
+            <div id="active-wallet-actions" style="{{ 'display:none;' if gift.status == 'pending' else '' }}">
+                <!-- Botones Oficiales de Billetera Digital (Apple Wallet + Google Wallet) -->
+                <div style="margin-top:6px;">
+                    <a href="/gift/{{ gift.code }}/download.pkpass" class="btn-gold">
+                        <span>🍎</span>
+                        <span>Agregar Gift Card a Apple Wallet</span>
+                    </a>
+                    <a href="/gift/{{ gift.code }}/google-wallet" class="btn-dark">
+                        <span>🤖</span>
+                        <span>Agregar a Google Wallet / Android</span>
+                    </a>
                 </div>
-                <div class="qr-box">
-                    <img src="/gift/{{ gift.code }}/qr.png" alt="QR {{ gift.code }}">
-                    <div class="code-pill">{{ gift.code }}</div>
-                </div>
-                <div id="live-last-detail" style="font-size:11.5px; color:var(--muted); margin-top:6px;">
-                    {{ gift.last_action_detail }}
+
+                <!-- QR para escanear en Mostrador -->
+                <div style="text-align:center; margin-top:14px; padding-top:14px; border-top:1px solid rgba(255,255,255,0.1);">
+                    <div style="font-size:12px; font-weight:700; color:var(--gold-light);">
+                        📷 Muestra este QR al barista en {{ campaign.shopName }}
+                    </div>
+                    <div class="qr-box">
+                        <img src="/gift/{{ gift.code }}/qr.png" alt="QR {{ gift.code }}">
+                        <div class="code-pill">{{ gift.code }}</div>
+                    </div>
+                    <div id="live-last-detail" style="font-size:11.5px; color:var(--muted); margin-top:6px;">
+                        {{ gift.last_action_detail }}
+                    </div>
                 </div>
             </div>
         </div>
@@ -7456,29 +7494,6 @@ GIFT_UNBOXING_HTML = """
         const GIFT_CODE = {{ gift.code | tojson }};
         let lastUpdatedAt = {{ gift.updated_at | tojson }};
 
-        async function activateDemoGiftCardNow() {
-            const btn = document.getElementById('btn-demo-activate');
-            if (btn) {
-                btn.disabled = true;
-                btn.innerHTML = '<span>⏳ Activando Gift Card...</span>';
-            }
-            try {
-                const res = await fetch('/api/gift/' + encodeURIComponent(GIFT_CODE) + '/demo-activate', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' }
-                });
-                const data = await res.json();
-                if (res.ok && data.ok) {
-                    window.location.reload();
-                } else {
-                    alert(data.error || 'No se pudo activar');
-                    if (btn) btn.disabled = false;
-                }
-            } catch (e) {
-                if (btn) btn.disabled = false;
-            }
-        }
-
         async function convertGiftToLoyalty(e) {
             e.preventDefault();
             const btn = document.getElementById('btn-convert-submit');
@@ -7515,7 +7530,7 @@ GIFT_UNBOXING_HTML = """
             }
         }
 
-        // Sincronización en vivo cada 6 segundos cuando el barista descuenta saldo o canjea en mostrador
+        // Sincronización en vivo cada 3.5 segundos cuando el barista activa, descuenta saldo o canjea en mostrador
         setInterval(async () => {
             if (document.hidden) return;
             try {
@@ -7539,6 +7554,8 @@ GIFT_UNBOXING_HTML = """
                             badge.textContent = '🟢 Activa en Mostrador';
                             const pend = document.getElementById('pending-activation-box');
                             if (pend) pend.style.display = 'none';
+                            const actBox = document.getElementById('active-wallet-actions');
+                            if (actBox) actBox.style.display = 'block';
                         } else if (data.status === 'redeemed') {
                             badge.className = 'status-badge status-redeemed';
                             badge.textContent = '🎉 Disfrutada al 100%';
@@ -7546,35 +7563,75 @@ GIFT_UNBOXING_HTML = """
                     }
                 }
             } catch (e) {}
-        }, 6000);
+        }, 3500);
     </script>
 </body>
 </html>
 """
 
 
+def _build_gift_whatsapp_urls(gift_dict):
+    base_url = _public_base_url()
+    code = gift_dict["code"]
+    gift_url = f"{base_url}/gift/{code}"
+    shop_name = (get_campaign_config().get("shopName") or "Demo Café").strip()
+    val_label = gift_dict["package_title"] if gift_dict["gift_type"] == "combo" else f"${gift_dict['initial_amount']:,.2f} MXN"
+
+    share_msg = (
+        f"🎁 ¡Hola {gift_dict['recipient_name']}! Te envié una Gift Card de *{shop_name}* ({val_label}).\n"
+        f"💌 \"{gift_dict['dedication']}\"\n\n"
+        f"Ábrela aquí y guárdala en tu Apple Wallet o Google Wallet:\n{gift_url}"
+    )
+    activate_msg = (
+        f"Hola {shop_name} ☕, solicito activar por transferencia mi Gift Card recién creada:\n"
+        f"🔑 Identificador: *{code}*\n"
+        f"🎁 Regalo: *{val_label}*\n"
+        f"👤 Para: {gift_dict['recipient_name']}\n"
+        f"🙌 De parte de: {gift_dict['sender_name']}"
+    )
+    return {
+        "gift_url": gift_url,
+        "whatsapp_share_url": f"https://wa.me/?text={urllib_quote(share_msg)}",
+        "whatsapp_activate_url": f"https://wa.me/526421138069?text={urllib_quote(activate_msg)}",
+    }
+
+
 @app.route("/api/gift/create", methods=["POST"])
 def api_gift_create():
-    """Crea una Gift Card Digital desde el Hub del cliente (o desde Mostrador POS)."""
+    """
+    Crea una Gift Card Digital desde el Hub del cliente.
+    Siempre nace en estado 'pending' (⏳ En proceso de activación por el barista)
+    hasta que el barista en caja o validando transferencia la active desde /barista.
+    """
     data = request.get_json(force=True, silent=True) or {}
     gift_type = (data.get("gift_type") or request.form.get("gift_type") or "balance").strip().lower()
     if gift_type not in ("balance", "combo"):
         gift_type = "balance"
 
-    sender_name = (data.get("sender_name") or request.form.get("sender_name") or "").strip()[:70] or "Un amigo"
+    sender_name = (data.get("sender_name") or request.form.get("sender_name") or "").strip()[:70] or "Alguien especial"
     sender_phone = (data.get("sender_phone") or request.form.get("sender_phone") or "").strip()[:25]
     recipient_name = (data.get("recipient_name") or request.form.get("recipient_name") or "").strip()[:70] or "Para ti"
     recipient_phone = (data.get("recipient_phone") or request.form.get("recipient_phone") or "").strip()[:25]
-    dedication = (data.get("dedication") or request.form.get("dedication") or "").strip()[:240]
+    dedication = (
+        data.get("dedication")
+        or data.get("message")
+        or request.form.get("dedication")
+        or request.form.get("message")
+        or ""
+    ).strip()[:240]
     if not dedication:
         dedication = f"¡Hola {recipient_name}! Te regalo este detalle especial para que disfrutes en Demo Café ☕✨"
 
-    # Si lo crea el barista autenticado o viene con activate_now en modo demo
-    activate_now = bool(data.get("activate_now")) or is_barista_authenticated()
-
     if gift_type == "combo":
-        pkg_key = (data.get("package_key") or request.form.get("package_key") or "manana_perfecta").strip().lower()
-        pkg = GIFT_COMBO_CATALOG.get(pkg_key) or GIFT_COMBO_CATALOG["manana_perfecta"]
+        raw_pkg_key = (
+            data.get("package_key")
+            or data.get("combo_key")
+            or request.form.get("package_key")
+            or request.form.get("combo_key")
+            or "manana_perfecta"
+        ).strip().lower()
+        pkg = GIFT_COMBO_CATALOG.get(raw_pkg_key) or GIFT_COMBO_CATALOG["manana_perfecta"]
+        pkg_key = pkg["key"]
         pkg_title = pkg["title"]
         pkg_desc = pkg["desc"]
         init_amount = float(pkg["price"])
@@ -7597,13 +7654,9 @@ def api_gift_create():
     code = f"GIFT-{uuid.uuid4().hex[:6].upper()}"
     now_utc = get_utc_timestamp()
     now_son = get_sonora_datetime_str()
-    status_val = "active" if activate_now else "pending"
-    act_son = now_son if activate_now else ""
-    detail_str = (
-        f"✅ Gift Card activa ({pkg_title}) creada el {now_son}"
-        if activate_now
-        else f"⏳ Creada desde el Hub ({pkg_title}) · Pendiente de pago/activación"
-    )
+    status_val = "pending"
+    act_son = ""
+    detail_str = f"⏳ Creada desde el Hub ({pkg_title}) · En proceso de activación por el barista"
 
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
@@ -7630,12 +7683,14 @@ def api_gift_create():
     conn.commit()
     conn.close()
 
-    base_url = _public_base_url()
-    gift_url = f"{base_url}/gift/{code}"
+    gift_obj = get_gift_card_by_code(code)
+    urls = _build_gift_whatsapp_urls(gift_obj)
     return jsonify({
         "ok": True,
-        "gift": get_gift_card_by_code(code),
-        "gift_url": gift_url,
+        "gift": gift_obj,
+        "gift_url": urls["gift_url"],
+        "whatsapp_share_url": urls["whatsapp_share_url"],
+        "whatsapp_activate_url": urls["whatsapp_activate_url"],
     })
 
 
@@ -7791,7 +7846,10 @@ def api_gift_state(gift_code):
     gift = get_gift_card_by_code(gift_code)
     if not gift:
         return jsonify({"error": "Not found"}), 404
-    return jsonify(gift)
+    urls = _build_gift_whatsapp_urls(gift)
+    out = dict(gift)
+    out.update(urls)
+    return jsonify(out)
 
 
 @app.route("/api/gift/<gift_code>/convert-to-loyalty", methods=["POST"])
