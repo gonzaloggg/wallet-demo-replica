@@ -9285,7 +9285,7 @@ def _get_barista_state_signature() -> str:
         cl = c.fetchone() or (0, 0, 0, 0, '')
         c.execute("SELECT COUNT(*), COALESCE(MAX(id),0) FROM stamp_transactions")
         tx = c.fetchone() or (0, 0)
-        c.execute("SELECT COUNT(*), COALESCE(SUM(balance_cents),0), COALESCE(SUM(CASE WHEN activated=1 THEN 1 ELSE 0 END),0), COALESCE(MAX(updated_at),'') FROM gift_cards")
+        c.execute("SELECT COUNT(*), COALESCE(SUM(current_balance),0), COALESCE(SUM(CASE WHEN status='active' THEN 1 ELSE 0 END),0), COALESCE(MAX(updated_at),'') FROM gift_cards")
         gc = c.fetchone() or (0, 0, 0, '')
         c.execute("SELECT COUNT(*), COALESCE(MAX(id),0) FROM hub_feedback")
         fb = c.fetchone() or (0, 0)
