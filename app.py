@@ -826,48 +826,42 @@ GIFT_COMBO_CATALOG = {
 
 def _create_gift_strip_pil(gift_data, campaign=None):
     """
-    Crea el banner (1500x500 super-sampled) para las Gift Cards Digitales (Saldo o Experiencia/Combo)
-    armonizado con los colores de la campaña del sistema para Apple Wallet y Google Wallet.
+    Crea el banner (1500x576 super-sampled, proporción exacta 375x144 de Apple Wallet storeCard)
+    con la paleta Latte / Crema / Arena / Oliva / Espresso de todo el sistema, sin recortes laterales
+    y sin duplicar PARA / DE PARTE DE dentro del cuadro de saldo.
     """
     cfg = campaign if isinstance(campaign, dict) else get_campaign_config()
-    W, H = 1500, 500
+    W, H = 1500, 576
 
-    bg_rgb = _hex_to_rgb_tuple(cfg.get("backgroundColor"), (28, 19, 14))
-    fg_rgb = _hex_to_rgb_tuple(cfg.get("foregroundColor"), (250, 246, 243))
-    accent_rgb = _hex_to_rgb_tuple(cfg.get("labelColor"), (197, 168, 105))
+    # Paleta oficial de todo el sistema (Hub, Gift Card page, Barista POS)
+    strip_bg_rgb = (234, 223, 215)   # #EADFD7 Arena cálido
+    card_fill = (250, 246, 243)      # #FAF6F3 Crema editorial
+    border_col = (206, 192, 180)     # Borde sutil arena oscuro
+    line_col = (214, 200, 189)       # Divisor superior/inferior
+    text_dark = (18, 18, 18)         # #121212 Espresso / Negro principal
+    text_muted = (110, 101, 95)      # #6E655F Taupe secundario
+    olive_rgb = (74, 93, 35)         # #4A5D23 Verde Oliva acento del sistema
+    bar_track_rgb = (228, 217, 208)  # Pista de barra de saldo
 
-    strip_bg_rgb = (
-        int(bg_rgb[0] * 0.72),
-        int(bg_rgb[1] * 0.72),
-        int(bg_rgb[2] * 0.72),
-    )
     img = Image.new("RGB", (W, H), strip_bg_rgb)
-
-    if (cfg.get("useCustomStrip") or cfg.get("useCustomStripBg")) and os.path.isfile(CUSTOM_STRIP_BG_PATH):
-        try:
-            bg_img = Image.open(CUSTOM_STRIP_BG_PATH).convert("RGB").resize((W, H), Image.Resampling.LANCZOS)
-            overlay = Image.new("RGB", (W, H), (12, 10, 9))
-            img = Image.blend(bg_img, overlay, 0.62)
-            strip_bg_rgb = (36, 32, 28)
-        except Exception:
-            pass
-
     draw = ImageDraw.Draw(img)
 
-    line_col = tuple(min(255, int(strip_bg_rgb[c] * 0.88 + 255 * 0.12)) for c in range(3))
-    card_fill = tuple(min(255, int(strip_bg_rgb[c] * 0.92 + bg_rgb[c] * 0.08)) for c in range(3))
-    border_col = tuple(min(255, int(strip_bg_rgb[c] * 0.55 + accent_rgb[c] * 0.45)) for c in range(3))
-    muted_rgb = tuple(min(255, int(fg_rgb[c] * 0.72 + strip_bg_rgb[c] * 0.28)) for c in range(3))
-    bar_track_rgb = tuple(min(255, int(strip_bg_rgb[c] * 0.82 + 255 * 0.18)) for c in range(3))
-
+    # Líneas divisorias superior e inferior y cuadro interno perfectamente alineado al margen de Apple Wallet
     draw.line([(0, 1), (W, 1)], fill=line_col, width=3)
     draw.line([(0, H - 2), (W, H - 2)], fill=line_col, width=3)
-    draw.rounded_rectangle([42, 22, W - 42, H - 22], radius=34, fill=card_fill, outline=border_col, width=3)
+    card_margin_x = 80
+    card_margin_y = 32
+    draw.rounded_rectangle(
+        [card_margin_x, card_margin_y, W - card_margin_x, H - card_margin_y],
+        radius=36,
+        fill=card_fill,
+        outline=border_col,
+        width=4
+    )
 
-    font_hdr, has_utf8 = _load_strip_font(size=29)
-    font_big, _ = _load_strip_font(size=66)
-    font_sub, _ = _load_strip_font(size=32)
-    font_footer, _ = _load_strip_font(size=29)
+    font_hdr, has_utf8 = _load_strip_font(size=28)
+    font_big, _ = _load_strip_font(size=68)
+    font_sub, _ = _load_strip_font(size=31)
 
     gift_type = (gift_data.get("gift_type") or "balance").strip().lower()
     status_val = (gift_data.get("status") or "active").strip().lower()
@@ -875,93 +869,86 @@ def _create_gift_strip_pil(gift_data, campaign=None):
 
     if status_val == "pending":
         status_badge = "PENDIENTE DE ACTIVAR"
-        badge_col = (245, 166, 35)
+        badge_col = (180, 83, 9)
     elif status_val == "redeemed":
-        status_badge = "CANJEADA / COMPLETADA"
-        badge_col = (120, 210, 145)
+        status_badge = "CANJEADA AL 100%"
+        badge_col = olive_rgb
     elif status_val == "cancelled":
         status_badge = "CANCELADA"
-        badge_col = (230, 95, 95)
+        badge_col = (185, 28, 28)
     else:
         status_badge = "ACTIVA EN MOSTRADOR"
-        badge_col = fg_rgb
+        badge_col = olive_rgb
 
-    pad_x = 84
-    hdr_y = 48
+    pad_x = 122
+    hdr_y = 68
     left_hdr = f"GIFT CARD - {shop_name}"
-    draw.text((pad_x, hdr_y), left_hdr, fill=accent_rgb, font=font_hdr)
+    draw.text((pad_x, hdr_y), left_hdr, fill=olive_rgb, font=font_hdr)
 
     rb = draw.textbbox((0, 0), status_badge, font=font_hdr)
     rw = rb[2] - rb[0]
     draw.text((W - pad_x - rw, hdr_y), status_badge, fill=badge_col, font=font_hdr)
 
-    # Emblema de Regalo a la izquierda con colores de la campaña
-    emblem_cx, emblem_cy, emblem_r = 175, 248, 82
-    for g_off, alpha_g in ((12, 0.14), (6, 0.26)):
-        g_col = tuple(min(255, int(card_fill[c] * (1.0 - alpha_g) + accent_rgb[c] * alpha_g)) for c in range(3))
+    # Línea separadora suave debajo del encabezado del cuadro
+    draw.line([(pad_x, 122), (W - pad_x, 122)], fill=(232, 222, 214), width=2)
+
+    # Emblema circular de Regalo a la izquierda, centrado en el área útil del cuadro
+    emblem_cx, emblem_cy, emblem_r = 222, 332, 86
+    for g_off, g_col in ((12, (238, 229, 222)), (6, (226, 214, 205))):
         draw.ellipse(
             [emblem_cx - emblem_r - g_off, emblem_cy - emblem_r - g_off, emblem_cx + emblem_r + g_off, emblem_cy + emblem_r + g_off],
             fill=g_col
         )
     draw.ellipse(
         [emblem_cx - emblem_r, emblem_cy - emblem_r, emblem_cx + emblem_r, emblem_cy + emblem_r],
-        fill=bg_rgb,
-        outline=accent_rgb,
+        fill=text_dark,
+        outline=olive_rgb,
         width=5
     )
     _draw_gift_box_pil(draw, emblem_cx, emblem_cy, int(emblem_r * 1.15))
 
-    content_x = 300
+    content_x = 348
     if gift_type == "combo":
         pkg_title = _clean_text_for_pil(gift_data.get("package_title") or "Experiencia de Regalo", has_utf8_font=has_utf8)
         pkg_desc = _clean_text_for_pil(gift_data.get("package_desc") or "1 bebida + 1 postre en sucursal", has_utf8_font=has_utf8)
         rem_uses = int(gift_data.get("remaining_uses") or 0)
         main_line = pkg_title.upper()
-        if len(main_line) > 28:
-            font_big, _ = _load_strip_font(size=52)
-        draw.text((content_x, 152), main_line, fill=fg_rgb, font=font_big)
+        if len(main_line) > 26:
+            font_big, _ = _load_strip_font(size=50)
+        draw.text((content_x, 198), main_line, fill=text_dark, font=font_big)
         sub_line = f"Incluye: {pkg_desc}" if rem_uses > 0 and status_val != "redeemed" else "¡Experiencia disfrutada en sucursal!"
-        if len(sub_line) > 54:
-            sub_line = sub_line[:51] + "..."
-        draw.text((content_x, 240), sub_line, fill=accent_rgb, font=font_sub)
+        if len(sub_line) > 52:
+            sub_line = sub_line[:49] + "..."
+        draw.text((content_x, 298), sub_line, fill=text_muted, font=font_sub)
 
-        bar_x1, bar_y1, bar_x2, bar_y2 = content_x, 308, W - pad_x, 332
-        draw.rounded_rectangle([bar_x1, bar_y1, bar_x2, bar_y2], radius=12, fill=bar_track_rgb)
+        bar_x1, bar_y1, bar_x2, bar_y2 = content_x, 382, W - pad_x, 410
+        draw.rounded_rectangle([bar_x1, bar_y1, bar_x2, bar_y2], radius=14, fill=bar_track_rgb)
         if status_val != "redeemed" and rem_uses > 0:
-            draw.rounded_rectangle([bar_x1, bar_y1, bar_x2, bar_y2], radius=12, fill=accent_rgb)
+            draw.rounded_rectangle([bar_x1, bar_y1, bar_x2, bar_y2], radius=14, fill=olive_rgb)
     else:
         init_amt = max(1.0, float(gift_data.get("initial_amount") or 200.0))
         curr_bal = max(0.0, float(gift_data.get("current_balance") or 0.0))
         main_line = f"${curr_bal:,.2f} MXN"
-        draw.text((content_x, 146), main_line, fill=fg_rgb, font=font_big)
+        draw.text((content_x, 192), main_line, fill=text_dark, font=font_big)
         sub_line = f"Saldo disponible (Monto original: ${init_amt:,.0f} MXN)" if curr_bal > 0 else "¡Saldo disfrutado al 100% en sucursal!"
-        draw.text((content_x, 238), sub_line, fill=accent_rgb, font=font_sub)
+        draw.text((content_x, 296), sub_line, fill=text_muted, font=font_sub)
 
-        bar_x1, bar_y1, bar_x2, bar_y2 = content_x, 306, W - pad_x, 330
-        draw.rounded_rectangle([bar_x1, bar_y1, bar_x2, bar_y2], radius=12, fill=bar_track_rgb)
+        bar_x1, bar_y1, bar_x2, bar_y2 = content_x, 380, W - pad_x, 408
+        draw.rounded_rectangle([bar_x1, bar_y1, bar_x2, bar_y2], radius=14, fill=bar_track_rgb)
         ratio = max(0.0, min(1.0, curr_bal / init_amt))
         if ratio > 0:
             fill_w = max(28, int((bar_x2 - bar_x1) * ratio))
-            draw.rounded_rectangle([bar_x1, bar_y1, bar_x1 + fill_w, bar_y2], radius=12, fill=accent_rgb)
-
-    recip_clean = _clean_text_for_pil(gift_data.get("recipient_name") or "Para ti", has_utf8_font=has_utf8)
-    sender_clean = _clean_text_for_pil(gift_data.get("sender_name") or "Alguien Especial", has_utf8_font=has_utf8)
-    footer_left = f"PARA: {recip_clean.upper()[:24]}"
-    footer_right = f"DE PARTE DE: {sender_clean.upper()[:24]}"
-    draw.text((pad_x, 405), footer_left, fill=fg_rgb, font=font_footer)
-    fr_b = draw.textbbox((0, 0), footer_right, font=font_footer)
-    fr_w = fr_b[2] - fr_b[0]
-    draw.text((W - pad_x - fr_w, 405), footer_right, fill=muted_rgb, font=font_footer)
+            draw.rounded_rectangle([bar_x1, bar_y1, bar_x1 + fill_w, bar_y2], radius=14, fill=olive_rgb)
 
     return img
 
 
 def render_gift_strip(gift_data, output_dir, campaign=None):
-    """Guarda strip.png, strip@2x.png y strip@3x.png para una Gift Card en Apple Wallet (.pkpass)."""
+    """Guarda strip.png (375x144), strip@2x.png (750x288) y strip@3x.png (1125x432) con proporción exacta de storeCard."""
     img = _create_gift_strip_pil(gift_data, campaign=campaign)
-    img_3x = img.resize((1125, 375), Image.Resampling.LANCZOS)
-    img_2x = img.resize((750, 250), Image.Resampling.LANCZOS)
-    img_1x = img.resize((375, 125), Image.Resampling.LANCZOS)
+    img_3x = img.resize((1125, 432), Image.Resampling.LANCZOS)
+    img_2x = img.resize((750, 288), Image.Resampling.LANCZOS)
+    img_1x = img.resize((375, 144), Image.Resampling.LANCZOS)
     img_3x.save(os.path.join(output_dir, "strip@3x.png"), format="PNG", optimize=True)
     img_2x.save(os.path.join(output_dir, "strip@2x.png"), format="PNG", optimize=True)
     img_1x.save(os.path.join(output_dir, "strip.png"), format="PNG", optimize=True)
@@ -6994,10 +6981,12 @@ def generate_signed_gift_pkpass(gift_code, host_url, for_android=False):
         pass_data["serialNumber"] = serial_number
         pass_data["description"] = f"GIFT CARD - {shop_name}"
         pass_data["organizationName"] = shop_name
-        pass_data["foregroundColor"] = _hex_to_passkit_rgb(cfg.get("foregroundColor"), (245, 242, 235))
-        pass_data["backgroundColor"] = _hex_to_passkit_rgb(cfg.get("backgroundColor"), (18, 16, 14))
-        pass_data["labelColor"] = _hex_to_passkit_rgb(cfg.get("labelColor"), (198, 166, 117))
-        pass_data["logoText"] = f"GIFT CARD - {shop_name.upper()}"
+        # Colores del sistema: Latte cálido (#F3ECE7), texto Espresso (#121212) y etiquetas Verde Oliva (#4A5D23)
+        pass_data["backgroundColor"] = "rgb(243, 236, 231)"
+        pass_data["foregroundColor"] = "rgb(18, 18, 18)"
+        pass_data["labelColor"] = "rgb(74, 93, 35)"
+        # Nombre corto en logoText para que jamás se empalme con el saldo a la derecha
+        pass_data["logoText"] = shop_name[:16]
 
         if gift["status"] == "cancelled":
             pass_data["voided"] = True
@@ -7025,20 +7014,20 @@ def generate_signed_gift_pkpass(gift_code, host_url, for_android=False):
                 hdr_val = "POR ACTIVAR"
                 chg_msg = f"🎁 Estado de tu Gift Card {shop_name}: %@"
             else:
-                hdr_label = "VALE ACTIVO"
+                hdr_label = "VALE"
                 hdr_val = "1 PAQUETE"
                 chg_msg = f"🎁 ¡Tu Gift Card de {shop_name} está lista para canjear! (%@)"
         else:
             if gift["status"] == "redeemed" or gift["current_balance"] <= 0:
                 hdr_label = "SALDO"
-                hdr_val = "$0.00 MXN"
+                hdr_val = "$0.00"
                 chg_msg = f"🎉 ¡Disfrutaste todo el saldo de tu Gift Card en {shop_name}! (%@)"
             elif gift["status"] == "pending":
                 hdr_label = "POR ACTIVAR"
-                hdr_val = f"${gift['current_balance']:,.0f} MXN"
+                hdr_val = f"${gift['current_balance']:,.0f}"
                 chg_msg = f"🎁 Tu Gift Card {shop_name} se actualizó: %@"
             else:
-                hdr_label = "SALDO DISPONIBLE"
+                hdr_label = "SALDO"
                 hdr_val = f"${gift['current_balance']:,.2f}"
                 chg_msg = f"☕️ Consumo aplicado en {shop_name}. Nuevo saldo disponible: %@"
 
@@ -7063,16 +7052,22 @@ def generate_signed_gift_pkpass(gift_code, host_url, for_android=False):
         else:
             pass_data["storeCard"]["primaryFields"] = []
 
+        raw_recip = (gift["recipient_name"] or "Para ti").strip()
+        raw_sender = (gift["sender_name"] or "Alguien especial").strip()
+        recip_display = (raw_recip.title() if raw_recip.islower() else raw_recip)[:22]
+        sender_display = (raw_sender.title() if raw_sender.islower() else raw_sender)[:22]
+
         pass_data["storeCard"]["secondaryFields"] = [
             {
                 "key": "recipientName",
                 "label": "PARA",
-                "value": gift["recipient_name"]
+                "value": recip_display,
+                "textAlignment": "PKTextAlignmentLeft"
             },
             {
                 "key": "senderName",
                 "label": "DE PARTE DE",
-                "value": gift["sender_name"],
+                "value": sender_display,
                 "textAlignment": "PKTextAlignmentRight"
             }
         ]
@@ -7855,7 +7850,7 @@ def gift_card_strip_png(gift_code):
     gift = get_gift_card_by_code(gift_code)
     if not gift:
         return "", 404
-    img = _create_gift_strip_pil(gift, campaign=get_campaign_config()).resize((750, 250), Image.Resampling.LANCZOS)
+    img = _create_gift_strip_pil(gift, campaign=get_campaign_config()).resize((750, 288), Image.Resampling.LANCZOS)
     buf = io.BytesIO()
     img.save(buf, format="PNG", optimize=True)
     buf.seek(0)
