@@ -247,6 +247,25 @@
                 </div>
             </div>
 
+            <!-- TARJETA 1.5: REGALAR UNA GIFT CARD DIGITAL (SALDO O COMBO) -->
+            <div class="action-card p-4 relative overflow-hidden border border-[#C5A869]/40" onclick="openGiftCardModal()">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-3.5">
+                        <div class="w-11 h-11 rounded-full bg-gradient-to-br from-[#2B1F18] to-[#12100E] text-[#E6C770] border border-[#D4AF37]/45 flex items-center justify-center shrink-0 shadow-sm text-[20px]">
+                            🎁
+                        </div>
+                        <div>
+                            <div class="flex items-center gap-2 flex-wrap">
+                                <span class="text-[15.5px] font-bold text-[#121212] tracking-[-0.01em]">Regalar una Gift Card</span>
+                                <span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-[#1B1410] text-[#E6C770] border border-[#D4AF37]/40">Wallet Digital</span>
+                            </div>
+                            <div class="text-[12.5px] text-[#6E655F]">Envía saldo o un combo de café por WhatsApp</div>
+                        </div>
+                    </div>
+                    <svg class="w-5 h-5 text-[#9A7B2C] shrink-0" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+                </div>
+            </div>
+
             <!-- TARJETA 2: MENÚ DIGITAL INTERACTIVO -->
             <div class="action-card p-4" onclick="openMenuModal()">
                 <div class="flex items-center justify-between">
@@ -702,6 +721,249 @@
                         Cerrar
                     </button>
                 </div>
+            </div>
+        </div>
+    </dialog>
+
+    <!-- =========================================================
+         MÓDULO 1.5: REGALAR UNA GIFT CARD DIGITAL (SALDO O COMBO)
+         ========================================================= -->
+    <dialog id="modal-giftcard" class="bottom-sheet max-h-[93dvh] overflow-y-auto">
+        <div class="p-5 pb-8">
+            <div class="w-10 h-1.5 bg-black/15 rounded-full mx-auto mb-3.5"></div>
+
+            <div class="flex items-center justify-between gap-2 mb-3">
+                <div>
+                    <div class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#1B1410] text-[#E6C770] text-[10.5px] font-extrabold uppercase tracking-wider mb-1 border border-[#D4AF37]/40">
+                        <span>🎁 {{ campaign.shopName }} Gift Card</span>
+                    </div>
+                    <h2 class="text-[20px] font-bold tracking-[-0.02em] text-[#121212] leading-tight">
+                        Regala café a quien quieras
+                    </h2>
+                    <p class="text-[12px] text-[#6E655F] mt-0.5">
+                        Tu amigo recibe un sobre digital y guarda su Gift Card en Apple Wallet o Google Wallet
+                    </p>
+                </div>
+                <button type="button" onclick="closeModal('modal-giftcard')" class="px-3 py-1.5 rounded-full bg-[#EADFD7] text-[#121212] text-xs font-bold shrink-0">
+                    Cerrar
+                </button>
+            </div>
+
+            <!-- PASO 1: CONFIGURADOR Y VISTA PREVIA EN VIVO -->
+            <div id="hub-gift-form-step" class="space-y-4">
+                <!-- Selector de Modalidad: Saldo vs Combo -->
+                <div class="grid grid-cols-2 gap-1.5 p-1.5 rounded-2xl bg-[#EADFD7]/80 border border-black/5">
+                    <button type="button" id="hub-gift-tab-balance" onclick="setHubGiftMode('balance')"
+                            class="py-2.5 px-3 rounded-xl text-[12.5px] font-extrabold transition bg-[#1B1410] text-[#E6C770] shadow-sm">
+                        💰 Saldo en Pesos
+                    </button>
+                    <button type="button" id="hub-gift-tab-combo" onclick="setHubGiftMode('combo')"
+                            class="py-2.5 px-3 rounded-xl text-[12.5px] font-extrabold transition text-[#6E655F]">
+                        🥐 Vale / Combo
+                    </button>
+                </div>
+
+                <!-- MODO 1: SALDO EN PESOS -->
+                <div id="hub-gift-panel-balance" class="space-y-2.5">
+                    <label class="block text-[11.5px] font-extrabold uppercase tracking-wider text-[#6E655F]">
+                        Elige el monto de la Gift Card (MXN)
+                    </label>
+                    <div class="grid grid-cols-4 gap-2">
+                        <button type="button" onclick="setHubGiftAmount(100)" data-gift-amt="100"
+                                class="hub-gift-amt-btn py-2.5 rounded-xl font-extrabold text-[14px] border border-black/10 bg-white text-[#121212] transition active:scale-95">
+                            $100
+                        </button>
+                        <button type="button" onclick="setHubGiftAmount(200)" data-gift-amt="200"
+                                class="hub-gift-amt-btn py-2.5 rounded-xl font-extrabold text-[14px] border-2 border-[#D4AF37] bg-[#1B1410] text-[#E6C770] transition active:scale-95">
+                            $200
+                        </button>
+                        <button type="button" onclick="setHubGiftAmount(300)" data-gift-amt="300"
+                                class="hub-gift-amt-btn py-2.5 rounded-xl font-extrabold text-[14px] border border-black/10 bg-white text-[#121212] transition active:scale-95">
+                            $300
+                        </button>
+                        <button type="button" onclick="setHubGiftAmount(500)" data-gift-amt="500"
+                                class="hub-gift-amt-btn py-2.5 rounded-xl font-extrabold text-[14px] border border-black/10 bg-white text-[#121212] transition active:scale-95">
+                            $500
+                        </button>
+                    </div>
+                    <div class="flex items-center gap-2 bg-white rounded-xl px-3.5 py-2 border border-black/10">
+                        <span class="text-[13px] font-bold text-[#6E655F]">Otro monto ($50 - $5,000): $</span>
+                        <input type="number" id="hub-gift-custom-amount" min="50" max="5000" step="10" value="200"
+                               oninput="onHubGiftCustomAmountInput(this.value)"
+                               class="w-full text-[15px] font-extrabold text-[#121212] bg-transparent focus:outline-none" />
+                        <span class="text-[11px] font-bold text-[#6E655F]">MXN</span>
+                    </div>
+                </div>
+
+                <!-- MODO 2: EXPERIENCIA / COMBO PREPAGADO -->
+                <div id="hub-gift-panel-combo" class="hidden space-y-2">
+                    <label class="block text-[11.5px] font-extrabold uppercase tracking-wider text-[#6E655F]">
+                        Elige la experiencia para regalar
+                    </label>
+                    <div class="space-y-2">
+                        <div onclick="selectHubGiftCombo('cafe_amigo', 'Vale «Te invito un Café»', '1 bebida caliente o fría de cualquier tamaño', 85, '☕')"
+                             data-combo-key="cafe_amigo"
+                             class="hub-gift-combo-card cursor-pointer p-3.5 rounded-2xl border-2 border-[#D4AF37] bg-[#1B1410] text-white transition flex items-center justify-between gap-3">
+                            <div class="flex items-center gap-3">
+                                <span class="text-2xl">☕</span>
+                                <div>
+                                    <div class="text-[14px] font-extrabold text-[#F5E6C8]">Vale «Te invito un Café»</div>
+                                    <div class="text-[11.5px] text-white/75">1 bebida caliente o fría de cualquier tamaño</div>
+                                </div>
+                            </div>
+                            <span class="px-2.5 py-1 rounded-lg bg-[#D4AF37]/20 text-[#E6C770] font-extrabold text-[13px] shrink-0">$85</span>
+                        </div>
+
+                        <div onclick="selectHubGiftCombo('manana_perfecta', 'Pack «Mañana Perfecta»', '1 bebida a elección + 1 postre o panini recién hecho', 160, '🥐')"
+                             data-combo-key="manana_perfecta"
+                             class="hub-gift-combo-card cursor-pointer p-3.5 rounded-2xl border border-black/10 bg-white text-[#121212] transition flex items-center justify-between gap-3">
+                            <div class="flex items-center gap-3">
+                                <span class="text-2xl">🥐</span>
+                                <div>
+                                    <div class="text-[14px] font-extrabold">Pack «Mañana Perfecta»</div>
+                                    <div class="text-[11.5px] text-[#6E655F]">1 bebida a elección + 1 postre o panini recién hecho</div>
+                                </div>
+                            </div>
+                            <span class="px-2.5 py-1 rounded-lg bg-[#EADFD7] text-[#121212] font-extrabold text-[13px] shrink-0">$160</span>
+                        </div>
+
+                        <div onclick="selectHubGiftCombo('cita_dos', 'Pack «Cita para Dos»', '2 bebidas de cualquier tamaño + 2 postres o paninis para compartir', 280, '👯')"
+                             data-combo-key="cita_dos"
+                             class="hub-gift-combo-card cursor-pointer p-3.5 rounded-2xl border border-black/10 bg-white text-[#121212] transition flex items-center justify-between gap-3">
+                            <div class="flex items-center gap-3">
+                                <span class="text-2xl">👯</span>
+                                <div>
+                                    <div class="text-[14px] font-extrabold">Pack «Cita para Dos»</div>
+                                    <div class="text-[11.5px] text-[#6E655F]">2 bebidas + 2 postres o paninis para compartir</div>
+                                </div>
+                            </div>
+                            <span class="px-2.5 py-1 rounded-lg bg-[#EADFD7] text-[#121212] font-extrabold text-[13px] shrink-0">$280</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- VISTA PREVIA EN VIVO DE LA GIFT CARD DORADA -->
+                <div class="rounded-[20px] p-4 bg-gradient-to-br from-[#231914] via-[#18120E] to-[#120D0A] text-[#FAF6F0] border border-[#D4AF37]/45 shadow-lg relative overflow-hidden">
+                    <div class="flex items-center justify-between gap-2 mb-2">
+                        <span class="text-[10.5px] font-extrabold uppercase tracking-widest text-[#E6C770]">
+                            ✨ Vista Previa · Apple &amp; Google Wallet
+                        </span>
+                        <span id="hub-gift-preview-badge" class="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-[#D4AF37]/20 text-[#E6C770] border border-[#D4AF37]/30">
+                            SALDO DIGITAL
+                        </span>
+                    </div>
+                    <div id="hub-gift-preview-headline" class="text-[24px] font-extrabold text-[#F7E3A8] leading-tight tracking-tight">
+                        $200.00 MXN
+                    </div>
+                    <div id="hub-gift-preview-sub" class="text-[12px] text-[#D8CBB8] mt-0.5">
+                        Saldo consumible en una o varias visitas
+                    </div>
+                    <div class="mt-3 pt-2.5 border-t border-white/10 flex items-center justify-between text-[11.5px] text-[#D8CBB8]">
+                        <div>Para: <strong id="hub-gift-preview-to" class="text-white">Tu persona favorita</strong></div>
+                        <div>De: <strong id="hub-gift-preview-from" class="text-[#E6C770]">Un amigo</strong></div>
+                    </div>
+                    <div id="hub-gift-preview-msg" class="mt-1.5 text-[11.5px] italic text-[#E6C770]/90 truncate">
+                        "¡Disfruta un delicioso café por mi cuenta! ☕✨"
+                    </div>
+                </div>
+
+                <!-- DATOS DEL DESTINATARIO Y DEDICATORIA -->
+                <div class="space-y-2.5">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                        <div>
+                            <label class="block text-[11.5px] font-bold text-[#121212] mb-1">¿Para quién es? (Nombre) *</label>
+                            <input type="text" id="hub-gift-recipient" placeholder="Ej. Sofía, Mamá, Carlos..."
+                                   oninput="updateHubGiftPreview()"
+                                   class="w-full px-3.5 py-2.5 rounded-xl bg-white border border-black/15 text-[14px] font-semibold text-[#121212] focus:outline-none focus:border-[#121212]" />
+                        </div>
+                        <div>
+                            <label class="block text-[11.5px] font-bold text-[#121212] mb-1">De parte de (Tu nombre) *</label>
+                            <input type="text" id="hub-gift-sender" placeholder="Ej. Gonzalo"
+                                   oninput="updateHubGiftPreview()"
+                                   class="w-full px-3.5 py-2.5 rounded-xl bg-white border border-black/15 text-[14px] font-semibold text-[#121212] focus:outline-none focus:border-[#121212]" />
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-[11.5px] font-bold text-[#121212] mb-1">Dedicatoria personalizada</label>
+                        <input type="text" id="hub-gift-message" maxlength="140"
+                               placeholder="¡Feliz cumpleaños! Te invito un café bien rico ☕✨"
+                               oninput="updateHubGiftPreview()"
+                               class="w-full px-3.5 py-2.5 rounded-xl bg-white border border-black/15 text-[13.5px] text-[#121212] focus:outline-none focus:border-[#121212]" />
+                    </div>
+                    <div>
+                        <label class="block text-[11.5px] font-bold text-[#6E655F] mb-1">Tu WhatsApp (opcional, por si necesitas soporte)</label>
+                        <input type="tel" id="hub-gift-phone" placeholder="Ej. 6421138069"
+                               class="w-full px-3.5 py-2 rounded-xl bg-white border border-black/10 text-[13.5px] text-[#121212] focus:outline-none" />
+                    </div>
+                </div>
+
+                <div id="hub-gift-error" class="hidden p-3 rounded-xl bg-[#E86C78]/15 text-[#B91C1C] text-[12.5px] font-bold"></div>
+
+                <button type="button" id="hub-gift-submit-btn" onclick="submitHubGiftCard()"
+                        class="w-full py-3.5 px-4 rounded-[14px] bg-gradient-to-r from-[#231914] to-[#12100E] text-[#F5E6C8] border border-[#D4AF37]/50 font-extrabold text-[15px] shadow-md active:scale-[0.98] transition flex items-center justify-center gap-2">
+                    <span>🎁 Crear Sobre Digital de Regalo</span>
+                </button>
+            </div>
+
+            <!-- PASO 2: SOBRE DIGITAL CREADO Y LISTO PARA ENVIAR POR WHATSAPP -->
+            <div id="hub-gift-success-step" class="hidden space-y-4">
+                <div class="rounded-[20px] p-4 bg-gradient-to-br from-[#231914] to-[#120D0A] text-[#FAF6F0] border border-[#D4AF37]/50 shadow-lg text-center">
+                    <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#D4AF37]/20 text-[#E6C770] text-[11px] font-extrabold mb-2">
+                        <span>✨ SOBRE DIGITAL GENERADO</span>
+                    </div>
+                    <div id="hub-gift-created-title" class="text-[22px] font-extrabold text-[#F7E3A8]">
+                        $200.00 MXN
+                    </div>
+                    <div id="hub-gift-created-meta" class="text-[12.5px] text-[#D8CBB8] mt-0.5">
+                        Para Sofía · De parte de Gonzalo
+                    </div>
+                    <div class="mt-3 inline-block px-3.5 py-1.5 rounded-xl bg-black/40 border border-white/10 font-mono text-[13px] font-extrabold text-[#E6C770]" id="hub-gift-created-code">
+                        GIFT-000000
+                    </div>
+                    <div id="hub-gift-created-status-pill" class="mt-2 text-[11.5px] font-bold text-[#F59E0B]">
+                        ⏳ Pendiente de activación en caja o modo demo
+                    </div>
+                </div>
+
+                <!-- Botón instantáneo de Modo Demo para probar sin fricción -->
+                <div id="hub-gift-demo-activate-box" class="p-3.5 rounded-2xl bg-[#ECFDF5] border border-[#10B981]/30 space-y-2">
+                    <div class="text-[12px] font-bold text-[#065F46]">
+                        🧪 ¿Estás probando el sistema Demo? Actívala con 1 clic:
+                    </div>
+                    <button type="button" id="hub-gift-demo-activate-btn" onclick="activateHubCreatedGiftDemo()"
+                            class="w-full py-2.5 px-3 rounded-xl bg-[#059669] text-white font-extrabold text-[13px] shadow-xs active:scale-95 transition">
+                        ⚡ Activar Gift Card al Instante (Modo Demo)
+                    </button>
+                </div>
+
+                <!-- Acciones principales: Enviar a amigo por WhatsApp / Abrir Sobre Digital / Copiar Link -->
+                <div class="space-y-2.5">
+                    <a id="hub-gift-wa-friend-btn" href="#" target="_blank" rel="noopener"
+                       class="w-full py-3.5 px-4 rounded-[14px] bg-[#25D366] text-white font-extrabold text-[14.5px] flex items-center justify-center gap-2 no-underline shadow-md active:scale-[0.98] transition">
+                        <span>📲 Enviar Sobre Digital a mi Amigo por WhatsApp</span>
+                    </a>
+
+                    <div class="grid grid-cols-2 gap-2">
+                        <a id="hub-gift-open-link-btn" href="#" target="_blank" rel="noopener"
+                           class="py-3 px-3 rounded-xl bg-[#121212] text-white font-bold text-[13px] text-center no-underline active:scale-95 transition">
+                            👀 Abrir Sobre Digital
+                        </a>
+                        <button type="button" onclick="copyHubGiftUrl()"
+                                class="py-3 px-3 rounded-xl bg-[#EADFD7] text-[#121212] font-bold text-[13px] active:scale-95 transition">
+                            📋 Copiar Link
+                        </button>
+                    </div>
+
+                    <a id="hub-gift-wa-shop-btn" href="#" target="_blank" rel="noopener"
+                       class="w-full py-2.5 px-3 rounded-xl bg-white border border-black/15 text-[#121212] font-bold text-[12.5px] flex items-center justify-center gap-1.5 no-underline">
+                        <span>💬 Solicitar activación por transferencia al WhatsApp de {{ campaign.shopName }}</span>
+                    </a>
+                </div>
+
+                <button type="button" onclick="resetHubGiftForm()"
+                        class="w-full py-2 text-[12.5px] font-bold text-[#6E655F] underline">
+                    + Crear otra Gift Card diferente
+                </button>
             </div>
         </div>
     </dialog>
@@ -2078,6 +2340,261 @@
             sudokuState.grid[r][c] = sudokuState.solution[r][c];
             document.getElementById('sudoku-status-msg').textContent = `💡 Pista revelada en fila ${r+1}, columna ${c+1}`;
             renderSudokuBoard();
+        }
+
+        // =========================================================
+        // MÓDULO GIFT CARDS DIGITALES (SALDO EN PESOS O COMBO/VALE)
+        // =========================================================
+        const hubGiftState = {
+            mode: 'balance', // 'balance' | 'combo'
+            amount: 200,
+            comboKey: 'cafe_amigo',
+            comboTitle: 'Vale «Te invito un Café»',
+            comboDesc: '1 bebida caliente o fría de cualquier tamaño',
+            comboPrice: 85,
+            comboEmoji: '☕',
+            createdGift: null,
+            createdGiftUrl: ''
+        };
+
+        function openGiftCardModal() {
+            // Si el cliente ya está registrado en el Hub, pre-rellenar su nombre en "De parte de"
+            const senderInput = document.getElementById('hub-gift-sender');
+            if (senderInput && !senderInput.value.trim() && currentMember && currentMember.name) {
+                senderInput.value = currentMember.name;
+            }
+            updateHubGiftPreview();
+            openModal('modal-giftcard');
+        }
+
+        function setHubGiftMode(mode) {
+            hubGiftState.mode = (mode === 'combo') ? 'combo' : 'balance';
+            const tabBal = document.getElementById('hub-gift-tab-balance');
+            const tabCmb = document.getElementById('hub-gift-tab-combo');
+            const panBal = document.getElementById('hub-gift-panel-balance');
+            const panCmb = document.getElementById('hub-gift-panel-combo');
+
+            if (hubGiftState.mode === 'balance') {
+                tabBal.className = 'py-2.5 px-3 rounded-xl text-[12.5px] font-extrabold transition bg-[#1B1410] text-[#E6C770] shadow-sm';
+                tabCmb.className = 'py-2.5 px-3 rounded-xl text-[12.5px] font-extrabold transition text-[#6E655F]';
+                panBal.classList.remove('hidden');
+                panCmb.classList.add('hidden');
+            } else {
+                tabCmb.className = 'py-2.5 px-3 rounded-xl text-[12.5px] font-extrabold transition bg-[#1B1410] text-[#E6C770] shadow-sm';
+                tabBal.className = 'py-2.5 px-3 rounded-xl text-[12.5px] font-extrabold transition text-[#6E655F]';
+                panCmb.classList.remove('hidden');
+                panBal.classList.add('hidden');
+            }
+            updateHubGiftPreview();
+        }
+
+        function setHubGiftAmount(amt) {
+            hubGiftState.amount = amt;
+            const customInput = document.getElementById('hub-gift-custom-amount');
+            if (customInput) customInput.value = amt;
+            document.querySelectorAll('.hub-gift-amt-btn').forEach(btn => {
+                const bAmt = parseInt(btn.getAttribute('data-gift-amt'), 10);
+                if (bAmt === amt) {
+                    btn.className = 'hub-gift-amt-btn py-2.5 rounded-xl font-extrabold text-[14px] border-2 border-[#D4AF37] bg-[#1B1410] text-[#E6C770] transition active:scale-95';
+                } else {
+                    btn.className = 'hub-gift-amt-btn py-2.5 rounded-xl font-extrabold text-[14px] border border-black/10 bg-white text-[#121212] transition active:scale-95';
+                }
+            });
+            updateHubGiftPreview();
+        }
+
+        function onHubGiftCustomAmountInput(val) {
+            const parsed = parseFloat(val);
+            if (!isNaN(parsed) && parsed > 0) {
+                hubGiftState.amount = Math.min(5000, Math.max(10, parsed));
+            }
+            document.querySelectorAll('.hub-gift-amt-btn').forEach(btn => {
+                const bAmt = parseInt(btn.getAttribute('data-gift-amt'), 10);
+                if (bAmt === hubGiftState.amount) {
+                    btn.className = 'hub-gift-amt-btn py-2.5 rounded-xl font-extrabold text-[14px] border-2 border-[#D4AF37] bg-[#1B1410] text-[#E6C770] transition active:scale-95';
+                } else {
+                    btn.className = 'hub-gift-amt-btn py-2.5 rounded-xl font-extrabold text-[14px] border border-black/10 bg-white text-[#121212] transition active:scale-95';
+                }
+            });
+            updateHubGiftPreview();
+        }
+
+        function selectHubGiftCombo(key, title, desc, price, emoji) {
+            hubGiftState.comboKey = key;
+            hubGiftState.comboTitle = title;
+            hubGiftState.comboDesc = desc;
+            hubGiftState.comboPrice = price;
+            hubGiftState.comboEmoji = emoji || '🎁';
+
+            document.querySelectorAll('.hub-gift-combo-card').forEach(card => {
+                const cKey = card.getAttribute('data-combo-key');
+                if (cKey === key) {
+                    card.className = 'hub-gift-combo-card cursor-pointer p-3.5 rounded-2xl border-2 border-[#D4AF37] bg-[#1B1410] text-white transition flex items-center justify-between gap-3';
+                } else {
+                    card.className = 'hub-gift-combo-card cursor-pointer p-3.5 rounded-2xl border border-black/10 bg-white text-[#121212] transition flex items-center justify-between gap-3';
+                }
+            });
+            updateHubGiftPreview();
+        }
+
+        function updateHubGiftPreview() {
+            const badge = document.getElementById('hub-gift-preview-badge');
+            const headline = document.getElementById('hub-gift-preview-headline');
+            const sub = document.getElementById('hub-gift-preview-sub');
+            const toEl = document.getElementById('hub-gift-preview-to');
+            const fromEl = document.getElementById('hub-gift-preview-from');
+            const msgEl = document.getElementById('hub-gift-preview-msg');
+
+            const recVal = (document.getElementById('hub-gift-recipient')?.value || '').trim();
+            const sndVal = (document.getElementById('hub-gift-sender')?.value || '').trim();
+            const msgVal = (document.getElementById('hub-gift-message')?.value || '').trim();
+
+            if (toEl) toEl.textContent = recVal || 'Tu persona favorita';
+            if (fromEl) fromEl.textContent = sndVal || 'Un amigo';
+            if (msgEl) msgEl.textContent = `"${msgVal || '¡Disfruta un delicioso café por mi cuenta! ☕✨'}"`;
+
+            if (hubGiftState.mode === 'combo') {
+                if (badge) badge.textContent = 'VALE / EXPERIENCIA';
+                if (headline) headline.textContent = `${hubGiftState.comboEmoji} ${hubGiftState.comboTitle}`;
+                if (sub) sub.textContent = `${hubGiftState.comboDesc} ($${hubGiftState.comboPrice} MXN)`;
+            } else {
+                const amt = Number(hubGiftState.amount || 200);
+                if (badge) badge.textContent = 'SALDO DIGITAL';
+                if (headline) headline.textContent = `$${amt.toFixed(2)} MXN`;
+                if (sub) sub.textContent = 'Saldo consumible en una o varias visitas';
+            }
+        }
+
+        async function submitHubGiftCard() {
+            const errBox = document.getElementById('hub-gift-error');
+            const btn = document.getElementById('hub-gift-submit-btn');
+            errBox.classList.add('hidden');
+
+            const recipientName = (document.getElementById('hub-gift-recipient')?.value || '').trim();
+            const senderName = (document.getElementById('hub-gift-sender')?.value || '').trim();
+            const message = (document.getElementById('hub-gift-message')?.value || '').trim() || '¡Disfruta un delicioso café por mi cuenta! ☕✨';
+            const senderPhone = (document.getElementById('hub-gift-phone')?.value || '').trim();
+
+            if (!recipientName) {
+                errBox.textContent = '⚠️ Por favor escribe para quién es el regalo.';
+                errBox.classList.remove('hidden');
+                document.getElementById('hub-gift-recipient')?.focus();
+                return;
+            }
+            if (!senderName) {
+                errBox.textContent = '⚠️ Por favor escribe tu nombre en "De parte de".';
+                errBox.classList.remove('hidden');
+                document.getElementById('hub-gift-sender')?.focus();
+                return;
+            }
+
+            const payload = {
+                gift_type: hubGiftState.mode,
+                amount: hubGiftState.amount,
+                combo_key: hubGiftState.comboKey,
+                recipient_name: recipientName,
+                sender_name: senderName,
+                sender_phone: senderPhone,
+                message: message
+            };
+
+            const origText = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<span>⏳ Generando Sobre Digital...</span>';
+
+            try {
+                const res = await fetch('/api/gift/create', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+                if (!res.ok || !data.ok) {
+                    throw new Error(data.error || 'No se pudo generar la Gift Card');
+                }
+
+                hubGiftState.createdGift = data.gift;
+                hubGiftState.createdGiftUrl = data.gift_url;
+
+                const g = data.gift;
+                document.getElementById('hub-gift-created-title').textContent =
+                    g.gift_type === 'combo' ? g.combo_title : `$${Number(g.current_balance).toFixed(2)} MXN`;
+                document.getElementById('hub-gift-created-meta').textContent =
+                    `Para ${g.recipient_name} · De parte de ${g.sender_name}`;
+                document.getElementById('hub-gift-created-code').textContent = g.code;
+
+                const statusPill = document.getElementById('hub-gift-created-status-pill');
+                const demoBox = document.getElementById('hub-gift-demo-activate-box');
+                if (g.status === 'active') {
+                    statusPill.textContent = '✅ Gift Card ACTIVA y lista para canjear';
+                    statusPill.className = 'mt-2 text-[11.5px] font-bold text-[#10B981]';
+                    demoBox.classList.add('hidden');
+                } else {
+                    statusPill.textContent = '⏳ Pendiente de activación en caja o modo demo';
+                    statusPill.className = 'mt-2 text-[11.5px] font-bold text-[#F59E0B]';
+                    demoBox.classList.remove('hidden');
+                    const demoBtn = document.getElementById('hub-gift-demo-activate-btn');
+                    if (demoBtn) {
+                        demoBtn.disabled = false;
+                        demoBtn.textContent = '⚡ Activar Gift Card al Instante (Modo Demo)';
+                    }
+                }
+
+                document.getElementById('hub-gift-wa-friend-btn').href = data.whatsapp_share_url;
+                document.getElementById('hub-gift-open-link-btn').href = data.gift_url;
+                document.getElementById('hub-gift-wa-shop-btn').href = data.whatsapp_activate_url;
+
+                document.getElementById('hub-gift-form-step').classList.add('hidden');
+                document.getElementById('hub-gift-success-step').classList.remove('hidden');
+                showHubToast('🎁 ¡Sobre Digital creado con éxito!');
+            } catch (e) {
+                errBox.textContent = '⚠️ ' + e.message;
+                errBox.classList.remove('hidden');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = origText;
+            }
+        }
+
+        async function activateHubCreatedGiftDemo() {
+            if (!hubGiftState.createdGift || !hubGiftState.createdGift.code) return;
+            const btn = document.getElementById('hub-gift-demo-activate-btn');
+            btn.disabled = true;
+            btn.textContent = '⏳ Activando Gift Card...';
+            try {
+                const res = await fetch(`/api/gift/${hubGiftState.createdGift.code}/demo-activate`, {
+                    method: 'POST'
+                });
+                const data = await res.json();
+                if (!res.ok || !data.ok) throw new Error(data.error || 'Error al activar');
+                hubGiftState.createdGift = data.gift;
+                const statusPill = document.getElementById('hub-gift-created-status-pill');
+                statusPill.textContent = '✅ Gift Card ACTIVA y lista para guardar en Wallet';
+                statusPill.className = 'mt-2 text-[11.5px] font-bold text-[#10B981]';
+                document.getElementById('hub-gift-demo-activate-box').classList.add('hidden');
+                showHubToast('✅ ¡Gift Card activada al instante!');
+            } catch (e) {
+                btn.disabled = false;
+                btn.textContent = '⚡ Activar Gift Card al Instante (Modo Demo)';
+                showHubToast('⚠️ ' + e.message);
+            }
+        }
+
+        function copyHubGiftUrl() {
+            if (!hubGiftState.createdGiftUrl) return;
+            navigator.clipboard.writeText(hubGiftState.createdGiftUrl).then(() => {
+                showHubToast('📋 Link del Sobre Digital copiado');
+            }).catch(() => {
+                showHubToast('Link: ' + hubGiftState.createdGiftUrl);
+            });
+        }
+
+        function resetHubGiftForm() {
+            document.getElementById('hub-gift-recipient').value = '';
+            document.getElementById('hub-gift-message').value = '';
+            document.getElementById('hub-gift-success-step').classList.add('hidden');
+            document.getElementById('hub-gift-form-step').classList.remove('hidden');
+            updateHubGiftPreview();
         }
 
         // Inicializar al cargar
