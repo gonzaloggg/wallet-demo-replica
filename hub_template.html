@@ -248,21 +248,21 @@
             </div>
 
             <!-- TARJETA 1.5: REGALAR UNA GIFT CARD DIGITAL (SALDO O COMBO) -->
-            <div class="action-card p-4 relative overflow-hidden border border-[#C5A869]/40" onclick="openGiftCardModal()">
+            <div class="action-card p-4 relative overflow-hidden" onclick="openGiftCardModal()">
                 <div class="flex items-center justify-between">
                     <div class="flex items-center gap-3.5">
-                        <div class="w-11 h-11 rounded-full bg-gradient-to-br from-[#2B1F18] to-[#12100E] text-[#E6C770] border border-[#D4AF37]/45 flex items-center justify-center shrink-0 shadow-sm text-[20px]">
+                        <div class="w-11 h-11 rounded-full bg-[#EADFD7] text-[#121212] flex items-center justify-center shrink-0 text-[20px]">
                             🎁
                         </div>
                         <div>
                             <div class="flex items-center gap-2 flex-wrap">
                                 <span class="text-[15.5px] font-bold text-[#121212] tracking-[-0.01em]">Regalar una Gift Card</span>
-                                <span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-[#1B1410] text-[#E6C770] border border-[#D4AF37]/40">Wallet Digital</span>
+                                <span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-[#4A5D23]/15 text-[#4A5D23]">Wallet Digital</span>
                             </div>
                             <div class="text-[12.5px] text-[#6E655F]">Envía saldo o un combo de café por WhatsApp</div>
                         </div>
                     </div>
-                    <svg class="w-5 h-5 text-[#9A7B2C] shrink-0" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+                    <svg class="w-5 h-5 text-[#6E655F] shrink-0" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
                 </div>
             </div>
 
@@ -734,14 +734,14 @@
 
             <div class="flex items-center justify-between gap-2 mb-3">
                 <div>
-                    <div class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#1B1410] text-[#E6C770] text-[10.5px] font-extrabold uppercase tracking-wider mb-1 border border-[#D4AF37]/40">
-                        <span>🎁 {{ campaign.shopName }} Gift Card</span>
+                    <div class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#EADFD7] text-[#121212] text-[10.5px] font-extrabold uppercase tracking-wider mb-1 border border-black/10">
+                        <span>🎁 GIFT CARD - {{ campaign.shopName }}</span>
                     </div>
                     <h2 class="text-[20px] font-bold tracking-[-0.02em] text-[#121212] leading-tight">
                         Regala café a quien quieras
                     </h2>
                     <p class="text-[12px] text-[#6E655F] mt-0.5">
-                        Esa persona especial recibe su regalo digital y guarda su Gift Card en Apple Wallet o Google Wallet
+                        Esa persona especial recibe su regalo digital y guarda su Gift Card en su Wallet
                     </p>
                 </div>
                 <button type="button" onclick="closeModal('modal-giftcard')" class="px-3 py-1.5 rounded-full bg-[#EADFD7] text-[#121212] text-xs font-bold shrink-0">
@@ -754,7 +754,7 @@
                 <!-- Selector de Modalidad: Saldo vs Combo -->
                 <div class="grid grid-cols-2 gap-1.5 p-1.5 rounded-2xl bg-[#EADFD7]/80 border border-black/5">
                     <button type="button" id="hub-gift-tab-balance" onclick="setHubGiftMode('balance')"
-                            class="py-2.5 px-3 rounded-xl text-[12.5px] font-extrabold transition bg-[#1B1410] text-[#E6C770] shadow-sm">
+                            class="py-2.5 px-3 rounded-xl text-[12.5px] font-extrabold transition bg-[#121212] text-white shadow-sm">
                         💰 Saldo en Pesos
                     </button>
                     <button type="button" id="hub-gift-tab-combo" onclick="setHubGiftMode('combo')"
@@ -774,7 +774,7 @@
                             $100
                         </button>
                         <button type="button" onclick="setHubGiftAmount(200)" data-gift-amt="200"
-                                class="hub-gift-amt-btn py-2.5 rounded-xl font-extrabold text-[14px] border-2 border-[#D4AF37] bg-[#1B1410] text-[#E6C770] transition active:scale-95">
+                                class="hub-gift-amt-btn py-2.5 rounded-xl font-extrabold text-[14px] border-2 border-[#121212] bg-[#121212] text-white transition active:scale-95">
                             $200
                         </button>
                         <button type="button" onclick="setHubGiftAmount(300)" data-gift-amt="300"
@@ -803,15 +803,15 @@
                     <div class="space-y-2">
                         <div onclick="selectHubGiftCombo('cafe_amigo', 'Vale «Te invito un Café»', '1 bebida caliente o fría de cualquier tamaño', 85, '☕')"
                              data-combo-key="cafe_amigo"
-                             class="hub-gift-combo-card cursor-pointer p-3.5 rounded-2xl border-2 border-[#D4AF37] bg-[#1B1410] text-white transition flex items-center justify-between gap-3">
+                             class="hub-gift-combo-card cursor-pointer p-3.5 rounded-2xl border-2 border-[#121212] bg-[#EADFD7] text-[#121212] transition flex items-center justify-between gap-3">
                             <div class="flex items-center gap-3">
                                 <span class="text-2xl">☕</span>
                                 <div>
-                                    <div class="text-[14px] font-extrabold text-[#F5E6C8]">Vale «Te invito un Café»</div>
-                                    <div class="text-[11.5px] text-white/75">1 bebida caliente o fría de cualquier tamaño</div>
+                                    <div class="text-[14px] font-extrabold">Vale «Te invito un Café»</div>
+                                    <div class="text-[11.5px] text-[#6E655F]">1 bebida caliente o fría de cualquier tamaño</div>
                                 </div>
                             </div>
-                            <span class="px-2.5 py-1 rounded-lg bg-[#D4AF37]/20 text-[#E6C770] font-extrabold text-[13px] shrink-0">$85</span>
+                            <span class="px-2.5 py-1 rounded-lg bg-[#121212] text-white font-extrabold text-[13px] shrink-0">$85</span>
                         </div>
 
                         <div onclick="selectHubGiftCombo('manana_perfecta', 'Pack «Mañana Perfecta»', '1 bebida a elección + 1 postre o panini recién hecho', 160, '🥐')"
@@ -842,27 +842,28 @@
                     </div>
                 </div>
 
-                <!-- VISTA PREVIA EN VIVO DE LA GIFT CARD DORADA -->
-                <div class="rounded-[20px] p-4 bg-gradient-to-br from-[#231914] via-[#18120E] to-[#120D0A] text-[#FAF6F0] border border-[#D4AF37]/45 shadow-lg relative overflow-hidden">
+                <!-- VISTA PREVIA EN VIVO DE LA GIFT CARD CON LOS COLORES DEL SISTEMA -->
+                <div class="rounded-[20px] p-4 shadow-lg relative overflow-hidden border border-black/10"
+                     style="background: {{ campaign.backgroundColor }}; color: {{ campaign.foregroundColor }};">
                     <div class="flex items-center justify-between gap-2 mb-2">
-                        <span class="text-[10.5px] font-extrabold uppercase tracking-widest text-[#E6C770]">
-                            ✨ Vista Previa · Apple &amp; Google Wallet
+                        <span class="text-[10.5px] font-extrabold uppercase tracking-widest" style="color: {{ campaign.labelColor }};">
+                            ✨ GIFT CARD - {{ campaign.shopName }}
                         </span>
-                        <span id="hub-gift-preview-badge" class="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-[#D4AF37]/20 text-[#E6C770] border border-[#D4AF37]/30">
+                        <span id="hub-gift-preview-badge" class="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-white/10 border border-white/15" style="color: {{ campaign.labelColor }};">
                             SALDO DIGITAL
                         </span>
                     </div>
-                    <div id="hub-gift-preview-headline" class="text-[24px] font-extrabold text-[#F7E3A8] leading-tight tracking-tight">
+                    <div id="hub-gift-preview-headline" class="text-[24px] font-extrabold leading-tight tracking-tight" style="color: {{ campaign.foregroundColor }};">
                         $200.00 MXN
                     </div>
-                    <div id="hub-gift-preview-sub" class="text-[12px] text-[#D8CBB8] mt-0.5">
+                    <div id="hub-gift-preview-sub" class="text-[12px] opacity-80 mt-0.5">
                         Saldo consumible en una o varias visitas
                     </div>
-                    <div class="mt-3 pt-2.5 border-t border-white/10 flex items-center justify-between text-[11.5px] text-[#D8CBB8]">
-                        <div>Para: <strong id="hub-gift-preview-to" class="text-white">Tu persona favorita</strong></div>
-                        <div>De: <strong id="hub-gift-preview-from" class="text-[#E6C770]">Alguien especial</strong></div>
+                    <div class="mt-3 pt-2.5 border-t border-white/10 flex items-center justify-between text-[11.5px] opacity-85">
+                        <div>Para: <strong id="hub-gift-preview-to" style="color: {{ campaign.foregroundColor }};">Tu persona favorita</strong></div>
+                        <div>De: <strong id="hub-gift-preview-from" style="color: {{ campaign.labelColor }};">Alguien especial</strong></div>
                     </div>
-                    <div id="hub-gift-preview-msg" class="mt-1.5 text-[11.5px] italic text-[#E6C770]/90 truncate">
+                    <div id="hub-gift-preview-msg" class="mt-1.5 text-[11.5px] italic truncate" style="color: {{ campaign.labelColor }};">
                         "¡Disfruta un delicioso café por mi cuenta! ☕✨"
                     </div>
                 </div>
@@ -900,7 +901,7 @@
                 <div id="hub-gift-error" class="hidden p-3 rounded-xl bg-[#E86C78]/15 text-[#B91C1C] text-[12.5px] font-bold"></div>
 
                 <button type="button" id="hub-gift-submit-btn" onclick="submitHubGiftCard()"
-                        class="w-full py-3.5 px-4 rounded-[14px] bg-gradient-to-r from-[#231914] to-[#12100E] text-[#F5E6C8] border border-[#D4AF37]/50 font-extrabold text-[15px] shadow-md active:scale-[0.98] transition flex items-center justify-center gap-2">
+                        class="w-full py-3.5 px-4 rounded-[14px] bg-[#121212] text-white font-extrabold text-[15px] shadow-md active:scale-[0.98] transition flex items-center justify-center gap-2">
                     <span>🎁 Crear Gift Card</span>
                 </button>
             </div>
@@ -918,22 +919,23 @@
                 </div>
 
                 <!-- 2. Vista Previa de la Gift Card Creada -->
-                <div class="rounded-[20px] p-4 bg-gradient-to-br from-[#231914] to-[#120D0A] text-[#FAF6F0] border border-[#D4AF37]/50 shadow-lg text-center">
-                    <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#D4AF37]/20 text-[#E6C770] text-[10.5px] font-extrabold mb-2">
-                        <span>✨ VISTA PREVIA DE TU GIFT CARD</span>
+                <div class="rounded-[20px] p-4 shadow-lg text-center border border-black/10"
+                     style="background: {{ campaign.backgroundColor }}; color: {{ campaign.foregroundColor }};">
+                    <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 text-[10.5px] font-extrabold mb-2" style="color: {{ campaign.labelColor }};">
+                        <span>✨ GIFT CARD - {{ campaign.shopName | upper }}</span>
                     </div>
                     <img id="hub-gift-created-strip-img" src="" alt="Vista previa Gift Card"
-                         class="w-full rounded-xl border border-[#D4AF37]/35 shadow-md mb-2.5 object-cover" />
-                    <div id="hub-gift-created-title" class="text-[21px] font-extrabold text-[#F7E3A8] leading-tight">
+                         class="w-full rounded-xl border border-white/15 shadow-md mb-2.5 object-cover" />
+                    <div id="hub-gift-created-title" class="text-[21px] font-extrabold leading-tight" style="color: {{ campaign.foregroundColor }};">
                         $200.00 MXN
                     </div>
-                    <div id="hub-gift-created-meta" class="text-[12.5px] text-[#D8CBB8] mt-0.5">
+                    <div id="hub-gift-created-meta" class="text-[12.5px] opacity-85 mt-0.5">
                         Para Sofía · De parte de Gonzalo
                     </div>
-                    <div id="hub-gift-created-dedication" class="text-[11.5px] italic text-[#E6C770]/90 mt-1 truncate">
+                    <div id="hub-gift-created-dedication" class="text-[11.5px] italic mt-1 truncate" style="color: {{ campaign.labelColor }};">
                         "¡Disfruta un delicioso café por mi cuenta! ☕✨"
                     </div>
-                    <div class="mt-2.5 inline-block px-3.5 py-1.5 rounded-xl bg-black/45 border border-white/15 font-mono text-[13px] font-extrabold text-[#E6C770]" id="hub-gift-created-code">
+                    <div class="mt-2.5 inline-block px-3.5 py-1.5 rounded-xl bg-black/45 border border-white/15 font-mono text-[13px] font-extrabold" style="color: {{ campaign.labelColor }};" id="hub-gift-created-code">
                         GIFT-000000
                     </div>
                     <div id="hub-gift-created-status-pill" class="mt-2 text-[11.5px] font-extrabold text-[#FBBF24]">
@@ -948,7 +950,7 @@
 
                 <!-- Botón directo a WhatsApp de Demo Café con el identificador de la Gift Card -->
                 <a id="hub-gift-wa-shop-btn" href="#" target="_blank" rel="noopener"
-                   class="w-full py-3.5 px-4 rounded-[14px] bg-[#121212] text-[#F5E6C8] border border-[#D4AF37]/55 font-extrabold text-[13.5px] flex items-center justify-center gap-2 no-underline shadow-md active:scale-[0.98] transition text-center">
+                   class="w-full py-3.5 px-4 rounded-[14px] bg-[#121212] text-white font-extrabold text-[13.5px] flex items-center justify-center gap-2 no-underline shadow-md active:scale-[0.98] transition text-center">
                     <span>💬 Solicitar activación por transferencia al WhatsApp de {{ campaign.shopName }}</span>
                 </a>
 
@@ -2391,12 +2393,12 @@
             const panCmb = document.getElementById('hub-gift-panel-combo');
 
             if (hubGiftState.mode === 'balance') {
-                tabBal.className = 'py-2.5 px-3 rounded-xl text-[12.5px] font-extrabold transition bg-[#1B1410] text-[#E6C770] shadow-sm';
+                tabBal.className = 'py-2.5 px-3 rounded-xl text-[12.5px] font-extrabold transition bg-[#121212] text-white shadow-sm';
                 tabCmb.className = 'py-2.5 px-3 rounded-xl text-[12.5px] font-extrabold transition text-[#6E655F]';
                 panBal.classList.remove('hidden');
                 panCmb.classList.add('hidden');
             } else {
-                tabCmb.className = 'py-2.5 px-3 rounded-xl text-[12.5px] font-extrabold transition bg-[#1B1410] text-[#E6C770] shadow-sm';
+                tabCmb.className = 'py-2.5 px-3 rounded-xl text-[12.5px] font-extrabold transition bg-[#121212] text-white shadow-sm';
                 tabBal.className = 'py-2.5 px-3 rounded-xl text-[12.5px] font-extrabold transition text-[#6E655F]';
                 panCmb.classList.remove('hidden');
                 panBal.classList.add('hidden');
@@ -2411,7 +2413,7 @@
             document.querySelectorAll('.hub-gift-amt-btn').forEach(btn => {
                 const bAmt = parseInt(btn.getAttribute('data-gift-amt'), 10);
                 if (bAmt === amt) {
-                    btn.className = 'hub-gift-amt-btn py-2.5 rounded-xl font-extrabold text-[14px] border-2 border-[#D4AF37] bg-[#1B1410] text-[#E6C770] transition active:scale-95';
+                    btn.className = 'hub-gift-amt-btn py-2.5 rounded-xl font-extrabold text-[14px] border-2 border-[#121212] bg-[#121212] text-white transition active:scale-95';
                 } else {
                     btn.className = 'hub-gift-amt-btn py-2.5 rounded-xl font-extrabold text-[14px] border border-black/10 bg-white text-[#121212] transition active:scale-95';
                 }
@@ -2427,7 +2429,7 @@
             document.querySelectorAll('.hub-gift-amt-btn').forEach(btn => {
                 const bAmt = parseInt(btn.getAttribute('data-gift-amt'), 10);
                 if (bAmt === hubGiftState.amount) {
-                    btn.className = 'hub-gift-amt-btn py-2.5 rounded-xl font-extrabold text-[14px] border-2 border-[#D4AF37] bg-[#1B1410] text-[#E6C770] transition active:scale-95';
+                    btn.className = 'hub-gift-amt-btn py-2.5 rounded-xl font-extrabold text-[14px] border-2 border-[#121212] bg-[#121212] text-white transition active:scale-95';
                 } else {
                     btn.className = 'hub-gift-amt-btn py-2.5 rounded-xl font-extrabold text-[14px] border border-black/10 bg-white text-[#121212] transition active:scale-95';
                 }
@@ -2445,7 +2447,7 @@
             document.querySelectorAll('.hub-gift-combo-card').forEach(card => {
                 const cKey = card.getAttribute('data-combo-key');
                 if (cKey === key) {
-                    card.className = 'hub-gift-combo-card cursor-pointer p-3.5 rounded-2xl border-2 border-[#D4AF37] bg-[#1B1410] text-white transition flex items-center justify-between gap-3';
+                    card.className = 'hub-gift-combo-card cursor-pointer p-3.5 rounded-2xl border-2 border-[#121212] bg-[#EADFD7] text-[#121212] transition flex items-center justify-between gap-3';
                 } else {
                     card.className = 'hub-gift-combo-card cursor-pointer p-3.5 rounded-2xl border border-black/10 bg-white text-[#121212] transition flex items-center justify-between gap-3';
                 }

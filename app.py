@@ -826,26 +826,43 @@ GIFT_COMBO_CATALOG = {
 
 def _create_gift_strip_pil(gift_data, campaign=None):
     """
-    Crea el banner de lujo (1500x500 super-sampled) para las Gift Cards Digitales (Saldo o Experiencia/Combo)
-    en tonos Espresso y Oro Metálico para Apple Wallet y Google Wallet.
+    Crea el banner (1500x500 super-sampled) para las Gift Cards Digitales (Saldo o Experiencia/Combo)
+    armonizado con los colores de la campaña del sistema para Apple Wallet y Google Wallet.
     """
     cfg = campaign if isinstance(campaign, dict) else get_campaign_config()
     W, H = 1500, 500
 
-    # Fondo Espresso Oscuro de Lujo con marco dorado sutil
-    bg_rgb = (20, 15, 11)
-    gold_rgb = (212, 175, 55)
-    gold_soft = (238, 210, 130)
-    cream_rgb = (250, 246, 240)
-    muted_rgb = (180, 166, 148)
+    bg_rgb = _hex_to_rgb_tuple(cfg.get("backgroundColor"), (28, 19, 14))
+    fg_rgb = _hex_to_rgb_tuple(cfg.get("foregroundColor"), (250, 246, 243))
+    accent_rgb = _hex_to_rgb_tuple(cfg.get("labelColor"), (197, 168, 105))
 
-    img = Image.new("RGB", (W, H), bg_rgb)
+    strip_bg_rgb = (
+        int(bg_rgb[0] * 0.72),
+        int(bg_rgb[1] * 0.72),
+        int(bg_rgb[2] * 0.72),
+    )
+    img = Image.new("RGB", (W, H), strip_bg_rgb)
+
+    if (cfg.get("useCustomStrip") or cfg.get("useCustomStripBg")) and os.path.isfile(CUSTOM_STRIP_BG_PATH):
+        try:
+            bg_img = Image.open(CUSTOM_STRIP_BG_PATH).convert("RGB").resize((W, H), Image.Resampling.LANCZOS)
+            overlay = Image.new("RGB", (W, H), (12, 10, 9))
+            img = Image.blend(bg_img, overlay, 0.62)
+            strip_bg_rgb = (36, 32, 28)
+        except Exception:
+            pass
+
     draw = ImageDraw.Draw(img)
 
-    # Líneas doradas superior e inferior y tarjeta interna con borde dorado
-    draw.line([(0, 2), (W, 2)], fill=(95, 76, 28), width=4)
-    draw.line([(0, H - 3), (W, H - 3)], fill=(95, 76, 28), width=4)
-    draw.rounded_rectangle([42, 22, W - 42, H - 22], radius=34, fill=(28, 21, 16), outline=(110, 88, 34), width=3)
+    line_col = tuple(min(255, int(strip_bg_rgb[c] * 0.88 + 255 * 0.12)) for c in range(3))
+    card_fill = tuple(min(255, int(strip_bg_rgb[c] * 0.92 + bg_rgb[c] * 0.08)) for c in range(3))
+    border_col = tuple(min(255, int(strip_bg_rgb[c] * 0.55 + accent_rgb[c] * 0.45)) for c in range(3))
+    muted_rgb = tuple(min(255, int(fg_rgb[c] * 0.72 + strip_bg_rgb[c] * 0.28)) for c in range(3))
+    bar_track_rgb = tuple(min(255, int(strip_bg_rgb[c] * 0.82 + 255 * 0.18)) for c in range(3))
+
+    draw.line([(0, 1), (W, 1)], fill=line_col, width=3)
+    draw.line([(0, H - 2), (W, H - 2)], fill=line_col, width=3)
+    draw.rounded_rectangle([42, 22, W - 42, H - 22], radius=34, fill=card_fill, outline=border_col, width=3)
 
     font_hdr, has_utf8 = _load_strip_font(size=29)
     font_big, _ = _load_strip_font(size=66)
@@ -867,28 +884,29 @@ def _create_gift_strip_pil(gift_data, campaign=None):
         badge_col = (230, 95, 95)
     else:
         status_badge = "ACTIVA EN MOSTRADOR"
-        badge_col = gold_soft
+        badge_col = fg_rgb
 
     pad_x = 84
     hdr_y = 48
-    left_hdr = f"GIFT CARD OFICIAL · {shop_name}"
-    draw.text((pad_x, hdr_y), left_hdr, fill=gold_rgb, font=font_hdr)
+    left_hdr = f"GIFT CARD - {shop_name}"
+    draw.text((pad_x, hdr_y), left_hdr, fill=accent_rgb, font=font_hdr)
 
     rb = draw.textbbox((0, 0), status_badge, font=font_hdr)
     rw = rb[2] - rb[0]
     draw.text((W - pad_x - rw, hdr_y), status_badge, fill=badge_col, font=font_hdr)
 
-    # Emblema de Regalo Dorado a la izquierda
+    # Emblema de Regalo a la izquierda con colores de la campaña
     emblem_cx, emblem_cy, emblem_r = 175, 248, 82
-    for g_off, g_col in ((12, (46, 36, 18)), (6, (78, 60, 22))):
+    for g_off, alpha_g in ((12, 0.14), (6, 0.26)):
+        g_col = tuple(min(255, int(card_fill[c] * (1.0 - alpha_g) + accent_rgb[c] * alpha_g)) for c in range(3))
         draw.ellipse(
             [emblem_cx - emblem_r - g_off, emblem_cy - emblem_r - g_off, emblem_cx + emblem_r + g_off, emblem_cy + emblem_r + g_off],
             fill=g_col
         )
     draw.ellipse(
         [emblem_cx - emblem_r, emblem_cy - emblem_r, emblem_cx + emblem_r, emblem_cy + emblem_r],
-        fill=(38, 29, 20),
-        outline=gold_rgb,
+        fill=bg_rgb,
+        outline=accent_rgb,
         width=5
     )
     _draw_gift_box_pil(draw, emblem_cx, emblem_cy, int(emblem_r * 1.15))
@@ -901,39 +919,36 @@ def _create_gift_strip_pil(gift_data, campaign=None):
         main_line = pkg_title.upper()
         if len(main_line) > 28:
             font_big, _ = _load_strip_font(size=52)
-        draw.text((content_x, 152), main_line, fill=cream_rgb, font=font_big)
+        draw.text((content_x, 152), main_line, fill=fg_rgb, font=font_big)
         sub_line = f"Incluye: {pkg_desc}" if rem_uses > 0 and status_val != "redeemed" else "¡Experiencia disfrutada en sucursal!"
         if len(sub_line) > 54:
             sub_line = sub_line[:51] + "..."
-        draw.text((content_x, 240), sub_line, fill=gold_soft, font=font_sub)
+        draw.text((content_x, 240), sub_line, fill=accent_rgb, font=font_sub)
 
-        # Barra de estado del combo
         bar_x1, bar_y1, bar_x2, bar_y2 = content_x, 308, W - pad_x, 332
-        draw.rounded_rectangle([bar_x1, bar_y1, bar_x2, bar_y2], radius=12, fill=(52, 41, 31))
+        draw.rounded_rectangle([bar_x1, bar_y1, bar_x2, bar_y2], radius=12, fill=bar_track_rgb)
         if status_val != "redeemed" and rem_uses > 0:
-            draw.rounded_rectangle([bar_x1, bar_y1, bar_x2, bar_y2], radius=12, fill=gold_rgb)
+            draw.rounded_rectangle([bar_x1, bar_y1, bar_x2, bar_y2], radius=12, fill=accent_rgb)
     else:
         init_amt = max(1.0, float(gift_data.get("initial_amount") or 200.0))
         curr_bal = max(0.0, float(gift_data.get("current_balance") or 0.0))
         main_line = f"${curr_bal:,.2f} MXN"
-        draw.text((content_x, 146), main_line, fill=cream_rgb, font=font_big)
+        draw.text((content_x, 146), main_line, fill=fg_rgb, font=font_big)
         sub_line = f"Saldo disponible (Monto original: ${init_amt:,.0f} MXN)" if curr_bal > 0 else "¡Saldo disfrutado al 100% en sucursal!"
-        draw.text((content_x, 238), sub_line, fill=gold_soft, font=font_sub)
+        draw.text((content_x, 238), sub_line, fill=accent_rgb, font=font_sub)
 
-        # Barra de progreso de saldo restante
         bar_x1, bar_y1, bar_x2, bar_y2 = content_x, 306, W - pad_x, 330
-        draw.rounded_rectangle([bar_x1, bar_y1, bar_x2, bar_y2], radius=12, fill=(52, 41, 31))
+        draw.rounded_rectangle([bar_x1, bar_y1, bar_x2, bar_y2], radius=12, fill=bar_track_rgb)
         ratio = max(0.0, min(1.0, curr_bal / init_amt))
         if ratio > 0:
             fill_w = max(28, int((bar_x2 - bar_x1) * ratio))
-            draw.rounded_rectangle([bar_x1, bar_y1, bar_x1 + fill_w, bar_y2], radius=12, fill=gold_rgb)
+            draw.rounded_rectangle([bar_x1, bar_y1, bar_x1 + fill_w, bar_y2], radius=12, fill=accent_rgb)
 
-    # Pie inferior: PARA y DE PARTE DE
-    recip_clean = _clean_text_for_pil(gift_data.get("recipient_name") or "Tu Amigo", has_utf8_font=has_utf8)
+    recip_clean = _clean_text_for_pil(gift_data.get("recipient_name") or "Para ti", has_utf8_font=has_utf8)
     sender_clean = _clean_text_for_pil(gift_data.get("sender_name") or "Alguien Especial", has_utf8_font=has_utf8)
     footer_left = f"PARA: {recip_clean.upper()[:24]}"
     footer_right = f"DE PARTE DE: {sender_clean.upper()[:24]}"
-    draw.text((pad_x, 405), footer_left, fill=cream_rgb, font=font_footer)
+    draw.text((pad_x, 405), footer_left, fill=fg_rgb, font=font_footer)
     fr_b = draw.textbbox((0, 0), footer_right, font=font_footer)
     fr_w = fr_b[2] - fr_b[0]
     draw.text((W - pad_x - fr_w, 405), footer_right, fill=muted_rgb, font=font_footer)
@@ -6977,13 +6992,12 @@ def generate_signed_gift_pkpass(gift_code, host_url, for_android=False):
             pass_data = json.load(f)
 
         pass_data["serialNumber"] = serial_number
-        pass_data["description"] = f"Gift Card {shop_name}"
+        pass_data["description"] = f"GIFT CARD - {shop_name}"
         pass_data["organizationName"] = shop_name
-        # Tema Espresso & Oro de Lujo para distinguir la Gift Card en Apple Wallet
-        pass_data["backgroundColor"] = "rgb(20, 15, 11)"
-        pass_data["foregroundColor"] = "rgb(250, 246, 240)"
-        pass_data["labelColor"] = "rgb(212, 175, 55)"
-        pass_data["logoText"] = f"🎁 {shop_name.upper()}"
+        pass_data["foregroundColor"] = _hex_to_passkit_rgb(cfg.get("foregroundColor"), (245, 242, 235))
+        pass_data["backgroundColor"] = _hex_to_passkit_rgb(cfg.get("backgroundColor"), (18, 16, 14))
+        pass_data["labelColor"] = _hex_to_passkit_rgb(cfg.get("labelColor"), (198, 166, 117))
+        pass_data["logoText"] = f"GIFT CARD - {shop_name.upper()}"
 
         if gift["status"] == "cancelled":
             pass_data["voided"] = True
@@ -7170,32 +7184,33 @@ GIFT_UNBOXING_HTML = """
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <meta name="theme-color" content="#140F0B">
-    <title>🎁 Regalo para {{ gift.recipient_name }} — {{ campaign.shopName }}</title>
+    <meta name="theme-color" content="#F3ECE7">
+    <title>GIFT CARD - {{ campaign.shopName }}</title>
     <link rel="icon" type="image/png" href="/card/icon-192.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg-deep: #110D0A;
-            --card-surface: #1B140F;
-            --gold: #D4AF37;
-            --gold-light: #F3E5AB;
-            --cream: #FAF6F0;
-            --muted: #B5A695;
-            --green: #30D158;
+            --bg-latte: #F3ECE7;
+            --card-cream: #FAF6F3;
+            --surface-white: #FFFFFF;
+            --text-dark: #121212;
+            --text-muted: #6E655F;
+            --sand: #EADFD7;
+            --olive: #4A5D23;
+            --rose: #E86C78;
+            --pass-bg: {{ campaign.backgroundColor or '#12100E' }};
+            --pass-fg: {{ campaign.foregroundColor or '#FAF6F3' }};
+            --pass-accent: {{ campaign.labelColor or '#C5A869' }};
         }
         * { box-sizing: border-box; -webkit-font-smoothing: antialiased; }
         body {
             margin: 0;
             min-height: 100vh;
             font-family: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, sans-serif;
-            background-color: var(--bg-deep);
-            background-image:
-                radial-gradient(circle at 50% 0%, rgba(212, 175, 55, 0.24) 0%, transparent 58%),
-                radial-gradient(circle at 85% 90%, rgba(212, 175, 55, 0.10) 0%, transparent 45%);
-            color: var(--cream);
+            background-color: var(--bg-latte);
+            color: var(--text-dark);
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -7211,9 +7226,9 @@ GIFT_UNBOXING_HTML = """
             gap: 6px;
             padding: 6px 14px;
             border-radius: 999px;
-            background: rgba(212, 175, 55, 0.14);
-            border: 1px solid rgba(212, 175, 55, 0.42);
-            color: var(--gold-light);
+            background: var(--sand);
+            border: 1px solid rgba(18, 18, 18, 0.08);
+            color: var(--text-dark);
             font-size: 11.5px;
             font-weight: 800;
             letter-spacing: 0.5px;
@@ -7221,41 +7236,53 @@ GIFT_UNBOXING_HTML = """
         }
         .envelope-card {
             margin-top: 14px;
-            background: linear-gradient(165deg, #241B14 0%, #16100C 100%);
-            border: 1.5px solid rgba(212, 175, 55, 0.45);
+            background: var(--card-cream);
+            border: 1px solid rgba(18, 18, 18, 0.08);
             border-radius: 26px;
-            padding: 22px 18px;
-            box-shadow: 0 22px 50px rgba(0, 0, 0, 0.65), 0 0 30px rgba(212, 175, 55, 0.12);
+            padding: 20px 18px;
+            box-shadow: 0 10px 30px -5px rgba(18, 18, 18, 0.07), 0 4px 12px -2px rgba(18, 18, 18, 0.04);
             position: relative;
             overflow: hidden;
         }
         .dedication-box {
-            margin: 16px 0;
-            padding: 15px 16px;
+            margin: 14px 0;
+            padding: 14px 16px;
             border-radius: 18px;
-            background: rgba(250, 246, 240, 0.06);
-            border: 1px dashed rgba(212, 175, 55, 0.45);
-            color: var(--cream);
-            font-size: 14.5px;
+            background: var(--sand);
+            border: 1px solid rgba(18, 18, 18, 0.07);
+            color: var(--text-dark);
+            font-size: 14px;
             line-height: 1.5;
             font-style: italic;
         }
         .strip-preview {
             width: 100%;
             border-radius: 16px;
-            border: 1px solid rgba(212, 175, 55, 0.35);
+            border: 1px solid rgba(18, 18, 18, 0.12);
             display: block;
-            margin: 12px 0 16px;
-            box-shadow: 0 10px 26px rgba(0, 0, 0, 0.45);
+            margin: 12px 0 14px;
+            box-shadow: 0 10px 24px rgba(18, 18, 18, 0.14);
+        }
+        .summary-box {
+            background: var(--surface-white);
+            border: 1px solid rgba(18, 18, 18, 0.08);
+            border-radius: 16px;
+            padding: 12px 14px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 14px;
         }
         .qr-box {
             background: #FFFFFF;
+            border: 1px solid rgba(18, 18, 18, 0.09);
             border-radius: 20px;
             padding: 14px;
             width: 196px;
-            margin: 14px auto 8px;
+            margin: 12px auto 4px;
             text-align: center;
-            box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
+            box-shadow: 0 8px 22px rgba(18, 18, 18, 0.08);
         }
         .qr-box img {
             width: 100%;
@@ -7267,16 +7294,16 @@ GIFT_UNBOXING_HTML = """
             font-size: 14px;
             font-weight: 800;
             letter-spacing: 1.5px;
-            color: #12100E;
+            color: var(--text-dark);
             margin-top: 6px;
         }
-        .btn-gold {
+        .btn-primary-wallet {
             width: 100%;
             padding: 14px 16px;
-            border-radius: 15px;
+            border-radius: 14px;
             border: none;
-            background: linear-gradient(135deg, #D4AF37 0%, #F3E5AB 50%, #AA7C11 100%);
-            color: #12100E;
+            background: var(--text-dark);
+            color: #FFFFFF;
             font-size: 15px;
             font-weight: 800;
             font-family: inherit;
@@ -7286,78 +7313,89 @@ GIFT_UNBOXING_HTML = """
             justify-content: center;
             gap: 8px;
             text-decoration: none;
-            box-shadow: 0 10px 24px rgba(212, 175, 55, 0.28);
-            margin-bottom: 10px;
+            box-shadow: 0 8px 20px rgba(18, 18, 18, 0.16);
+            margin-bottom: 8px;
+            transition: transform 0.15s ease;
         }
-        .btn-dark {
-            width: 100%;
-            padding: 13px 16px;
-            border-radius: 15px;
-            border: 1px solid rgba(250, 246, 240, 0.2);
-            background: rgba(250, 246, 240, 0.08);
-            color: var(--cream);
-            font-size: 14px;
-            font-weight: 700;
-            font-family: inherit;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-            text-decoration: none;
-            margin-bottom: 10px;
+        .btn-primary-wallet:active {
+            transform: scale(0.98);
         }
         .hook-card {
             margin-top: 18px;
-            background: linear-gradient(145deg, rgba(48, 209, 88, 0.14) 0%, rgba(212, 175, 55, 0.14) 100%);
-            border: 1.5px solid rgba(48, 209, 88, 0.45);
-            border-radius: 22px;
-            padding: 18px 16px;
+            background: var(--card-cream);
+            border: 1px solid rgba(18, 18, 18, 0.08);
+            border-radius: 26px;
+            padding: 20px 18px;
+            box-shadow: 0 10px 30px -5px rgba(18, 18, 18, 0.06);
+        }
+        .field-label {
+            display: block;
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--text-dark);
+            margin-bottom: 5px;
         }
         .input-gift {
             width: 100%;
-            padding: 12px 13px;
-            border-radius: 12px;
-            border: 1px solid rgba(255, 255, 255, 0.18);
-            background: rgba(17, 13, 10, 0.8);
-            color: var(--cream);
-            font-size: 14.5px;
+            padding: 12px 14px;
+            border-radius: 14px;
+            border: 1px solid rgba(18, 18, 18, 0.15);
+            background: var(--surface-white);
+            color: var(--text-dark);
+            font-size: 14px;
             font-family: inherit;
-            margin-bottom: 10px;
+            outline: none;
+        }
+        .input-gift:focus {
+            border-color: var(--text-dark);
+        }
+        .bday-card {
+            padding: 12px 14px;
+            border-radius: 16px;
+            background: var(--sand);
+            border: 1px solid rgba(18, 18, 18, 0.06);
+            margin-top: 12px;
+            margin-bottom: 12px;
+        }
+        .bday-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-top: 8px;
         }
         .status-badge {
             display: inline-flex;
             align-items: center;
-            gap: 6px;
-            padding: 5px 12px;
+            gap: 5px;
+            padding: 5px 11px;
             border-radius: 99px;
-            font-size: 11.5px;
+            font-size: 11px;
             font-weight: 800;
         }
-        .status-active { background: rgba(48, 209, 88, 0.16); color: #5DE37F; border: 1px solid rgba(48, 209, 88, 0.4); }
-        .status-pending { background: rgba(245, 158, 11, 0.18); color: #FCD34D; border: 1px solid rgba(245, 158, 11, 0.45); }
-        .status-redeemed { background: rgba(212, 175, 55, 0.18); color: var(--gold-light); border: 1px solid rgba(212, 175, 55, 0.45); }
+        .status-active { background: rgba(74, 93, 35, 0.14); color: var(--olive); border: 1px solid rgba(74, 93, 35, 0.3); }
+        .status-pending { background: #FFFBEB; color: #92400E; border: 1px solid rgba(245, 158, 11, 0.45); }
+        .status-redeemed { background: var(--sand); color: var(--text-dark); border: 1px solid rgba(18, 18, 18, 0.15); }
     </style>
 </head>
 <body>
     <div class="shell">
         <div style="text-align:center;">
-            <span class="top-pill">🎁 Sobre de Regalo Digital · {{ campaign.shopName }}</span>
-            <h1 style="margin:10px 0 4px; font-size:25px; font-weight:800; letter-spacing:-0.02em;">
+            <span class="top-pill">🎁 GIFT CARD - {{ campaign.shopName | upper }}</span>
+            <h1 style="margin:10px 0 4px; font-size:25px; font-weight:800; letter-spacing:-0.02em; color:var(--text-dark);">
                 ¡Hola, {{ gift.recipient_name }}! ✨
             </h1>
-            <p style="margin:0; font-size:13.5px; color:var(--muted);">
-                <strong style="color:var(--gold-light);">{{ gift.sender_name }}</strong> te envió una Gift Card oficial de <strong>{{ campaign.shopName }}</strong>
+            <p style="margin:0; font-size:14px; color:var(--text-muted);">
+                <strong style="color:var(--text-dark);">{{ gift.sender_name }}</strong> te envió un regalo
             </p>
         </div>
 
         <div class="envelope-card">
             <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap;">
-                <div style="display:flex; align-items:center; gap:9px;">
-                    <img src="/api/campaign/logo.png?v={{ campaign.logoVersion }}" alt="Logo" style="width:38px; height:38px; border-radius:50%; border:1.5px solid var(--gold); object-fit:cover;">
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <img src="/api/campaign/logo.png?v={{ campaign.logoVersion }}" alt="Logo" style="width:40px; height:40px; border-radius:50%; border:1.5px solid rgba(18,18,18,0.12); object-fit:cover; background:#FFFFFF;">
                     <div>
-                        <div style="font-size:11px; font-weight:800; color:var(--gold); letter-spacing:0.5px; text-transform:uppercase;">{{ campaign.shopName }}</div>
-                        <div style="font-size:14px; font-weight:800;">Gift Card Digital</div>
+                        <div style="font-size:11px; font-weight:800; color:var(--olive); letter-spacing:0.5px; text-transform:uppercase;">GIFT CARD - {{ campaign.shopName }}</div>
+                        <div style="font-size:14.5px; font-weight:800; color:var(--text-dark);">Tarjeta de Regalo Digital</div>
                     </div>
                 </div>
                 <span id="live-status-badge" class="status-badge {{ 'status-active' if gift.status == 'active' else ('status-redeemed' if gift.status == 'redeemed' else 'status-pending') }}">
@@ -7372,119 +7410,164 @@ GIFT_UNBOXING_HTML = """
             </div>
 
             <div class="dedication-box">
-                <div style="font-size:11px; font-weight:800; color:var(--gold-light); font-style:normal; text-transform:uppercase; letter-spacing:0.4px; margin-bottom:4px;">
+                <div style="font-size:11px; font-weight:800; color:var(--olive); font-style:normal; text-transform:uppercase; letter-spacing:0.4px; margin-bottom:4px;">
                     💌 Dedicatoria de {{ gift.sender_name }}:
                 </div>
                 “{{ gift.dedication }}”
             </div>
 
-            <!-- Imagen en vivo del Strip Dorado -->
+            <!-- Imagen en vivo del Strip con los colores de la campaña -->
             <img id="live-gift-strip" src="/gift/{{ gift.code }}/strip.png?v={{ gift.updated_at | urlencode }}" alt="Gift Card" class="strip-preview">
 
             <!-- Resumen numérico de Saldo o Experiencia -->
-            <div style="background:rgba(0,0,0,0.35); border:1px solid rgba(212,175,55,0.25); border-radius:16px; padding:12px 14px; display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+            <div class="summary-box">
                 <div>
-                    <div style="font-size:11px; font-weight:700; color:var(--muted); text-transform:uppercase;">
+                    <div style="font-size:11px; font-weight:700; color:var(--text-muted); text-transform:uppercase;">
                         {{ 'Experiencia incluida' if gift.gift_type == 'combo' else 'Saldo disponible' }}
                     </div>
-                    <div id="live-gift-headline" style="font-size:20px; font-weight:800; color:var(--gold-light); margin-top:2px;">
+                    <div id="live-gift-headline" style="font-size:20px; font-weight:800; color:var(--text-dark); margin-top:2px;">
                         {{ gift.value_headline }}
                     </div>
-                    <div id="live-gift-desc" style="font-size:12px; color:var(--muted); margin-top:2px;">
+                    <div id="live-gift-desc" style="font-size:12px; color:var(--text-muted); margin-top:2px;">
                         {{ gift.package_desc }}
                     </div>
                 </div>
-                <div style="text-align:right;">
-                    <span id="live-gift-sub" style="font-size:12px; font-weight:800; color:var(--cream); background:rgba(212,175,55,0.18); padding:5px 10px; border-radius:10px; border:1px solid rgba(212,175,55,0.35);">
+                <div style="text-align:right; flex-shrink:0;">
+                    <span id="live-gift-sub" style="font-size:12px; font-weight:800; color:var(--text-dark); background:var(--sand); padding:6px 10px; border-radius:10px; border:1px solid rgba(18,18,18,0.08); display:inline-block;">
                         {{ gift.balance_display }}
                     </span>
                 </div>
             </div>
 
-            <div id="pending-activation-box" style="{{ '' if gift.status == 'pending' else 'display:none;' }} background:rgba(245,158,11,0.14); border:1.5px solid rgba(245,158,11,0.45); border-radius:16px; padding:15px; margin-bottom:14px; text-align:center;">
-                <div style="font-size:13.5px; font-weight:800; color:#FCD34D; margin-bottom:5px;">
+            <div id="pending-activation-box" style="{{ '' if gift.status == 'pending' else 'display:none;' }} background:#FFFBEB; border:1.5px solid #F59E0B; border-radius:16px; padding:15px; margin-bottom:14px; text-align:center;">
+                <div style="font-size:13.5px; font-weight:800; color:#92400E; margin-bottom:5px;">
                     ⏳ Gift Card en proceso de activación por el barista
                 </div>
-                <div style="font-size:12.5px; color:var(--cream); line-height:1.45;">
-                    Esta Gift Card (<strong>{{ gift.code }}</strong>) aún debe ser activada por el barista en <strong>{{ campaign.shopName }}</strong>. En cuanto quede activada, aparecerán aquí automáticamente tu código QR y los botones para guardarla en tu Wallet.
+                <div style="font-size:12.5px; color:#78350F; line-height:1.45;">
+                    Esta Gift Card (<strong>{{ gift.code }}</strong>) aún debe ser activada por el barista en <strong>{{ campaign.shopName }}</strong>. En cuanto quede activada, aparecerán aquí automáticamente tu código QR y el botón para guardarla en tu Wallet.
                 </div>
             </div>
 
             <div id="active-wallet-actions" style="{{ 'display:none;' if gift.status == 'pending' else '' }}">
-                <!-- Botones Oficiales de Billetera Digital (Apple Wallet + Google Wallet) -->
+                <!-- Botón Único Inteligente de Billetera Digital (Auto-detecta iOS vs Android) -->
                 <div style="margin-top:6px;">
-                    <a href="/gift/{{ gift.code }}/download.pkpass" class="btn-gold">
-                        <span>🍎</span>
-                        <span>Agregar Gift Card a Apple Wallet</span>
-                    </a>
-                    <a href="/gift/{{ gift.code }}/google-wallet" class="btn-dark">
-                        <span>🤖</span>
-                        <span>Agregar a Google Wallet / Android</span>
+                    <a id="smart-gift-wallet-btn"
+                       href="{{ '/gift/' ~ gift.code ~ '/google-wallet' if is_android else '/gift/' ~ gift.code ~ '/download.pkpass' }}"
+                       class="btn-primary-wallet">
+                        <span id="smart-gift-wallet-icon">{{ '🤖' if is_android else '🍎' }}</span>
+                        <span id="smart-gift-wallet-label">{{ 'Agregar a Google Wallet' if is_android else 'Agregar a Apple Wallet' }}</span>
                     </a>
                 </div>
 
-                <!-- QR para escanear en Mostrador -->
-                <div style="text-align:center; margin-top:14px; padding-top:14px; border-top:1px solid rgba(255,255,255,0.1);">
-                    <div style="font-size:12px; font-weight:700; color:var(--gold-light);">
+                <!-- QR para escanear en Mostrador (sin mensaje de fecha de activación) -->
+                <div style="text-align:center; margin-top:14px; padding-top:14px; border-top:1px solid rgba(18,18,18,0.08);">
+                    <div style="font-size:12px; font-weight:700; color:var(--text-muted);">
                         📷 Muestra este QR al barista en {{ campaign.shopName }}
                     </div>
                     <div class="qr-box">
                         <img src="/gift/{{ gift.code }}/qr.png" alt="QR {{ gift.code }}">
                         <div class="code-pill">{{ gift.code }}</div>
                     </div>
-                    <div id="live-last-detail" style="font-size:11.5px; color:var(--muted); margin-top:6px;">
-                        {{ gift.last_action_detail }}
-                    </div>
                 </div>
             </div>
         </div>
 
-        <!-- TRUCO MAESTRO DE CAPTACIÓN: CONVERTIR EN TARJETA DE LEALTAD CON +1 SELLO GRATIS -->
+        <!-- BENEFICIO EXCLUSIVO PARA TI: MISMO FORMULARIO COMPLETO DE LA TARJETA DE LEALTAD -->
         <div class="hook-card" id="loyalty-conversion-card">
             {% if gift.converted_serial %}
                 <div style="text-align:center;">
                     <div style="font-size:24px; margin-bottom:4px;">🎉☕</div>
-                    <h3 style="margin:0 0 6px; font-size:17px; font-weight:800; color:#5DE37F;">
+                    <h3 style="margin:0 0 6px; font-size:17px; font-weight:800; color:var(--olive);">
                         ¡Ya tienes tu Tarjeta de Lealtad con +1 Sello Gratis!
                     </h3>
-                    <p style="margin:0 0 12px; font-size:13px; color:var(--cream);">
-                        Tu código de socio es <strong style="font-family:monospace;">{{ gift.converted_serial }}</strong>.
+                    <p style="margin:0 0 12px; font-size:13px; color:var(--text-muted);">
+                        Tu código de socio es <strong style="font-family:monospace; color:var(--text-dark);">{{ gift.converted_serial }}</strong>.
                     </p>
-                    <a href="/?serial={{ gift.converted_serial }}" class="btn-gold" style="margin-bottom:0;">
+                    <a href="/?serial={{ gift.converted_serial }}" class="btn-primary-wallet" style="margin-bottom:0;">
                         <span>☕</span>
                         <span>Abrir mi Tarjeta de Lealtad en el Hub</span>
                     </a>
                 </div>
             {% else %}
                 <div style="display:flex; align-items:center; gap:10px; margin-bottom:8px;">
-                    <div style="width:40px; height:40px; border-radius:50%; background:rgba(48,209,88,0.22); border:1px solid rgba(48,209,88,0.5); display:flex; align-items:center; justify-content:center; font-size:20px; flex-shrink:0;">
+                    <div style="width:40px; height:40px; border-radius:50%; background:var(--sand); border:1px solid rgba(18,18,18,0.08); display:flex; align-items:center; justify-content:center; font-size:20px; flex-shrink:0;">
                         🎁
                     </div>
                     <div>
-                        <div style="font-size:11px; font-weight:800; color:#5DE37F; text-transform:uppercase; letter-spacing:0.5px;">
+                        <div style="font-size:11px; font-weight:800; color:var(--olive); text-transform:uppercase; letter-spacing:0.5px;">
                             Beneficio Exclusivo para Ti
                         </div>
-                        <h3 style="margin:2px 0 0; font-size:16px; font-weight:800; color:var(--cream);">
+                        <h3 style="margin:2px 0 0; font-size:16px; font-weight:800; color:var(--text-dark);">
                             ¡Recibe +1 Sello Gratis en tu Tarjeta de Lealtad!
                         </h3>
                     </div>
                 </div>
-                <p style="margin:0 0 12px; font-size:12.5px; color:var(--muted); line-height:1.45;">
-                    Por haber recibido esta Gift Card, activa gratis tu propia <strong>Tarjeta de Fidelidad de {{ campaign.shopName }}</strong> y empieza hoy mismo con <strong>1 sello de bienvenida</strong> rumbo a tu café gratis.
+                <p style="margin:0 0 14px; font-size:12.5px; color:var(--text-muted); line-height:1.45;">
+                    Por haber recibido esta Gift Card, regístrate gratis en el programa de lealtad de <strong>{{ campaign.shopName }}</strong> y empieza hoy mismo con <strong>1 sello de bienvenida</strong> rumbo a tu recompensa ({{ campaign.rewardText }}).
                 </p>
                 <form onsubmit="convertGiftToLoyalty(event)" id="form-convert-loyalty">
-                    <input type="text" id="conv-name" class="input-gift" value="{{ gift.recipient_name }}" placeholder="Tu nombre completo" required>
-                    <input type="tel" id="conv-phone" class="input-gift" value="{{ gift.recipient_phone }}" placeholder="Tu WhatsApp (10 dígitos)" required>
-                    <button type="submit" id="btn-convert-submit" class="btn-gold" style="margin-bottom:0;">
+                    <div style="margin-bottom:10px;">
+                        <label class="field-label">Tu nombre completo</label>
+                        <input type="text" id="conv-name" class="input-gift" value="{{ gift.recipient_name }}" placeholder="Ej. Sofía Hernández" required>
+                    </div>
+                    <div style="margin-bottom:10px;">
+                        <label class="field-label">Correo electrónico</label>
+                        <input type="email" id="conv-email" class="input-gift" placeholder="tucorreo@ejemplo.com" required>
+                    </div>
+                    <div style="margin-bottom:10px;">
+                        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:5px;">
+                            <label class="field-label" style="margin-bottom:0;">Número de celular</label>
+                            <span style="font-size:11px; color:var(--olive); font-weight:700;">Para respaldar tus sellos</span>
+                        </div>
+                        <input type="tel" id="conv-phone" class="input-gift" value="{{ gift.recipient_phone }}" placeholder="Ej. 642 113 8069" required>
+                    </div>
+
+                    <div class="bday-card">
+                        <label style="display:block; font-size:12px; font-weight:700; color:var(--text-dark);">
+                            🎂 Déjanos tu cumpleaños si quieres recibir un regalo en tu día:
+                        </label>
+                        <div class="bday-grid">
+                            <select id="conv-bday-month" class="input-gift" style="padding:10px 12px; font-size:13px;">
+                                <option value="">Mes (Opcional)</option>
+                                <option value="01">Enero</option>
+                                <option value="02">Febrero</option>
+                                <option value="03">Marzo</option>
+                                <option value="04">Abril</option>
+                                <option value="05">Mayo</option>
+                                <option value="06">Junio</option>
+                                <option value="07">Julio</option>
+                                <option value="08">Agosto</option>
+                                <option value="09">Septiembre</option>
+                                <option value="10">Octubre</option>
+                                <option value="11">Noviembre</option>
+                                <option value="12">Diciembre</option>
+                            </select>
+                            <select id="conv-bday-day" class="input-gift" style="padding:10px 12px; font-size:13px;">
+                                <option value="">Día (Opcional)</option>
+                                {% for d in range(1, 32) %}
+                                <option value="{{ '%02d' % d }}">{{ d }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+
+                    <label style="display:flex; align-items:flex-start; gap:10px; padding:4px 2px 12px; cursor:pointer;">
+                        <input type="checkbox" id="conv-offers-optin" checked style="margin-top:2px; width:16px; height:16px; accent-color:#121212;">
+                        <span style="font-size:11.5px; color:var(--text-muted); line-height:1.35;">
+                            Recibir promociones, avisos de sellos y regalos de cumpleaños de {{ campaign.shopName }}. Tus datos son privados y nunca se comparten.
+                        </span>
+                    </label>
+
+                    <button type="submit" id="btn-convert-submit" class="btn-primary-wallet" style="margin-bottom:0;">
                         <span>✨</span>
-                        <span>Activar mi Tarjeta con +1 Sello Gratis</span>
+                        <span>Obtener mi tarjeta de lealtad (+1 Sello Gratis)</span>
                     </button>
                 </form>
             {% endif %}
         </div>
 
         <div style="text-align:center; margin-top:18px;">
-            <a href="/" style="color:var(--gold-light); font-size:13px; font-weight:700; text-decoration:none;">
+            <a href="/" style="color:var(--text-dark); font-size:13px; font-weight:700; text-decoration:none;">
                 ← Ir al Hub de {{ campaign.shopName }} (Menú, Wi-Fi y Recompensas)
             </a>
         </div>
@@ -7494,19 +7577,43 @@ GIFT_UNBOXING_HTML = """
         const GIFT_CODE = {{ gift.code | tojson }};
         let lastUpdatedAt = {{ gift.updated_at | tojson }};
 
+        // Detección automática de sistema operativo (iOS vs Android) en el navegador
+        (function applySmartGiftWalletBtn() {
+            const btn = document.getElementById('smart-gift-wallet-btn');
+            const icon = document.getElementById('smart-gift-wallet-icon');
+            const label = document.getElementById('smart-gift-wallet-label');
+            if (!btn || !icon || !label) return;
+            const ua = (navigator.userAgent || navigator.vendor || window.opera || '').toLowerCase();
+            const uaPlatform = (navigator.userAgentData && navigator.userAgentData.platform ? navigator.userAgentData.platform : '').toLowerCase();
+            const isAndroid = /android/.test(ua) || /android/.test(uaPlatform);
+            if (isAndroid) {
+                btn.href = '/gift/' + encodeURIComponent(GIFT_CODE) + '/google-wallet';
+                icon.textContent = '🤖';
+                label.textContent = 'Agregar a Google Wallet';
+            } else {
+                btn.href = '/gift/' + encodeURIComponent(GIFT_CODE) + '/download.pkpass';
+                icon.textContent = '🍎';
+                label.textContent = 'Agregar a Apple Wallet';
+            }
+        })();
+
         async function convertGiftToLoyalty(e) {
             e.preventDefault();
             const btn = document.getElementById('btn-convert-submit');
             const name = (document.getElementById('conv-name').value || '').trim();
+            const email = (document.getElementById('conv-email').value || '').trim();
             const phone = (document.getElementById('conv-phone').value || '').trim();
-            if (!name || !phone) return;
+            const month = (document.getElementById('conv-bday-month').value || '').trim();
+            const day = (document.getElementById('conv-bday-day').value || '').trim();
+            const birthdate = (month && day) ? ('2000-' + month + '-' + day) : '';
+            if (!name || !email || !phone) return;
             btn.disabled = true;
             btn.innerHTML = '<span>⏳ Creando tu tarjeta con +1 sello...</span>';
             try {
                 const res = await fetch('/api/gift/' + encodeURIComponent(GIFT_CODE) + '/convert-to-loyalty', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ name, phone })
+                    body: JSON.stringify({ name, email, phone, birthdate })
                 });
                 const data = await res.json();
                 if (res.ok && data.ok) {
@@ -7514,6 +7621,8 @@ GIFT_UNBOXING_HTML = """
                         localStorage.setItem('maishas_demo_hub_member_v1', JSON.stringify({
                             serial: data.serial,
                             name: data.name,
+                            email: data.email || email,
+                            phone: data.phone || phone,
                             stamps: data.stamps,
                             stamp_goal: data.stamp_goal || 10
                         }));
@@ -7522,11 +7631,11 @@ GIFT_UNBOXING_HTML = """
                 } else {
                     alert(data.error || 'No se pudo crear la tarjeta');
                     btn.disabled = false;
-                    btn.innerHTML = '<span>✨ Activar mi Tarjeta con +1 Sello Gratis</span>';
+                    btn.innerHTML = '<span>✨</span><span>Obtener mi tarjeta de lealtad (+1 Sello Gratis)</span>';
                 }
             } catch (err) {
                 btn.disabled = false;
-                btn.innerHTML = '<span>✨ Activar mi Tarjeta con +1 Sello Gratis</span>';
+                btn.innerHTML = '<span>✨</span><span>Obtener mi tarjeta de lealtad (+1 Sello Gratis)</span>';
             }
         }
 
@@ -7545,8 +7654,6 @@ GIFT_UNBOXING_HTML = """
                     if (hl) hl.textContent = data.value_headline;
                     const sub = document.getElementById('live-gift-sub');
                     if (sub) sub.textContent = data.balance_display;
-                    const det = document.getElementById('live-last-detail');
-                    if (det) det.textContent = data.last_action_detail || '';
                     const badge = document.getElementById('live-status-badge');
                     if (badge) {
                         if (data.status === 'active') {
@@ -7578,9 +7685,9 @@ def _build_gift_whatsapp_urls(gift_dict):
     val_label = gift_dict["package_title"] if gift_dict["gift_type"] == "combo" else f"${gift_dict['initial_amount']:,.2f} MXN"
 
     share_msg = (
-        f"🎁 ¡Hola {gift_dict['recipient_name']}! Te envié una Gift Card de *{shop_name}* ({val_label}).\n"
+        f"🎁 ¡Hola {gift_dict['recipient_name']}! {gift_dict['sender_name']} te envió un regalo de *{shop_name}* ({val_label}).\n"
         f"💌 \"{gift_dict['dedication']}\"\n\n"
-        f"Ábrela aquí y guárdala en tu Apple Wallet o Google Wallet:\n{gift_url}"
+        f"Ábrelo aquí y guárdalo en tu Wallet:\n{gift_url}"
     )
     activate_msg = (
         f"Hola {shop_name} ☕, solicito activar por transferencia mi Gift Card recién creada:\n"
@@ -7733,11 +7840,13 @@ def gift_unboxing_view(gift_code):
     gift = get_gift_card_by_code(gift_code)
     if not gift:
         return "Gift Card no encontrada", 404
+    detected_plat = _detect_client_platform(request)
     return render_template_string(
         GIFT_UNBOXING_HTML,
         gift=gift,
         campaign=get_campaign_config(),
-        hub=get_hub_config()
+        hub=get_hub_config(),
+        is_android=(detected_plat == "android")
     )
 
 
@@ -7825,7 +7934,7 @@ def gift_google_wallet_save(gift_code):
                     {"id": "benefit", "header": "DETALLE DEL REGALO", "body": f"{gift['package_title']} — {gift['package_desc']}"},
                 ],
                 "linksModuleData": {
-                    "uris": [{"id": "unbox", "uri": f"{base_url}/gift/{gift['code']}", "description": "Abrir Sobre de Regalo Digital"}]
+                    "uris": [{"id": "unbox", "uri": f"{base_url}/gift/{gift['code']}", "description": "Abrir Gift Card Digital"}]
                 },
                 "locations": [{"latitude": cfg["lat"], "longitude": cfg["lng"]}],
             }
@@ -7856,7 +7965,7 @@ def api_gift_state(gift_code):
 def api_gift_convert_to_loyalty(gift_code):
     """
     El 'Truco Maestro': Convierte al destinatario de una Gift Card en un socio del programa de lealtad
-    regalándole +1 Sello de Bienvenida (stamps = 1, total_visits = 1).
+    regalándole +1 Sello de Bienvenida (stamps = 1, total_visits = 1) con todos los datos de registro.
     """
     gift = get_gift_card_by_code(gift_code)
     if not gift:
@@ -7876,6 +7985,7 @@ def api_gift_convert_to_loyalty(gift_code):
     name = (data.get("name") or gift["recipient_name"] or "Socio").strip()[:80]
     phone = (data.get("phone") or gift["recipient_phone"] or "").strip()[:25]
     email = (data.get("email") or "").strip()[:100]
+    birthdate = (data.get("birthdate") or "").strip()[:20]
 
     detected = _detect_client_platform(request) or "ios"
     android_active = 1 if detected == "android" else 0
@@ -7886,21 +7996,25 @@ def api_gift_convert_to_loyalty(gift_code):
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
 
-    # Verificar si ya existe por teléfono para sumarle el sello de regalo o crearle su tarjeta nueva con 1 sello
+    # Verificar si ya existe por teléfono o correo para sumarle el sello de regalo o crearle su tarjeta nueva con 1 sello
     existing_serial = None
     norm_phone = _normalize_phone_digits(phone)
-    if len(norm_phone) == 10:
-        for row_p in c.execute("SELECT serial, stamps, total_visits, phone FROM clients WHERE COALESCE(status, 'active') = 'active'").fetchall():
-            if _normalize_phone_digits(row_p[3]) == norm_phone:
-                existing_serial = row_p[0]
-                new_stamps = min(cfg["stampGoal"], (row_p[1] or 0) + 1)
-                new_visits = (row_p[2] or 0) + 1
-                c.execute(
-                    "UPDATE clients SET stamps = ?, total_visits = ?, updated_at = ?, message = ? WHERE serial = ?",
-                    (new_stamps, new_visits, now_ts, f"🎁 ¡Recibiste +1 sello de bienvenida por tu Gift Card {gift['code']}!", existing_serial)
-                )
-                stamps_out = new_stamps
-                break
+    email_low = email.lower()
+    for row_p in c.execute("SELECT serial, stamps, total_visits, phone, email, birthdate FROM clients WHERE COALESCE(status, 'active') = 'active'").fetchall():
+        row_phone_norm = _normalize_phone_digits(row_p[3])
+        row_email_low = (row_p[4] or "").strip().lower()
+        if (len(norm_phone) == 10 and row_phone_norm == norm_phone) or (email_low and row_email_low == email_low):
+            existing_serial = row_p[0]
+            new_stamps = min(cfg["stampGoal"], (row_p[1] or 0) + 1)
+            new_visits = (row_p[2] or 0) + 1
+            upd_email = email if email else (row_p[4] or "")
+            upd_bday = birthdate if birthdate else (row_p[5] or "")
+            c.execute(
+                "UPDATE clients SET stamps = ?, total_visits = ?, email = ?, birthdate = ?, updated_at = ?, message = ? WHERE serial = ?",
+                (new_stamps, new_visits, upd_email, upd_bday, now_ts, f"🎁 ¡Recibiste +1 sello de bienvenida por tu Gift Card {gift['code']}!", existing_serial)
+            )
+            stamps_out = new_stamps
+            break
 
     if not existing_serial:
         existing_serial = f"MAISHAS-{uuid.uuid4().hex[:6].upper()}"
@@ -7908,8 +8022,8 @@ def api_gift_convert_to_loyalty(gift_code):
         welcome_msg = f"🎁 ¡Bienvenido(a) {name}! Empezaste con +1 sello gratis por tu Gift Card."
         c.execute(
             """INSERT INTO clients (serial, name, email, phone, birthdate, stamps, total_visits, redeemed_count, message, updated_at, platform, android_active, created_at, last_action, status, deactivated_at, recovery_pin, recovery_pin_expires)
-               VALUES (?, ?, ?, ?, '', 1, 1, 0, ?, ?, ?, ?, ?, 'add', 'active', '', '', 0)""",
-            (existing_serial, name, email, phone, welcome_msg, now_ts, detected, android_active, sonora_now)
+               VALUES (?, ?, ?, ?, ?, 1, 1, 0, ?, ?, ?, ?, ?, 'add', 'active', '', '', 0)""",
+            (existing_serial, name, email, phone, birthdate, welcome_msg, now_ts, detected, android_active, sonora_now)
         )
         c.execute(
             """INSERT INTO stamp_transactions (serial, client_name, action, stamps_before, stamps_after, visits_after, redeemed_after, created_at_utc, created_at_sonora, detail)
@@ -7928,6 +8042,8 @@ def api_gift_convert_to_loyalty(gift_code):
         "ok": True,
         "serial": existing_serial,
         "name": name,
+        "email": email,
+        "phone": phone,
         "stamps": stamps_out,
         "stamp_goal": cfg["stampGoal"],
     })
