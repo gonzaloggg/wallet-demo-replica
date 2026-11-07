@@ -159,9 +159,9 @@
                 <img src="/api/hub/hero.jpg" alt="Interior de {{ campaign.shopName }}" class="w-full h-full object-cover object-center" />
                 <div class="absolute inset-0 bg-gradient-to-t from-black/50 via-black/15 to-black/25"></div>
 
-                <!-- Botón Superior Derecho: Listo (Done) -->
-                <button type="button" onclick="handleTopDone()" class="absolute top-3.5 right-3.5 z-10 px-3.5 py-1.5 rounded-full bg-white/85 text-[#121212] text-xs font-bold backdrop-blur-md shadow-sm active:scale-95 transition">
-                    Listo
+                <!-- Acceso Rápido Superior Derecho: Wi-Fi de Cortesía -->
+                <button type="button" onclick="openModal('modal-wifi')" aria-label="Ver clave de Wi-Fi" class="absolute top-3.5 right-3.5 z-10 px-3.5 py-1.5 rounded-full bg-white/90 text-[#121212] text-xs font-bold backdrop-blur-md shadow-sm active:scale-95 transition flex items-center gap-1.5">
+                    <span>📶</span> <span>Wi-Fi</span>
                 </button>
             </div>
 

@@ -1512,7 +1512,7 @@ REGISTRATION_HTML = """
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Demo Café — Club de Fidelización Digital</title>
     <style>
         :root {
@@ -1794,7 +1794,7 @@ ANDROID_CARD_HTML = """
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="theme-color" content="#12100E">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="mobile-web-app-capable" content="yes">
@@ -3850,6 +3850,30 @@ BARISTA_HTML = """
                 width: 100%;
                 justify-content: center;
             }
+            .barista-gift-row {
+                flex-direction: column !important;
+                align-items: stretch !important;
+            }
+            .gift-row-actions {
+                width: 100%;
+                display: grid !important;
+                grid-template-columns: 1fr 1fr;
+                gap: 8px !important;
+            }
+            .gift-row-actions > form {
+                grid-column: 1 / -1;
+                width: 100%;
+            }
+            .gift-row-actions > form button {
+                width: 100%;
+                justify-content: center;
+            }
+            .gift-row-actions > button,
+            .gift-row-actions > a {
+                width: 100%;
+                justify-content: center;
+                text-align: center;
+            }
         }
     </style>
 </head>
@@ -5503,7 +5527,7 @@ BARISTA_HTML = """
                                 </div>
                             </div>
 
-                            <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                            <div class="gift-row-actions" style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
                                 {% if g.status == 'pending' %}
                                 <form action="/api/barista/gift-action" method="POST" style="margin:0;" onsubmit="saveBaristaUiState()">
                                     <input type="hidden" name="code" value="{{ g.code }}">
@@ -5734,14 +5758,32 @@ BARISTA_HTML = """
 
         let baristaRefreshingInFlight = false;
         let lastBaristaRefreshTs = 0;
+        let lastKnownBaristaSig = {{ (barista_state_sig or '') | tojson }};
 
         async function refreshBaristaDataSilently(forceNow) {
             if (baristaRefreshingInFlight) return;
             const now = Date.now();
-            if (!forceNow && (now - lastBaristaRefreshTs < 2500)) return;
+            if (!forceNow && (now - lastBaristaRefreshTs < 2000)) return;
             baristaRefreshingInFlight = true;
             lastBaristaRefreshTs = now;
             try {
+                // 0. Ping ultraligero (~60 bytes JSON) para verificar si hubo algún cambio en SQLite antes de descargar 180 KB de HTML
+                try {
+                    const verRes = await fetch('/api/barista/version?_t=' + now, {
+                        headers: { 'Cache-Control': 'no-cache' },
+                        credentials: 'include'
+                    });
+                    if (verRes.ok) {
+                        const verData = await verRes.json();
+                        if (verData && verData.sig) {
+                            if (lastKnownBaristaSig && verData.sig === lastKnownBaristaSig) {
+                                return; // Sin cambios en la base de datos: 0 consumo de DOM / ancho de banda
+                            }
+                            lastKnownBaristaSig = verData.sig;
+                        }
+                    }
+                } catch (pingErr) {}
+
                 const res = await fetch('/barista?_bg=' + now, {
                     headers: { 'X-Requested-With': 'XMLHttpRequest', 'Cache-Control': 'no-cache' },
                     credentials: 'include'
@@ -9234,6 +9276,31 @@ def barista_logout():
     return resp
 
 
+def _get_barista_state_signature() -> str:
+    """Devuelve una huella ligera (< 100 bytes) del estado de la BD para evitar descargar todo el HTML de /barista si nada cambió."""
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        c = conn.cursor()
+        c.execute("SELECT COUNT(*), COALESCE(SUM(stamps),0), COALESCE(SUM(total_visits),0), COALESCE(SUM(redeemed_count),0), COALESCE(MAX(last_sync_at),'') FROM clients")
+        cl = c.fetchone() or (0, 0, 0, 0, '')
+        c.execute("SELECT COUNT(*), COALESCE(MAX(id),0) FROM stamp_transactions")
+        tx = c.fetchone() or (0, 0)
+        c.execute("SELECT COUNT(*), COALESCE(SUM(balance_cents),0), COALESCE(SUM(CASE WHEN activated=1 THEN 1 ELSE 0 END),0), COALESCE(MAX(updated_at),'') FROM gift_cards")
+        gc = c.fetchone() or (0, 0, 0, '')
+        c.execute("SELECT COUNT(*), COALESCE(MAX(id),0) FROM hub_feedback")
+        fb = c.fetchone() or (0, 0)
+        conn.close()
+        return f"{cl[0]}:{cl[1]}:{cl[2]}:{cl[3]}:{cl[4]}|{tx[0]}:{tx[1]}|{gc[0]}:{gc[1]}:{gc[2]}:{gc[3]}|{fb[0]}:{fb[1]}"
+    except Exception:
+        return str(time.time())
+
+
+@app.route("/api/barista/version")
+@requires_auth
+def api_barista_version():
+    return jsonify({"ok": True, "sig": _get_barista_state_signature()})
+
+
 @app.route("/barista")
 @requires_auth
 def barista():
@@ -9522,7 +9589,8 @@ def barista():
         gift_updated=request.args.get("gift_updated"),
         active_view=request.args.get("view", ""),
         ok=request.args.get("ok"),
-        updated_serial=request.args.get("updated")
+        updated_serial=request.args.get("updated"),
+        barista_state_sig=_get_barista_state_signature()
     )
     resp = Response(html_out, mimetype="text/html")
     resp.set_cookie(
