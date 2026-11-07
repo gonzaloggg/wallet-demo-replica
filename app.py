@@ -775,8 +775,8 @@ def render_dynamic_strip(stamps_count, output_dir, total_visits=0, message=None,
     img_1x.save(os.path.join(output_dir, "strip.png"), format="PNG", optimize=True)
 
 
-GIFT_COMBO_CATALOG = {
-    "cafe_individual": {
+DEFAULT_GIFT_COMBOS_LIST = [
+    {
         "key": "cafe_individual",
         "icon": "☕",
         "title": "Vale «Te invito un Café»",
@@ -785,16 +785,7 @@ GIFT_COMBO_CATALOG = {
         "price": 85.0,
         "uses": 1,
     },
-    "cafe_amigo": {
-        "key": "cafe_individual",
-        "icon": "☕",
-        "title": "Vale «Te invito un Café»",
-        "short_title": "Te invito un Café",
-        "desc": "1 bebida caliente o fría de cualquier tamaño",
-        "price": 85.0,
-        "uses": 1,
-    },
-    "manana_perfecta": {
+    {
         "key": "manana_perfecta",
         "icon": "🥐",
         "title": "Pack «Mañana Perfecta»",
@@ -803,7 +794,7 @@ GIFT_COMBO_CATALOG = {
         "price": 160.0,
         "uses": 1,
     },
-    "cita_para_dos": {
+    {
         "key": "cita_para_dos",
         "icon": "👯",
         "title": "Pack «Cita para Dos»",
@@ -812,16 +803,63 @@ GIFT_COMBO_CATALOG = {
         "price": 280.0,
         "uses": 1,
     },
-    "cita_dos": {
-        "key": "cita_para_dos",
-        "icon": "👯",
-        "title": "Pack «Cita para Dos»",
-        "short_title": "Pack Cita para Dos",
-        "desc": "2 bebidas + 2 postres o paninis para compartir",
-        "price": 280.0,
-        "uses": 1,
-    },
-}
+]
+
+GIFT_COMBO_CATALOG = {item["key"]: item for item in DEFAULT_GIFT_COMBOS_LIST}
+GIFT_COMBO_CATALOG["cafe_amigo"] = GIFT_COMBO_CATALOG["cafe_individual"]
+GIFT_COMBO_CATALOG["cita_dos"] = GIFT_COMBO_CATALOG["cita_para_dos"]
+
+
+def get_gift_combos_list():
+    """Devuelve la lista de vales/combos configurados por el barista para las Gift Cards."""
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        row = conn.execute("SELECT value FROM settings WHERE key = 'gift_combos_json'").fetchone()
+        conn.close()
+        if row and row[0]:
+            parsed = json.loads(row[0])
+            if isinstance(parsed, list) and len(parsed) > 0:
+                out = []
+                for idx, item in enumerate(parsed):
+                    if not isinstance(item, dict):
+                        continue
+                    title = str(item.get("title") or "").strip()
+                    if not title:
+                        continue
+                    key = str(item.get("key") or f"combo_{idx+1}").strip().lower()
+                    icon = str(item.get("icon") or "🥐").strip() or "🥐"
+                    desc = str(item.get("desc") or "Experiencia especial en sucursal").strip()
+                    try:
+                        price = max(10.0, round(float(item.get("price") or 100.0), 2))
+                    except Exception:
+                        price = 100.0
+                    out.append({
+                        "key": key,
+                        "icon": icon[:4],
+                        "title": title[:80],
+                        "short_title": str(item.get("short_title") or title)[:40],
+                        "desc": desc[:140],
+                        "price": price,
+                        "uses": 1,
+                    })
+                if out:
+                    return out
+    except Exception:
+        pass
+    return [dict(x) for x in DEFAULT_GIFT_COMBOS_LIST]
+
+
+def get_gift_combos_map():
+    """Devuelve un diccionario por key con todos los combos activos + alias de compatibilidad."""
+    combos_list = get_gift_combos_list()
+    cmap = {c["key"]: c for c in combos_list}
+    if "cafe_individual" in cmap and "cafe_amigo" not in cmap:
+        cmap["cafe_amigo"] = cmap["cafe_individual"]
+    elif combos_list and "cafe_amigo" not in cmap:
+        cmap["cafe_amigo"] = combos_list[0]
+    if "cita_para_dos" in cmap and "cita_dos" not in cmap:
+        cmap["cita_dos"] = cmap["cita_para_dos"]
+    return cmap
 
 
 def _create_gift_strip_pil(gift_data, campaign=None):
@@ -3876,12 +3914,12 @@ BARISTA_HTML = """
         </div>
     </div>
 
-    <!-- MODAL DE OPERACIÓN DE GIFT CARD EN MOSTRADOR POS (DESCONTAR SALDO / CANJEAR COMBO / ACTIVAR) -->
+    <!-- MODAL DE OPERACIÓN DE GIFT CARD EN MOSTRADOR POS (DESCONTAR SALDO / CANJEAR COMBO / ACTIVAR / COMPARTIR) -->
     <div class="custom-modal-backdrop" id="maishas-gift-pos-modal">
         <div class="custom-modal-box" style="max-width:460px; text-align:left;">
             <div style="text-align:center;">
                 <div class="cm-icon warn" style="font-size:24px;">🎁</div>
-                <div class="cm-brand">Demo Café · Gift Card Digital</div>
+                <div class="cm-brand" id="gpos-brand-title">GIFT CARD - {{ campaign.shopName }}</div>
                 <h3 class="cm-title" id="gpos-title">Gift Card GIFT-000000</h3>
                 <p class="cm-desc" id="gpos-sub" style="margin-bottom:10px;"></p>
             </div>
@@ -3946,11 +3984,31 @@ BARISTA_HTML = """
                 </form>
             </div>
 
-            <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; padding-top:8px; border-top:1px solid var(--border-subtle);">
-                <a id="gpos-unbox-link" href="#" target="_blank" class="action-chip" style="text-decoration:none;">
-                    🎁 Abrir Sobre Digital ↗
-                </a>
-                <button type="button" class="cm-btn-cancel" onclick="closeGiftPosModal()" style="padding:9px 18px;">Cerrar</button>
+            <!-- Compartir Gift Card con el Cliente (WhatsApp, Copiar Link y Abrir Gift Card) -->
+            <div style="background:#FAF6F3; border:1px solid var(--border-subtle); border-radius:14px; padding:10px 12px; margin-bottom:12px;">
+                <div style="font-size:11px; font-weight:800; color:var(--text-secondary); text-transform:uppercase; margin-bottom:8px;">
+                    📤 Enviar Gift Card al Cliente
+                </div>
+                <div style="display:flex; flex-direction:column; gap:8px;">
+                    <a id="gpos-wa-share-link" href="#" target="_blank" rel="noopener noreferrer"
+                       style="display:flex; align-items:center; justify-content:center; gap:7px; width:100%; padding:11px 14px; border-radius:12px; background:#25D366; color:#FFFFFF; font-weight:800; font-size:13.5px; text-decoration:none; box-shadow:0 4px 12px rgba(37,211,102,0.25);">
+                        <span>📲</span>
+                        <span>Enviar Gift Card por WhatsApp</span>
+                    </a>
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+                        <button type="button" id="gpos-copy-link-btn" data-gift-url="" onclick="copyGiftUrlFromBarista(this)"
+                                class="action-chip" style="justify-content:center; padding:10px 12px; font-weight:800; font-size:12.5px; color:#121212; background:#EADFD7; border-color:rgba(18,18,18,0.14);">
+                            📋 Copiar Link
+                        </button>
+                        <a id="gpos-unbox-link" href="#" target="_blank" class="action-chip" style="justify-content:center; padding:10px 12px; font-weight:800; font-size:12.5px; text-decoration:none;">
+                            🎁 Abrir Gift Card ↗
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <div style="display:flex; justify-content:flex-end; align-items:center; gap:8px; padding-top:4px;">
+                <button type="button" class="cm-btn-cancel" onclick="closeGiftPosModal()" style="padding:9px 22px; width:100%;">Cerrar</button>
             </div>
         </div>
     </div>
@@ -3970,7 +4028,7 @@ BARISTA_HTML = """
                 </div>
             </div>
 
-            <!-- Pestañas de Vista Principal (Mostrador, Gift Cards, Diseño y Campaña, Cumpleañeros, Alertas Push, Base de Datos) -->
+            <!-- Pestañas de Vista Principal (Mostrador, Gift Cards, Vales/Combos, Diseño y Campaña, Cumpleañeros, Alertas Push, Base de Datos) -->
             <div class="main-nav-tabs">
                 <button type="button" id="nav-btn-pos" class="nav-tab-btn active" onclick="switchMainView('pos')">
                     ☕️ Mostrador POS
@@ -3983,6 +4041,9 @@ BARISTA_HTML = """
                             ⏳ {{ pending_gifts_cnt }} por activar
                         </span>
                     {% endif %}
+                </button>
+                <button type="button" id="nav-btn-combos" class="nav-tab-btn" onclick="switchMainView('combos')">
+                    🥐 Vales / Combos ({{ gift_combos|length if gift_combos is defined else 3 }})
                 </button>
                 <button type="button" id="nav-btn-campaign" class="nav-tab-btn" onclick="switchMainView('campaign')">
                     🎨 Diseño y Campaña
@@ -5260,11 +5321,20 @@ BARISTA_HTML = """
 
                         <div id="bgc-pane-combo" style="display:none; margin-bottom:12px;">
                             <label style="font-size:11.5px; color:var(--gold-light); font-weight:700; display:block; margin-bottom:5px;">Selecciona el Paquete / Experiencia</label>
-                            <select name="package_key" class="input-dark" style="font-weight:700;">
-                                <option value="cafe_individual">☕ Vale «Te invito un Café» ($85 MXN — 1 bebida)</option>
-                                <option value="manana_perfecta" selected>🥐 Pack «Mañana Perfecta» ($160 MXN — 1 bebida + 1 postre/panini)</option>
-                                <option value="cita_para_dos">👯 Pack «Cita para Dos» ($280 MXN — 2 bebidas + 2 postres/paninis)</option>
+                            <select name="package_key" id="bgc-package-select" class="input-dark" style="font-weight:700;">
+                                {% if gift_combos is defined and gift_combos %}
+                                    {% for cmb in gift_combos %}
+                                    <option value="{{ cmb.key }}" {{ 'selected' if loop.first else '' }}>{{ cmb.icon }} {{ cmb.title }} (${{ '%.0f'|format(cmb.price) }} MXN — {{ cmb.desc }})</option>
+                                    {% endfor %}
+                                {% else %}
+                                    <option value="cafe_individual">☕ Vale «Te invito un Café» ($85 MXN — 1 bebida)</option>
+                                    <option value="manana_perfecta" selected>🥐 Pack «Mañana Perfecta» ($160 MXN — 1 bebida + 1 postre/panini)</option>
+                                    <option value="cita_para_dos">👯 Pack «Cita para Dos» ($280 MXN — 2 bebidas + 2 postres/paninis)</option>
+                                {% endif %}
                             </select>
+                            <div style="margin-top:6px; font-size:11.5px; color:var(--text-secondary);">
+                                💡 ¿Quieres agregar o editar paquetes? Ve a la pestaña <a href="javascript:void(0)" onclick="switchMainView('combos')" style="color:var(--gold-light); font-weight:800; text-decoration:underline;">🥐 Vales / Combos</a>.
+                            </div>
                         </div>
 
                         <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:10px;">
@@ -5302,7 +5372,7 @@ BARISTA_HTML = """
                             </div>
                             <div style="background:#FAF6F3; border:1px solid var(--border-subtle); border-radius:14px; padding:11px 13px;">
                                 <strong style="color:var(--gold-light);">2. Escaneo Directo y Saldo Parcial:</strong><br>
-                                Usa la misma cámara QR de <strong>☕️ Mostrador POS</strong>. Cada descuento de saldo actualiza al instante el Apple Wallet / Google Wallet del cliente con una notificación Push.
+                                Usa la misma cámara QR de <strong>☕️ Mostrador POS</strong>. Cada descuento de saldo actualiza al instante el Apple Wallet / Google Wallet del cliente con una notificación Push indicando el monto descontado, y cuando el saldo llega a $0 la tarjeta expira automáticamente.
                             </div>
                             <div style="background:#FAF6F3; border:1px solid var(--border-subtle); border-radius:14px; padding:11px 13px;">
                                 <strong style="color:#1E7A34;">3. Conversión a Cliente Frecuente (+1 Sello Gratis):</strong><br>
@@ -5314,7 +5384,7 @@ BARISTA_HTML = """
             </div>
 
             <!-- Lista de Gift Cards Activas, Pendientes y Canjeadas -->
-            <div class="bento-card">
+            <div class="bento-card" id="barista-gift-cards-list-card">
                 <div class="bento-header" style="margin-bottom:12px;">
                     <h2 class="bento-title">📋 Gift Cards Registradas ({{ gift_cards|length if gift_cards is defined else 0 }})</h2>
                 </div>
@@ -5333,7 +5403,7 @@ BARISTA_HTML = """
                                         {% if g.status == 'active' %}
                                             <span class="status-pill-on">🟢 Activa</span>
                                         {% elif g.status == 'redeemed' %}
-                                            <span class="status-pill-off" style="color:#4A5D23; border-color:rgba(74,93,35,0.4);">🎉 Canjeada</span>
+                                            <span class="status-pill-off" style="color:#4A5D23; border-color:rgba(74,93,35,0.4);">🎉 Canjeada / Expirada</span>
                                         {% else %}
                                             <span class="status-pill-off" style="color:#B86200; background:rgba(245,158,11,0.18); border-color:rgba(184,98,0,0.55); font-weight:800;">⏳ Pendiente de Activar por Barista</span>
                                         {% endif %}
@@ -5370,6 +5440,8 @@ BARISTA_HTML = """
                                         data-balance="{{ g.current_balance }}"
                                         data-recipient="{{ g.recipient_name }}"
                                         data-sender="{{ g.sender_name }}"
+                                        data-wa-url="{{ g.whatsapp_share_url }}"
+                                        data-gift-url="{{ g.gift_url }}"
                                         onclick="openGiftPosModalFromBtn(this)">
                                     {% if g.status == 'pending' %}
                                         ⚙️ Opciones
@@ -5379,8 +5451,14 @@ BARISTA_HTML = """
                                         💳 Descontar Saldo
                                     {% endif %}
                                 </button>
+                                <a href="{{ g.whatsapp_share_url }}" target="_blank" rel="noopener" class="action-chip" style="text-decoration:none; background:rgba(37,211,102,0.14); border-color:rgba(30,122,52,0.35); color:#1E7A34; font-weight:800;">
+                                    📲 Enviar WhatsApp
+                                </a>
+                                <button type="button" class="action-chip" data-gift-url="{{ g.gift_url }}" onclick="copyGiftUrlFromBarista(this)" style="cursor:pointer; font-weight:800;">
+                                    📋 Copiar Link
+                                </button>
                                 <a href="/gift/{{ g.code }}" target="_blank" class="action-chip" style="text-decoration:none;">
-                                    🎁 Ver Regalo ↗
+                                    🎁 Abrir ↗
                                 </a>
                             </div>
                         </div>
@@ -5390,6 +5468,122 @@ BARISTA_HTML = """
                             Aún no hay Gift Cards registradas. Puedes emitir una arriba o desde el Hub del Cliente.
                         </div>
                     {% endif %}
+                </div>
+            </div>
+        </section>
+
+        <!-- VISTA 7: PESTAÑA DE VALES / COMBOS DE GIFT CARDS ("Selecciona el Paquete / Experiencia") -->
+        <section id="view-combos-container" class="db-view-section" style="display:none;">
+            <div class="db-header-card" style="margin-bottom:18px;">
+                <div>
+                    <h2 style="margin:0; font-size:20px; font-weight:800; color:var(--text-primary);">
+                        🥐 Catálogo de Vales y Combos para Gift Cards
+                    </h2>
+                    <p style="margin:4px 0 0; font-size:13px; color:var(--text-secondary);">
+                        Agrega, edita o elimina los paquetes de la sección <strong>«Selecciona el Paquete / Experiencia»</strong> que ven tanto tus clientes en el Hub como el barista al emitir una Gift Card.
+                    </p>
+                </div>
+                <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+                    <button type="button" class="action-chip" onclick="switchMainView('gifts')" style="font-weight:800; cursor:pointer;">
+                        🎁 Ir a Emitir Gift Cards →
+                    </button>
+                </div>
+            </div>
+
+            <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(320px, 1fr)); gap:18px; align-items:start;">
+                <!-- Formulario para Agregar / Editar Vale o Combo -->
+                <div class="bento-card">
+                    <div class="bento-header">
+                        <h2 class="bento-title" id="combo-form-title">➕ Agregar Nuevo Vale / Combo</h2>
+                        <button type="button" id="combo-form-cancel-btn" onclick="resetBaristaGiftComboForm()" style="display:none; background:none; border:none; color:var(--gold-light); font-size:12px; font-weight:800; cursor:pointer; text-decoration:underline;">
+                            Cancelar edición
+                        </button>
+                    </div>
+                    <p class="bento-subtitle" style="margin-bottom:14px;">
+                        Aparecerá al instante en la opción <strong>«Selecciona el Paquete / Experiencia»</strong> al crear una Gift Card.
+                    </p>
+                    <form action="/api/barista/gift-combos/save" method="POST" onsubmit="saveBaristaUiState()">
+                        <input type="hidden" name="combo_key" id="combo-form-key" value="">
+
+                        <div style="display:grid; grid-template-columns:84px 1fr; gap:10px; margin-bottom:12px;">
+                            <div>
+                                <label style="font-size:11.5px; color:var(--gold-light); font-weight:700; display:block; margin-bottom:4px;">Ícono</label>
+                                <input type="text" name="icon" id="combo-form-icon" class="input-dark" value="🥐" maxlength="4" style="text-align:center; font-size:20px;" required>
+                            </div>
+                            <div>
+                                <label style="font-size:11.5px; color:var(--gold-light); font-weight:700; display:block; margin-bottom:4px;">Nombre del Paquete / Experiencia</label>
+                                <input type="text" name="title" id="combo-form-name" class="input-dark" placeholder="Ej. Pack «Tarde de Postre y Café»" required>
+                            </div>
+                        </div>
+
+                        <div style="margin-bottom:12px;">
+                            <label style="font-size:11.5px; color:var(--gold-light); font-weight:700; display:block; margin-bottom:4px;">¿Qué incluye el paquete? (Descripción)</label>
+                            <input type="text" name="desc" id="combo-form-desc" class="input-dark" placeholder="Ej. 1 bebida caliente o fría + 1 rebanada de pastel" required>
+                        </div>
+
+                        <div style="margin-bottom:14px;">
+                            <label style="font-size:11.5px; color:var(--gold-light); font-weight:700; display:block; margin-bottom:4px;">Precio del Paquete ($ MXN)</label>
+                            <input type="number" name="price" id="combo-form-price" class="input-dark" placeholder="Ej. 185" min="10" max="10000" step="1" required>
+                        </div>
+
+                        <button type="submit" id="combo-form-submit-btn" class="btn-cam-launch" style="width:100%; justify-content:center;">
+                            💾 Guardar Paquete / Experiencia
+                        </button>
+                    </form>
+                </div>
+
+                <!-- Lista de Vales / Combos Activos -->
+                <div class="bento-card" id="barista-combos-list-card">
+                    <div class="bento-header" style="margin-bottom:12px;">
+                        <h2 class="bento-title">✨ Paquetes Activos ({{ gift_combos|length if gift_combos is defined else 0 }})</h2>
+                    </div>
+                    <div style="display:flex; flex-direction:column; gap:10px;">
+                        {% if gift_combos is defined and gift_combos %}
+                            {% for cmb in gift_combos %}
+                            <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; padding:13px 15px; border-radius:14px; background:#FAF6F3; border:1px solid var(--border-subtle);">
+                                <div style="display:flex; align-items:center; gap:12px; min-width:210px; flex:1;">
+                                    <div style="width:44px; height:44px; border-radius:12px; background:rgba(122,73,40,0.12); display:flex; align-items:center; justify-content:center; font-size:24px; flex-shrink:0;">
+                                        {{ cmb.icon }}
+                                    </div>
+                                    <div style="min-width:0;">
+                                        <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                                            <strong style="font-size:14.5px; color:var(--text-primary);">{{ cmb.title }}</strong>
+                                            <span style="padding:3px 9px; border-radius:99px; background:rgba(30,122,52,0.12); color:#1E7A34; font-weight:800; font-size:12px;">
+                                                ${{ '%.0f'|format(cmb.price) }} MXN
+                                            </span>
+                                        </div>
+                                        <div style="font-size:12.5px; color:var(--text-secondary); margin-top:3px;">
+                                            {{ cmb.desc }}
+                                        </div>
+                                    </div>
+                                </div>
+                                <div style="display:flex; align-items:center; gap:6px;">
+                                    <button type="button"
+                                            class="action-chip"
+                                            data-key="{{ cmb.key }}"
+                                            data-icon="{{ cmb.icon }}"
+                                            data-title="{{ cmb.title }}"
+                                            data-desc="{{ cmb.desc }}"
+                                            data-price="{{ '%.0f'|format(cmb.price) }}"
+                                            onclick="editBaristaGiftCombo(this)"
+                                            style="cursor:pointer; font-weight:800;">
+                                        ✏️ Editar
+                                    </button>
+                                    {% if (gift_combos|length) > 1 %}
+                                    <form action="/api/barista/gift-combos/delete" method="POST" style="margin:0;" onsubmit="saveBaristaUiState()">
+                                        <input type="hidden" name="combo_key" value="{{ cmb.key }}">
+                                        <button type="submit" class="btn-icon-sec btn-icon-del" title="Eliminar paquete">🗑️</button>
+                                    </form>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            {% endfor %}
+                        {% else %}
+                            <div style="text-align:center; padding:24px; color:var(--text-secondary); font-size:13px;">
+                                No hay paquetes configurados.
+                            </div>
+                        {% endif %}
+                    </div>
                 </div>
             </div>
         </section>
@@ -5452,12 +5646,102 @@ BARISTA_HTML = """
             setTimeout(() => { form.dataset.submitting = '0'; }, 6000);
         });
 
-        // Cambio entre las 6 pestañas principales: Mostrador POS, Gift Cards, Diseño y Campaña, Cumpleañeros, Alertas Push y Base de Datos
-        function switchMainView(view) {
+        let baristaRefreshingInFlight = false;
+        let lastBaristaRefreshTs = 0;
+
+        async function refreshBaristaDataSilently(forceNow) {
+            if (baristaRefreshingInFlight) return;
+            const now = Date.now();
+            if (!forceNow && (now - lastBaristaRefreshTs < 2500)) return;
+            baristaRefreshingInFlight = true;
+            lastBaristaRefreshTs = now;
+            try {
+                const res = await fetch('/barista?_bg=' + now, {
+                    headers: { 'X-Requested-With': 'XMLHttpRequest', 'Cache-Control': 'no-cache' },
+                    credentials: 'include'
+                });
+                if (!res.ok) return;
+                const htmlText = await res.text();
+                const doc = new DOMParser().parseFromString(htmlText, 'text/html');
+
+                // 1. Actualizar contadores de pestañas superiores y barra KPI
+                ['nav-btn-pos', 'nav-btn-gifts', 'nav-btn-combos', 'nav-btn-bday', 'nav-btn-db'].forEach(btnId => {
+                    const curBtn = document.getElementById(btnId);
+                    const newBtn = doc.getElementById(btnId);
+                    if (curBtn && newBtn) curBtn.innerHTML = newBtn.innerHTML;
+                });
+                const curKpi = document.querySelector('.kpi-bar');
+                const newKpi = doc.querySelector('.kpi-bar');
+                if (curKpi && newKpi) curKpi.innerHTML = newKpi.innerHTML;
+
+                // 2. Actualizar lista de clientes y filtros en Mostrador POS
+                const curFilterBar = document.getElementById('filter-tabs-bar');
+                const newFilterBar = doc.getElementById('filter-tabs-bar');
+                if (curFilterBar && newFilterBar) {
+                    curFilterBar.innerHTML = newFilterBar.innerHTML;
+                    curFilterBar.querySelectorAll('.filter-pill').forEach(btn => {
+                        btn.classList.toggle('active', btn.getAttribute('data-tab') === activeTab);
+                    });
+                }
+                const curClients = document.getElementById('clients-list-container');
+                const newClients = doc.getElementById('clients-list-container');
+                if (curClients && newClients) {
+                    curClients.innerHTML = newClients.innerHTML;
+                    filterClients();
+                }
+
+                // 3. Actualizar lista de Gift Cards y selector de paquetes
+                const curGiftsCard = document.getElementById('barista-gift-cards-list-card');
+                const newGiftsCard = doc.getElementById('barista-gift-cards-list-card');
+                if (curGiftsCard && newGiftsCard) {
+                    curGiftsCard.innerHTML = newGiftsCard.innerHTML;
+                }
+                const curPkgSel = document.getElementById('bgc-package-select');
+                const newPkgSel = doc.getElementById('bgc-package-select');
+                if (curPkgSel && newPkgSel && document.activeElement !== curPkgSel) {
+                    const prevVal = curPkgSel.value;
+                    curPkgSel.innerHTML = newPkgSel.innerHTML;
+                    if (prevVal && Array.from(curPkgSel.options).some(o => o.value === prevVal)) {
+                        curPkgSel.value = prevVal;
+                    }
+                }
+
+                // 4. Actualizar lista de Vales / Combos
+                const curCombosCard = document.getElementById('barista-combos-list-card');
+                const newCombosCard = doc.getElementById('barista-combos-list-card');
+                if (curCombosCard && newCombosCard) {
+                    curCombosCard.innerHTML = newCombosCard.innerHTML;
+                }
+
+                // 5. Actualizar Cumpleañeros y Base de Datos si no hay un campo en edición activa
+                const activeEl = document.activeElement;
+                const isTypingInForm = activeEl && ['INPUT', 'TEXTAREA', 'SELECT'].includes(activeEl.tagName) && activeEl.id !== 'client-search' && activeEl.id !== 'scan-serial-input';
+                if (!isTypingInForm) {
+                    const curBday = document.getElementById('view-bday-container');
+                    const newBday = doc.getElementById('view-bday-container');
+                    if (curBday && newBday) curBday.innerHTML = newBday.innerHTML;
+
+                    const curDb = document.getElementById('view-db-container');
+                    const newDb = doc.getElementById('view-db-container');
+                    if (curDb && newDb) {
+                        curDb.innerHTML = newDb.innerHTML;
+                        filterClients();
+                    }
+                }
+            } catch (e) {
+                // Ignorar errores transitorios de red
+            } finally {
+                baristaRefreshingInFlight = false;
+            }
+        }
+
+        // Cambio entre las 7 pestañas principales con actualización automática de datos en tiempo real
+        function switchMainView(view, skipAutoRefresh) {
             currentMainView = view || 'pos';
             const views = {
                 pos: document.getElementById('view-pos-container'),
                 gifts: document.getElementById('view-gifts-container'),
+                combos: document.getElementById('view-combos-container'),
                 campaign: document.getElementById('view-campaign-container'),
                 bday: document.getElementById('view-bday-container'),
                 push: document.getElementById('view-push-container'),
@@ -5466,6 +5750,7 @@ BARISTA_HTML = """
             const btns = {
                 pos: document.getElementById('nav-btn-pos'),
                 gifts: document.getElementById('nav-btn-gifts'),
+                combos: document.getElementById('nav-btn-combos'),
                 campaign: document.getElementById('nav-btn-campaign'),
                 bday: document.getElementById('nav-btn-bday'),
                 push: document.getElementById('nav-btn-push'),
@@ -5481,9 +5766,23 @@ BARISTA_HTML = """
             if (view === 'campaign' && typeof renderCampaignLivePreview === 'function') {
                 renderCampaignLivePreview();
             }
+            if (!skipAutoRefresh) {
+                refreshBaristaDataSilently(true);
+            }
         }
 
-        // --- Funciones de Operación de Gift Cards en Mostrador POS ---
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible') {
+                refreshBaristaDataSilently(false);
+            }
+        });
+        setInterval(() => {
+            if (document.visibilityState === 'visible') {
+                refreshBaristaDataSilently(false);
+            }
+        }, 12000);
+
+        // --- Funciones de Operación de Gift Cards y Catálogo de Vales / Combos en Mostrador POS ---
         let activeGiftModalBalance = 0;
 
         function toggleBaristaGiftCreateType(gType) {
@@ -5492,6 +5791,49 @@ BARISTA_HTML = """
             document.getElementById('bgc-tab-combo').classList.toggle('active', gType === 'combo');
             document.getElementById('bgc-pane-balance').style.display = (gType === 'balance') ? 'block' : 'none';
             document.getElementById('bgc-pane-combo').style.display = (gType === 'combo') ? 'block' : 'none';
+        }
+
+        function editBaristaGiftCombo(btnEl) {
+            if (!btnEl) return;
+            document.getElementById('combo-form-key').value = btnEl.dataset.key || '';
+            document.getElementById('combo-form-icon').value = btnEl.dataset.icon || '🥐';
+            document.getElementById('combo-form-name').value = btnEl.dataset.title || '';
+            document.getElementById('combo-form-desc').value = btnEl.dataset.desc || '';
+            document.getElementById('combo-form-price').value = btnEl.dataset.price || '';
+            document.getElementById('combo-form-title').textContent = '✏️ Editar Paquete / Experiencia';
+            document.getElementById('combo-form-submit-btn').textContent = '💾 Actualizar Paquete / Experiencia';
+            document.getElementById('combo-form-cancel-btn').style.display = 'inline-block';
+            document.getElementById('combo-form-name').focus();
+        }
+
+        function resetBaristaGiftComboForm() {
+            document.getElementById('combo-form-key').value = '';
+            document.getElementById('combo-form-icon').value = '🥐';
+            document.getElementById('combo-form-name').value = '';
+            document.getElementById('combo-form-desc').value = '';
+            document.getElementById('combo-form-price').value = '';
+            document.getElementById('combo-form-title').textContent = '➕ Agregar Nuevo Vale / Combo';
+            document.getElementById('combo-form-submit-btn').textContent = '💾 Guardar Paquete / Experiencia';
+            document.getElementById('combo-form-cancel-btn').style.display = 'none';
+        }
+
+        async function copyGiftUrlFromBarista(btnEl) {
+            if (!btnEl) return;
+            const url = btnEl.dataset.giftUrl || (window.location.origin + '/gift/' + (btnEl.dataset.code || ''));
+            const origText = btnEl.innerHTML;
+            try {
+                await navigator.clipboard.writeText(url);
+                btnEl.innerHTML = '✅ ¡Link Copiado!';
+            } catch (e) {
+                const ta = document.createElement('textarea');
+                ta.value = url;
+                document.body.appendChild(ta);
+                ta.select();
+                document.execCommand('copy');
+                document.body.removeChild(ta);
+                btnEl.innerHTML = '✅ ¡Link Copiado!';
+            }
+            setTimeout(() => { btnEl.innerHTML = origText; }, 2200);
         }
 
         function openGiftPosModalByObj(g) {
@@ -5521,7 +5863,19 @@ BARISTA_HTML = """
             document.getElementById('gpos-form-code-activate').value = g.code;
             document.getElementById('gpos-form-code-deduct').value = g.code;
             document.getElementById('gpos-form-code-redeem').value = g.code;
+
+            const giftFullUrl = g.gift_url || (window.location.origin + '/gift/' + encodeURIComponent(g.code));
+            const waText = 'Hola! 🎁✨ ' + (g.sender_name || 'Alguien especial') + ' te envió un regalo de {{ campaign.shopName }} (' + (g.value_headline || '') + '). Abre tu Gift Card y guárdala en tu Wallet aquí: ' + giftFullUrl;
+            const waShareUrl = g.whatsapp_share_url || ('https://api.whatsapp.com/send?text=' + encodeURIComponent(waText));
+
             document.getElementById('gpos-unbox-link').href = '/gift/' + encodeURIComponent(g.code);
+            const waLinkEl = document.getElementById('gpos-wa-share-link');
+            if (waLinkEl) waLinkEl.href = waShareUrl;
+            const copyBtnEl = document.getElementById('gpos-copy-link-btn');
+            if (copyBtnEl) {
+                copyBtnEl.dataset.giftUrl = giftFullUrl;
+                copyBtnEl.dataset.code = g.code;
+            }
 
             document.getElementById('gpos-pane-pending').style.display = (g.status === 'pending') ? 'block' : 'none';
             document.getElementById('gpos-pane-balance').style.display = (g.status === 'active' && g.gift_type !== 'combo' && activeGiftModalBalance > 0) ? 'block' : 'none';
@@ -5545,7 +5899,9 @@ BARISTA_HTML = """
                 package_desc: btnEl.dataset.desc || '',
                 current_balance: parseFloat(btnEl.dataset.balance || '0'),
                 recipient_name: btnEl.dataset.recipient || '',
-                sender_name: btnEl.dataset.sender || ''
+                sender_name: btnEl.dataset.sender || '',
+                whatsapp_share_url: btnEl.dataset.waUrl || '',
+                gift_url: btnEl.dataset.giftUrl || ''
             });
         }
 
@@ -6249,8 +6605,8 @@ BARISTA_HTML = """
                 sessionStorage.removeItem('maishas_barista_ui_state');
                 const state = JSON.parse(raw);
                 if (!state || (Date.now() - (state.ts || 0) > 30000)) return;
-                if (state.view && ['pos', 'gifts', 'campaign', 'bday', 'push', 'db'].includes(state.view)) {
-                    switchMainView(state.view);
+                if (state.view && ['pos', 'gifts', 'combos', 'campaign', 'bday', 'push', 'db'].includes(state.view)) {
+                    switchMainView(state.view, true);
                 }
                 const searchEl = document.getElementById('client-search');
                 if (searchEl && state.searchQuery) {
@@ -6424,9 +6780,13 @@ BARISTA_HTML = """
         }, 60);
         {% endif %}
 
-        {% if gift_updated %}
+        {% if active_view is defined and active_view in ['pos', 'gifts', 'combos', 'campaign', 'bday', 'push', 'db'] %}
         setTimeout(() => {
-            switchMainView('gifts');
+            switchMainView({{ active_view | tojson }}, true);
+        }, 35);
+        {% elif gift_updated %}
+        setTimeout(() => {
+            switchMainView('gifts', true);
         }, 40);
         {% endif %}
 
@@ -6866,7 +7226,7 @@ def _row_to_gift_dict(row):
         value_headline = f"${curr_bal:,.2f} MXN"
         balance_display = f"${curr_bal:,.2f} / ${init_amt:,.0f} MXN"
 
-    return {
+    out = {
         "code": row[0],
         "gift_type": gift_type,
         "package_key": row[2] or "",
@@ -6892,6 +7252,11 @@ def _row_to_gift_dict(row):
         "value_headline": value_headline,
         "balance_display": balance_display,
     }
+    try:
+        out.update(_build_gift_whatsapp_urls(out))
+    except Exception:
+        pass
+    return out
 
 
 def get_gift_card_by_code(code_str):
@@ -6985,10 +7350,15 @@ def generate_signed_gift_pkpass(gift_code, host_url, for_android=False):
         pass_data["backgroundColor"] = "rgb(243, 236, 231)"
         pass_data["foregroundColor"] = "rgb(18, 18, 18)"
         pass_data["labelColor"] = "rgb(74, 93, 35)"
-        # Nombre corto en logoText para que jamás se empalme con el saldo a la derecha
-        pass_data["logoText"] = shop_name[:16]
+        # Título requerido: "GIFT CARD - {empresa}" con todo el ancho del header libre
+        pass_data["logoText"] = f"GIFT CARD - {shop_name.upper()}"
 
-        if gift["status"] == "cancelled":
+        is_exhausted = (
+            gift["status"] in ("redeemed", "cancelled")
+            or (gift["gift_type"] == "balance" and float(gift["current_balance"] or 0) <= 0)
+            or (gift["gift_type"] == "combo" and int(gift["remaining_uses"] or 0) <= 0)
+        )
+        if is_exhausted:
             pass_data["voided"] = True
             pass_data["expirationDate"] = "2000-01-01T00:00:00Z"
         else:
@@ -7004,42 +7374,9 @@ def generate_signed_gift_pkpass(gift_code, host_url, for_android=False):
         pass_data["barcode"] = barcode_obj
         pass_data["barcodes"] = [barcode_obj]
 
-        if gift["gift_type"] == "combo":
-            if gift["status"] == "redeemed" or gift["remaining_uses"] <= 0:
-                hdr_label = "ESTADO"
-                hdr_val = "CANJEADA 🎉"
-                chg_msg = f"🎉 ¡Disfrutaste tu Gift Card en {shop_name}! Estado: %@"
-            elif gift["status"] == "pending":
-                hdr_label = "ESTADO"
-                hdr_val = "POR ACTIVAR"
-                chg_msg = f"🎁 Estado de tu Gift Card {shop_name}: %@"
-            else:
-                hdr_label = "VALE"
-                hdr_val = "1 PAQUETE"
-                chg_msg = f"🎁 ¡Tu Gift Card de {shop_name} está lista para canjear! (%@)"
-        else:
-            if gift["status"] == "redeemed" or gift["current_balance"] <= 0:
-                hdr_label = "SALDO"
-                hdr_val = "$0.00"
-                chg_msg = f"🎉 ¡Disfrutaste todo el saldo de tu Gift Card en {shop_name}! (%@)"
-            elif gift["status"] == "pending":
-                hdr_label = "POR ACTIVAR"
-                hdr_val = f"${gift['current_balance']:,.0f}"
-                chg_msg = f"🎁 Tu Gift Card {shop_name} se actualizó: %@"
-            else:
-                hdr_label = "SALDO"
-                hdr_val = f"${gift['current_balance']:,.2f}"
-                chg_msg = f"☕️ Consumo aplicado en {shop_name}. Nuevo saldo disponible: %@"
-
-        pass_data["storeCard"]["headerFields"] = [
-            {
-                "key": "giftBalance",
-                "label": hdr_label,
-                "value": hdr_val,
-                "textAlignment": "PKTextAlignmentRight",
-                "changeMessage": chg_msg
-            }
-        ]
+        # Dejamos headerFields vacío para que "GIFT CARD - {empresa}" nunca se empalme a la derecha;
+        # el saldo / paquete ya se muestra en grande en el strip central.
+        pass_data["storeCard"]["headerFields"] = []
 
         if for_android:
             pass_data["storeCard"]["primaryFields"] = [
@@ -7100,9 +7437,9 @@ def generate_signed_gift_pkpass(gift_code, host_url, for_android=False):
             },
             {
                 "key": "giftStatusDetail",
-                "label": "Último movimiento",
+                "label": "Último movimiento y saldo",
                 "value": gift["last_action_detail"] or "Gift Card registrada",
-                "changeMessage": "🎁 %@"
+                "changeMessage": "%@"
             },
             {
                 "key": "giftBenefit",
@@ -7111,9 +7448,9 @@ def generate_signed_gift_pkpass(gift_code, host_url, for_android=False):
             },
             {
                 "key": "unboxLink",
-                "label": "Sobre Digital y Conversión a Lealtad (+1 Sello Gratis)",
+                "label": "Gift Card Digital y Conversión a Lealtad (+1 Sello Gratis)",
                 "value": gift_unbox_url,
-                "attributedValue": f"<a href='{gift_unbox_url}'>🎁 Abrir Sobre Digital o Convertir en Tarjeta de Lealtad (+1 Sello Gratis)</a>"
+                "attributedValue": f"<a href='{gift_unbox_url}'>🎁 Abrir Gift Card Digital o Convertir en Tarjeta de Lealtad (+1 Sello Gratis)</a>"
             },
             {
                 "key": "howToRedeemGift",
@@ -7454,6 +7791,25 @@ GIFT_UNBOXING_HTML = """
                     </a>
                 </div>
 
+                <!-- Botones para Compartir por WhatsApp o Copiar Link desde la propia Gift Card abierta -->
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:8px;">
+                    <a id="unbox-wa-share-btn"
+                       href="{{ gift.whatsapp_share_url }}"
+                       target="_blank"
+                       rel="noopener"
+                       style="padding:11px 12px; border-radius:13px; background:#25D366; color:#FFFFFF; font-size:13px; font-weight:800; text-decoration:none; display:flex; align-items:center; justify-content:center; gap:6px; box-shadow:0 4px 12px rgba(37,211,102,0.25);">
+                        <span>📲</span>
+                        <span>Enviar a WhatsApp</span>
+                    </a>
+                    <button type="button"
+                            id="unbox-copy-link-btn"
+                            onclick="copyUnboxGiftLink()"
+                            style="padding:11px 12px; border-radius:13px; border:1px solid rgba(18,18,18,0.14); background:var(--surface-white); color:var(--text-dark); font-size:13px; font-weight:800; font-family:inherit; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px;">
+                        <span>📋</span>
+                        <span id="unbox-copy-link-lbl">Copiar Link</span>
+                    </button>
+                </div>
+
                 <!-- QR para escanear en Mostrador (sin mensaje de fecha de activación) -->
                 <div style="text-align:center; margin-top:14px; padding-top:14px; border-top:1px solid rgba(18,18,18,0.08);">
                     <div style="font-size:12px; font-weight:700; color:var(--text-muted);">
@@ -7570,7 +7926,28 @@ GIFT_UNBOXING_HTML = """
 
     <script>
         const GIFT_CODE = {{ gift.code | tojson }};
+        const GIFT_SHARE_URL = {{ (gift.gift_url or '') | tojson }} || window.location.href;
         let lastUpdatedAt = {{ gift.updated_at | tojson }};
+
+        async function copyUnboxGiftLink() {
+            const lbl = document.getElementById('unbox-copy-link-lbl');
+            const targetUrl = GIFT_SHARE_URL || window.location.href;
+            try {
+                await navigator.clipboard.writeText(targetUrl);
+                if (lbl) lbl.textContent = '¡Link Copiado!';
+            } catch (e) {
+                const ta = document.createElement('textarea');
+                ta.value = targetUrl;
+                document.body.appendChild(ta);
+                ta.select();
+                document.execCommand('copy');
+                document.body.removeChild(ta);
+                if (lbl) lbl.textContent = '¡Link Copiado!';
+            }
+            setTimeout(() => {
+                if (lbl) lbl.textContent = 'Copiar Link';
+            }, 2200);
+        }
 
         // Detección automática de sistema operativo (iOS vs Android) en el navegador
         (function applySmartGiftWalletBtn() {
@@ -7725,21 +8102,24 @@ def api_gift_create():
         dedication = f"¡Hola {recipient_name}! Te regalo este detalle especial para que disfrutes en Demo Café ☕✨"
 
     if gift_type == "combo":
+        combos_map = get_gift_combos_map()
+        combos_list = get_gift_combos_list()
+        default_pkg = combos_list[0] if combos_list else DEFAULT_GIFT_COMBOS_LIST[0]
         raw_pkg_key = (
             data.get("package_key")
             or data.get("combo_key")
             or request.form.get("package_key")
             or request.form.get("combo_key")
-            or "manana_perfecta"
+            or default_pkg["key"]
         ).strip().lower()
-        pkg = GIFT_COMBO_CATALOG.get(raw_pkg_key) or GIFT_COMBO_CATALOG["manana_perfecta"]
+        pkg = combos_map.get(raw_pkg_key) or default_pkg
         pkg_key = pkg["key"]
         pkg_title = pkg["title"]
         pkg_desc = pkg["desc"]
         init_amount = float(pkg["price"])
         curr_balance = float(pkg["price"])
-        tot_uses = int(pkg["uses"])
-        rem_uses = int(pkg["uses"])
+        tot_uses = int(pkg.get("uses", 1))
+        rem_uses = int(pkg.get("uses", 1))
     else:
         pkg_key = ""
         try:
@@ -7901,45 +8281,18 @@ def gift_google_wallet_save(gift_code):
         try:
             sa = _load_google_sa()
             base_url = _public_base_url()
-            cfg = get_campaign_config()
-            shop_name = cfg.get("shopName") or "Demo Café"
             ensure_google_class(base_url)
-            version = urllib_quote(f"{gift['updated_at']}_{cfg.get('logoVersion', '1')}")
-            obj = {
-                "id": _gw_object_id(gift["code"]),
-                "classId": _gw_class_id(),
-                "state": "ACTIVE" if gift["status"] != "cancelled" else "INACTIVE",
-                "accountId": gift["code"],
-                "accountName": f"🎁 Para: {gift['recipient_name']}",
-                "loyaltyPoints": {
-                    "label": "VALE DE REGALO" if gift["gift_type"] == "combo" else "SALDO DISPONIBLE",
-                    "balance": {"string": gift["value_headline"]}
-                },
-                "secondaryLoyaltyPoints": {
-                    "label": "DE PARTE DE",
-                    "balance": {"string": gift["sender_name"][:40]}
-                },
-                "barcode": {"type": "QR_CODE", "value": gift["code"], "alternateText": gift["code"]},
-                "heroImage": {
-                    "sourceUri": {"uri": f"{base_url}/gift/{gift['code']}/strip.png?v={version}"},
-                    "contentDescription": _gw_text(gift["package_title"])
-                },
-                "textModulesData": [
-                    {"id": "dedication", "header": f"DEDICATORIA DE {gift['sender_name'].upper()}", "body": gift["dedication"]},
-                    {"id": "benefit", "header": "DETALLE DEL REGALO", "body": f"{gift['package_title']} — {gift['package_desc']}"},
-                ],
-                "linksModuleData": {
-                    "uris": [{"id": "unbox", "uri": f"{base_url}/gift/{gift['code']}", "description": "Abrir Gift Card Digital"}]
-                },
-                "locations": [{"latitude": cfg["lat"], "longitude": cfg["lng"]}],
-            }
-            now = int(datetime.now(timezone.utc).timestamp())
-            claims = {
-                "iss": sa["client_email"], "aud": "google", "typ": "savetowallet", "iat": now,
-                "origins": [base_url],
-                "payload": {"loyaltyObjects": [obj]},
-            }
-            return redirect(f"https://pay.google.com/gp/v/save/{_gw_sign_jwt(claims, sa)}")
+            obj = build_google_loyalty_object(gift["code"], base_url)
+            if obj:
+                import threading
+                threading.Thread(target=ensure_google_object, args=(gift["code"], base_url), daemon=True).start()
+                now = int(datetime.now(timezone.utc).timestamp())
+                claims = {
+                    "iss": sa["client_email"], "aud": "google", "typ": "savetowallet", "iat": now,
+                    "origins": [base_url],
+                    "payload": {"loyaltyObjects": [obj]},
+                }
+                return redirect(f"https://pay.google.com/gp/v/save/{_gw_sign_jwt(claims, sa)}")
         except Exception as e:
             _log_wallet_event(f"⚠️ Error Google Wallet Gift Card ({gift['code']}): {e}")
     return redirect(url_for("download_gift_pkpass", gift_code=gift["code"]))
@@ -8067,10 +8420,11 @@ def _perform_gift_card_action(code_str, action, amount=0.0):
     c = conn.cursor()
 
     if act == "activate":
+        notif = f"🎁 ¡Tu Gift Card de {shop_name} ya está activa y lista para disfrutar!"
         detail = f"🟢 Gift Card {code} activada en mostrador ({now_son}) para {gift['recipient_name']}"
         c.execute(
             "UPDATE gift_cards SET status = 'active', activated_at_sonora = ?, updated_at = ?, last_action_detail = ? WHERE code = ?",
-            (now_son, now_utc, detail, code)
+            (now_son, now_utc, notif, code)
         )
         c.execute(
             "INSERT INTO gift_transactions (code, action, amount_delta, balance_after, detail, created_at_utc, created_at_sonora) VALUES (?, 'activate', 0, ?, ?, ?, ?)",
@@ -8078,7 +8432,7 @@ def _perform_gift_card_action(code_str, action, amount=0.0):
         )
         conn.commit()
         conn.close()
-        push_res = send_apns_push_for_serial(code, notification_body=f"🎁 ¡Tu Gift Card de {shop_name} está activa y lista para disfrutar!")
+        push_res = send_apns_push_for_serial(code, notification_body=notif)
         return code, f"{detail} · {push_res}"
 
     if act == "cancel":
@@ -8089,6 +8443,7 @@ def _perform_gift_card_action(code_str, action, amount=0.0):
         )
         conn.commit()
         conn.close()
+        send_apns_push_for_serial(code, notification_body=f"⚠️ Tu Gift Card {code} ha expirado.")
         return code, detail
 
     if gift["status"] == "pending":
@@ -8102,14 +8457,14 @@ def _perform_gift_card_action(code_str, action, amount=0.0):
         new_bal = 0.0
         delta = -gift["current_balance"]
         if gift["gift_type"] == "combo":
+            notif = f"🎉 ¡Canjeaste tu {gift['package_title']} en {shop_name}! Tu Gift Card ha finalizado."
             detail = f"🎉 Combo canjeado en mostrador: {gift['package_title']} para {gift['recipient_name']} ({code})"
-            notif = f"🎉 ¡Disfrutaste tu {gift['package_title']} en {shop_name}! Abre tu tarjeta para activar +1 sello gratis."
         else:
-            detail = f"🎉 Saldo total canjeado (${gift['current_balance']:,.2f} MXN) para {gift['recipient_name']} ({code})"
-            notif = f"🎉 ¡Se aplicó el total de tu Gift Card (${gift['current_balance']:,.2f} MXN) en {shop_name}!"
+            notif = f"☕️ Se descontaron ${gift['current_balance']:,.2f} MXN de tu Gift Card en {shop_name}. Saldo agotado ($0.00 MXN)."
+            detail = f"🎉 Saldo total descontado (${gift['current_balance']:,.2f} MXN) para {gift['recipient_name']} ({code}) · Tarjeta expirada"
         c.execute(
             "UPDATE gift_cards SET current_balance = 0, remaining_uses = 0, status = 'redeemed', updated_at = ?, last_action_detail = ? WHERE code = ?",
-            (now_utc, detail, code)
+            (now_utc, notif, code)
         )
         c.execute(
             "INSERT INTO gift_transactions (code, action, amount_delta, balance_after, detail, created_at_utc, created_at_sonora) VALUES (?, 'redeem', ?, 0, ?, ?, ?)",
@@ -8144,15 +8499,15 @@ def _perform_gift_card_action(code_str, action, amount=0.0):
     new_rem = 0 if new_bal <= 0 else 1
 
     if new_bal <= 0:
-        detail = f"✅ Cobro de ${deduct_amt:,.2f} MXN aplicado a {gift['recipient_name']} ({code}) · Saldo agotado ($0.00 MXN)"
-        notif = f"☕️ Consumo de ${deduct_amt:,.2f} MXN aplicado en {shop_name}. ¡Disfrutaste el 100% de tu Gift Card!"
+        notif = f"☕️ Se descontaron ${deduct_amt:,.2f} MXN de tu Gift Card en {shop_name}. Saldo agotado ($0.00 MXN) · Tarjeta finalizada."
+        detail = f"✅ Se descontaron ${deduct_amt:,.2f} MXN a {gift['recipient_name']} ({code}) · Saldo agotado ($0.00 MXN · Expirada en Wallet)"
     else:
-        detail = f"✅ Cobro de ${deduct_amt:,.2f} MXN aplicado a {gift['recipient_name']} ({code}) · Nuevo saldo: ${new_bal:,.2f} MXN"
-        notif = f"☕️ Consumo de ${deduct_amt:,.2f} MXN en {shop_name}. Nuevo saldo en tu Gift Card: ${new_bal:,.2f} MXN"
+        notif = f"☕️ Se descontaron ${deduct_amt:,.2f} MXN de tu Gift Card en {shop_name}. Saldo disponible: ${new_bal:,.2f} MXN"
+        detail = f"✅ Se descontaron ${deduct_amt:,.2f} MXN a {gift['recipient_name']} ({code}) · Nuevo saldo: ${new_bal:,.2f} MXN"
 
     c.execute(
         "UPDATE gift_cards SET current_balance = ?, remaining_uses = ?, status = ?, updated_at = ?, last_action_detail = ? WHERE code = ?",
-        (new_bal, new_rem, new_status, now_utc, detail, code)
+        (new_bal, new_rem, new_status, now_utc, notif, code)
     )
     c.execute(
         "INSERT INTO gift_transactions (code, action, amount_delta, balance_after, detail, created_at_utc, created_at_sonora) VALUES (?, 'deduct', ?, ?, ?, ?, ?)",
@@ -8187,8 +8542,12 @@ def api_barista_gift_create():
         dedication = f"¡Disfruta tu regalo especial en Demo Café, {recipient_name}! ☕✨"
 
     if gift_type == "combo":
-        pkg_key = (request.form.get("package_key") or "manana_perfecta").strip().lower()
-        pkg = GIFT_COMBO_CATALOG.get(pkg_key) or GIFT_COMBO_CATALOG["manana_perfecta"]
+        combos_map = get_gift_combos_map()
+        combos_list = get_gift_combos_list()
+        default_pkg = combos_list[0] if combos_list else DEFAULT_GIFT_COMBOS_LIST[0]
+        pkg_key = (request.form.get("package_key") or default_pkg["key"]).strip().lower()
+        pkg = combos_map.get(pkg_key) or default_pkg
+        pkg_key = pkg["key"]
         pkg_title = pkg["title"]
         pkg_desc = pkg["desc"]
         init_amount = float(pkg["price"])
@@ -8226,7 +8585,92 @@ def api_barista_gift_create():
     conn.commit()
     conn.close()
 
-    return redirect(url_for("barista", ok=f"🎁 Gift Card {code} ({pkg_title} para {recipient_name}) creada y activada", gift_scan=code))
+    return redirect(url_for("barista", ok=f"🎁 Gift Card {code} ({pkg_title} para {recipient_name}) creada y activada · Lista para enviar por WhatsApp o copiar link", gift_updated=code, gift_scan=code))
+
+
+@app.route("/api/barista/gift-combos/save", methods=["POST"])
+@requires_auth
+def api_barista_gift_combos_save():
+    """Agrega o actualiza un paquete / experiencia del catálogo 'Selecciona el Paquete / Experiencia'."""
+    combo_key_raw = (request.form.get("combo_key") or "").strip().lower()
+    icon = (request.form.get("icon") or "🥐").strip()[:4] or "🥐"
+    title = (request.form.get("title") or "").strip()[:80]
+    desc = (request.form.get("desc") or "").strip()[:160]
+    try:
+        price = max(10.0, min(10000.0, round(float(request.form.get("price") or 150), 2)))
+    except Exception:
+        price = 150.0
+
+    if not title:
+        return redirect(url_for("barista", ok="⚠️ El nombre del paquete es obligatorio", view="combos"))
+
+    combos = get_gift_combos_list()
+    if combo_key_raw:
+        key_clean = re.sub(r"[^a-z0-9_]+", "_", combo_key_raw).strip("_") or f"combo_{uuid.uuid4().hex[:6]}"
+    else:
+        slug = re.sub(r"[^a-z0-9]+", "_", title.lower()).strip("_")[:24]
+        key_clean = f"{slug}_{uuid.uuid4().hex[:4]}" if slug else f"combo_{uuid.uuid4().hex[:6]}"
+
+    updated_existing = False
+    for item in combos:
+        if item["key"] == key_clean:
+            item["icon"] = icon
+            item["title"] = title
+            item["desc"] = desc or "Paquete especial"
+            item["price"] = price
+            updated_existing = True
+            break
+
+    if not updated_existing:
+        combos.append({
+            "key": key_clean,
+            "icon": icon,
+            "title": title,
+            "desc": desc or "Paquete especial",
+            "price": price,
+            "uses": 1,
+        })
+
+    conn = sqlite3.connect(DB_PATH)
+    conn.execute(
+        "INSERT OR REPLACE INTO settings (key, value) VALUES ('gift_combos_json', ?)",
+        (json.dumps(combos, ensure_ascii=False),)
+    )
+    conn.commit()
+    conn.close()
+
+    action_lbl = "actualizado" if updated_existing else "agregado"
+    return redirect(url_for("barista", ok=f"✅ Paquete «{title}» (${price:,.0f} MXN) {action_lbl} en Selecciona el Paquete / Experiencia", view="combos"))
+
+
+@app.route("/api/barista/gift-combos/delete", methods=["POST"])
+@requires_auth
+def api_barista_gift_combos_delete():
+    """Elimina un paquete / experiencia del catálogo de Gift Cards."""
+    combo_key = (request.form.get("combo_key") or "").strip().lower()
+    combos = get_gift_combos_list()
+    if len(combos) <= 1:
+        return redirect(url_for("barista", ok="⚠️ Debe existir al menos 1 paquete activo en el catálogo.", view="combos"))
+
+    removed_title = combo_key
+    new_combos = []
+    for item in combos:
+        if item["key"] == combo_key:
+            removed_title = item["title"]
+        else:
+            new_combos.append(item)
+
+    if not new_combos:
+        new_combos = [dict(DEFAULT_GIFT_COMBOS_LIST[0])]
+
+    conn = sqlite3.connect(DB_PATH)
+    conn.execute(
+        "INSERT OR REPLACE INTO settings (key, value) VALUES ('gift_combos_json', ?)",
+        (json.dumps(new_combos, ensure_ascii=False),)
+    )
+    conn.commit()
+    conn.close()
+    return redirect(url_for("barista", ok=f"🗑️ Paquete «{removed_title}» eliminado del catálogo", view="combos"))
 
 
 # ---------------------------------------------------------
@@ -8239,7 +8683,12 @@ def index():
     if os.path.isfile(hub_tpl_path):
         with open(hub_tpl_path, "r", encoding="utf-8") as fp:
             tpl_str = fp.read()
-        return render_template_string(tpl_str, campaign=get_campaign_config(), hub=get_hub_config())
+        return render_template_string(
+            tpl_str,
+            campaign=get_campaign_config(),
+            hub=get_hub_config(),
+            gift_combos=get_gift_combos_list(),
+        )
     return render_template_string(REGISTRATION_HTML, campaign=get_campaign_config())
 
 
@@ -8921,8 +9370,10 @@ def barista():
         recent_transactions=recent_transactions,
         feedback_list=feedback_list,
         gift_cards=gift_cards_list,
+        gift_combos=get_gift_combos_list(),
         gift_scan_obj=gift_scan_obj,
         gift_updated=request.args.get("gift_updated"),
+        active_view=request.args.get("view", ""),
         ok=request.args.get("ok"),
         updated_serial=request.args.get("updated")
     )
@@ -10630,8 +11081,52 @@ def build_google_loyalty_class(base_url):
 
 
 def build_google_loyalty_object(serial, base_url):
-    """Construye el pase de lealtad de Google con los datos actuales del cliente (sellos, nivel, aviso, strip)."""
+    """Construye el pase de lealtad o Gift Card de Google con los datos actuales (sellos o saldo, aviso, strip y expiración)."""
     serial_clean = (serial or "").strip().upper()
+    cfg = get_campaign_config()
+    shop_name = cfg.get("shopName") or "Demo Café"
+
+    if serial_clean.startswith("GIFT-"):
+        gift = get_gift_card_by_code(serial_clean)
+        if not gift:
+            return None
+        is_exhausted = (
+            gift["status"] in ("redeemed", "cancelled")
+            or (gift["gift_type"] == "balance" and float(gift["current_balance"] or 0) <= 0)
+            or (gift["gift_type"] == "combo" and int(gift["remaining_uses"] or 0) <= 0)
+        )
+        version = urllib_quote(f"{gift['updated_at']}_{cfg.get('logoVersion', '1')}")
+        return {
+            "id": _gw_object_id(gift["code"]),
+            "classId": _gw_class_id(),
+            "state": "EXPIRED" if is_exhausted else "ACTIVE",
+            "accountId": gift["code"],
+            "accountName": f"GIFT CARD - {shop_name.upper()} · Para: {gift['recipient_name']}",
+            "loyaltyPoints": {
+                "label": "VALE DE REGALO" if gift["gift_type"] == "combo" else "SALDO DISPONIBLE",
+                "balance": {"string": gift["value_headline"]}
+            },
+            "secondaryLoyaltyPoints": {
+                "label": "DE PARTE DE",
+                "balance": {"string": gift["sender_name"][:40]}
+            },
+            "barcode": {"type": "QR_CODE", "value": gift["code"], "alternateText": gift["code"]},
+            "heroImage": {
+                "sourceUri": {"uri": f"{base_url}/gift/{gift['code']}/strip.png?v={version}"},
+                "contentDescription": _gw_text(f"GIFT CARD - {shop_name}")
+            },
+            "textModulesData": [
+                {"id": "title", "header": "TARJETA DE REGALO", "body": f"GIFT CARD - {shop_name}"},
+                {"id": "dedication", "header": f"DEDICATORIA DE {gift['sender_name'].upper()}", "body": gift["dedication"]},
+                {"id": "benefit", "header": "DETALLE DEL REGALO", "body": f"{gift['package_title']} — {gift['package_desc']}"},
+                {"id": "last_action", "header": "ÚLTIMO MOVIMIENTO", "body": gift["last_action_detail"] or "Gift Card activa"},
+            ],
+            "linksModuleData": {
+                "uris": [{"id": "unbox", "uri": f"{base_url}/gift/{gift['code']}", "description": "Abrir Gift Card Digital"}]
+            },
+            "locations": [{"latitude": cfg["lat"], "longitude": cfg["lng"]}],
+        }
+
     conn = sqlite3.connect(DB_PATH, timeout=20.0)
     row = conn.execute(
         "SELECT serial, name, stamps, message, total_visits, updated_at, COALESCE(status, 'active') FROM clients WHERE UPPER(serial) = ?",
@@ -10640,9 +11135,7 @@ def build_google_loyalty_object(serial, base_url):
     conn.close()
     if not row:
         return None
-    cfg = get_campaign_config()
     goal = cfg.get("stampGoal") or 10
-    shop_name = cfg.get("shopName") or "Demo Café"
     reward_text = cfg.get("rewardText") or "¡1 Café Gratis!"
     serial_id, name, stamps, message, visits, updated_at, status_val = row
     stamps = max(0, min(goal, stamps or 0))

@@ -735,10 +735,10 @@
             <div class="flex items-center justify-between gap-2 mb-3">
                 <div>
                     <div class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#EADFD7] text-[#121212] text-[10.5px] font-extrabold uppercase tracking-wider mb-1 border border-black/10">
-                        <span>🎁 GIFT CARD - {{ campaign.shopName }}</span>
+                        <span>🎁 REGALO DIGITAL</span>
                     </div>
-                    <h2 class="text-[20px] font-bold tracking-[-0.02em] text-[#121212] leading-tight">
-                        Regala café a quien quieras
+                    <h2 class="text-[20px] font-extrabold tracking-[-0.02em] text-[#121212] leading-tight">
+                        GIFT CARD - {{ campaign.shopName }}
                     </h2>
                     <p class="text-[12px] text-[#6E655F] mt-0.5">
                         Esa persona especial recibe su regalo digital y guarda su Gift Card en su Wallet
@@ -795,50 +795,26 @@
                     </div>
                 </div>
 
-                <!-- MODO 2: EXPERIENCIA / COMBO PREPAGADO -->
+                <!-- MODO 2: EXPERIENCIA / COMBO PREPAGADO (CATÁLOGO DINÁMICO ADMINISTRABLE DESDE BARISTA) -->
                 <div id="hub-gift-panel-combo" class="hidden space-y-2">
                     <label class="block text-[11.5px] font-extrabold uppercase tracking-wider text-[#6E655F]">
-                        Elige la experiencia para regalar
+                        Selecciona el Paquete / Experiencia
                     </label>
                     <div class="space-y-2">
-                        <div onclick="selectHubGiftCombo('cafe_amigo', 'Vale «Te invito un Café»', '1 bebida caliente o fría de cualquier tamaño', 85, '☕')"
-                             data-combo-key="cafe_amigo"
-                             class="hub-gift-combo-card cursor-pointer p-3.5 rounded-2xl border-2 border-[#121212] bg-[#EADFD7] text-[#121212] transition flex items-center justify-between gap-3">
+                        {% for cmb in gift_combos %}
+                        <div onclick="selectHubGiftCombo({{ cmb.key | tojson | forceescape }}, {{ cmb.title | tojson | forceescape }}, {{ cmb.desc | tojson | forceescape }}, {{ cmb.price }}, {{ cmb.icon | tojson | forceescape }})"
+                             data-combo-key="{{ cmb.key }}"
+                             class="hub-gift-combo-card cursor-pointer p-3.5 rounded-2xl {{ 'border-2 border-[#121212] bg-[#EADFD7]' if loop.first else 'border border-black/10 bg-white' }} text-[#121212] transition flex items-center justify-between gap-3">
                             <div class="flex items-center gap-3">
-                                <span class="text-2xl">☕</span>
+                                <span class="text-2xl">{{ cmb.icon }}</span>
                                 <div>
-                                    <div class="text-[14px] font-extrabold">Vale «Te invito un Café»</div>
-                                    <div class="text-[11.5px] text-[#6E655F]">1 bebida caliente o fría de cualquier tamaño</div>
+                                    <div class="text-[14px] font-extrabold">{{ cmb.title }}</div>
+                                    <div class="text-[11.5px] text-[#6E655F]">{{ cmb.desc }}</div>
                                 </div>
                             </div>
-                            <span class="px-2.5 py-1 rounded-lg bg-[#121212] text-white font-extrabold text-[13px] shrink-0">$85</span>
+                            <span class="px-2.5 py-1 rounded-lg {{ 'bg-[#121212] text-white' if loop.first else 'bg-[#EADFD7] text-[#121212]' }} font-extrabold text-[13px] shrink-0">${{ "%.0f"|format(cmb.price) }}</span>
                         </div>
-
-                        <div onclick="selectHubGiftCombo('manana_perfecta', 'Pack «Mañana Perfecta»', '1 bebida a elección + 1 postre o panini recién hecho', 160, '🥐')"
-                             data-combo-key="manana_perfecta"
-                             class="hub-gift-combo-card cursor-pointer p-3.5 rounded-2xl border border-black/10 bg-white text-[#121212] transition flex items-center justify-between gap-3">
-                            <div class="flex items-center gap-3">
-                                <span class="text-2xl">🥐</span>
-                                <div>
-                                    <div class="text-[14px] font-extrabold">Pack «Mañana Perfecta»</div>
-                                    <div class="text-[11.5px] text-[#6E655F]">1 bebida a elección + 1 postre o panini recién hecho</div>
-                                </div>
-                            </div>
-                            <span class="px-2.5 py-1 rounded-lg bg-[#EADFD7] text-[#121212] font-extrabold text-[13px] shrink-0">$160</span>
-                        </div>
-
-                        <div onclick="selectHubGiftCombo('cita_dos', 'Pack «Cita para Dos»', '2 bebidas de cualquier tamaño + 2 postres o paninis para compartir', 280, '👯')"
-                             data-combo-key="cita_dos"
-                             class="hub-gift-combo-card cursor-pointer p-3.5 rounded-2xl border border-black/10 bg-white text-[#121212] transition flex items-center justify-between gap-3">
-                            <div class="flex items-center gap-3">
-                                <span class="text-2xl">👯</span>
-                                <div>
-                                    <div class="text-[14px] font-extrabold">Pack «Cita para Dos»</div>
-                                    <div class="text-[11.5px] text-[#6E655F]">2 bebidas + 2 postres o paninis para compartir</div>
-                                </div>
-                            </div>
-                            <span class="px-2.5 py-1 rounded-lg bg-[#EADFD7] text-[#121212] font-extrabold text-[13px] shrink-0">$280</span>
-                        </div>
+                        {% endfor %}
                     </div>
                 </div>
 
@@ -1165,19 +1141,6 @@
                         <textarea id="feedback-textarea" rows="4" required
                                   placeholder="Cuéntanos qué te encantó hoy o qué podríamos mejorar en {{ campaign.shopName }}..."
                                   class="w-full p-3.5 rounded-2xl bg-white border border-black/15 text-[14.5px] text-[#121212] focus:outline-none focus:border-[#121212]"></textarea>
-                    </div>
-
-                    <!-- Adjuntar Foto con previsualización real -->
-                    <div>
-                        <label for="feedback-photo-input" class="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-[#EADFD7] text-[#121212] text-xs font-bold cursor-pointer active:scale-95 transition">
-                            <span>📷</span>
-                            <span>Adjuntar Foto (Opcional)</span>
-                        </label>
-                        <input id="feedback-photo-input" type="file" accept="image/*" class="hidden" onchange="previewFeedbackPhoto(event)" />
-                        <div id="feedback-photo-preview-wrap" class="hidden mt-2.5 relative inline-block">
-                            <img id="feedback-photo-preview" src="" alt="Previsualización" class="h-24 w-24 object-cover rounded-xl border border-black/15" />
-                            <button type="button" onclick="clearFeedbackPhoto()" class="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-[#121212] text-white text-xs font-bold">✕</button>
-                        </div>
                     </div>
 
                     <button id="feedback-submit-btn" type="submit"
@@ -2018,31 +1981,14 @@
             document.getElementById('feedback-step-form').classList.remove('hidden');
             document.getElementById('feedback-step-result').classList.add('hidden');
             document.getElementById('feedback-textarea').value = '';
-            clearFeedbackPhoto();
             openModal('modal-feedback');
-        }
-
-        function previewFeedbackPhoto(e) {
-            const file = e.target.files && e.target.files[0];
-            if (!file) return;
-            const reader = new FileReader();
-            reader.onload = (ev) => {
-                document.getElementById('feedback-photo-preview').src = ev.target.result;
-                document.getElementById('feedback-photo-preview-wrap').classList.remove('hidden');
-            };
-            reader.readAsDataURL(file);
-        }
-
-        function clearFeedbackPhoto() {
-            document.getElementById('feedback-photo-input').value = '';
-            document.getElementById('feedback-photo-preview-wrap').classList.add('hidden');
         }
 
         async function submitFeedbackForm(e) {
             e.preventDefault();
             const text = document.getElementById('feedback-textarea').value.trim();
             if (!text) return;
-            const hasPhoto = !document.getElementById('feedback-photo-preview-wrap').classList.contains('hidden');
+            const hasPhoto = false;
 
             const positiveWords = [
                 'excelente', 'rico', 'delicioso', 'encantó', 'encanto', 'increíble', 'increible',
@@ -2356,14 +2302,15 @@
         // =========================================================
         // MÓDULO GIFT CARDS DIGITALES (SALDO EN PESOS O COMBO/VALE)
         // =========================================================
+        {% set default_cmb = (gift_combos[0] if (gift_combos is defined and gift_combos) else {'key': 'cafe_individual', 'title': 'Vale «Te invito un Café»', 'desc': '1 bebida caliente o fría de cualquier tamaño', 'price': 85, 'icon': '☕'}) %}
         const hubGiftState = {
             mode: 'balance', // 'balance' | 'combo'
             amount: 200,
-            comboKey: 'cafe_amigo',
-            comboTitle: 'Vale «Te invito un Café»',
-            comboDesc: '1 bebida caliente o fría de cualquier tamaño',
-            comboPrice: 85,
-            comboEmoji: '☕',
+            comboKey: {{ default_cmb.key | tojson }},
+            comboTitle: {{ default_cmb.title | tojson }},
+            comboDesc: {{ default_cmb.desc | tojson }},
+            comboPrice: {{ default_cmb.price }},
+            comboEmoji: {{ default_cmb.icon | tojson }},
             createdGift: null,
             createdGiftUrl: '',
             whatsappShareUrl: '',
