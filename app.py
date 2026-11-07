@@ -1299,6 +1299,15 @@ def get_hub_config():
             s = "https://www.google.com/maps"
         return s
 
+    raw_phone = (rows.get("hub_phone") or "642 113 8069").strip()
+    digits_only = "".join(ch for ch in raw_phone if ch.isdigit())
+    if len(digits_only) == 10:
+        wa_number = f"52{digits_only}"
+    elif len(digits_only) >= 11:
+        wa_number = digits_only
+    else:
+        wa_number = "526421138069"
+
     return {
         "slogan": _clean_maisha(rows.get("hub_slogan"), "Tu rincón favorito de café de especialidad"),
         "wifi_ssid": _clean_maisha(rows.get("hub_wifi_ssid"), "Demo_Cafe_WiFi"),
@@ -1307,7 +1316,9 @@ def get_hub_config():
         "instagram_url": _clean_maisha(rows.get("hub_instagram_url"), "https://www.instagram.com/"),
         "instagram_handle": _clean_maisha(rows.get("hub_instagram_handle"), "@democafe"),
         "address": _clean_maisha(rows.get("hub_address"), "Av. Principal #100, Col. Centro"),
-        "phone": (rows.get("hub_phone") or "642 113 8069").strip(),
+        "phone": raw_phone,
+        "phone_tel": f"+{wa_number}",
+        "whatsapp_number": wa_number,
     }
 
 
@@ -3274,7 +3285,7 @@ BARISTA_HTML = """
         .stamp-top-row { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
         .stamp-big-num { font-size: 17px; font-weight: 800; color: var(--gold-light); }
         .stamp-visits-meta { font-size: 11.5px; color: var(--text-secondary); font-weight: 500; }
-        .stamp-dots-row { display: flex; gap: 5px; align-items: center; }
+        .stamp-dots-row { display: flex; gap: 5px; align-items: center; flex-wrap: wrap; }
         .s-dot {
             width: 12px;
             height: 12px;
@@ -3769,6 +3780,50 @@ BARISTA_HTML = """
             }
             .campaign-editor-card {
                 padding: 16px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .sticky-header {
+                padding: calc(8px + env(safe-area-inset-top, 0px)) 12px 10px;
+            }
+            .header-inner {
+                gap: 8px;
+            }
+            .kpi-cluster {
+                flex-wrap: nowrap;
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+                max-width: 100%;
+                padding-bottom: 2px;
+                scrollbar-width: none;
+            }
+            .kpi-cluster::-webkit-scrollbar {
+                display: none;
+            }
+            .kpi-pill {
+                flex-shrink: 0;
+                padding: 5px 10px;
+                font-size: 11.5px;
+                white-space: nowrap;
+            }
+            .main-nav-tabs {
+                flex-wrap: nowrap;
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+                width: 100%;
+                gap: 6px;
+                padding-bottom: 3px;
+                scrollbar-width: none;
+            }
+            .main-nav-tabs::-webkit-scrollbar {
+                display: none;
+            }
+            .nav-tab-btn, .btn-export-csv {
+                flex-shrink: 0;
+                white-space: nowrap;
+                padding: 8px 12px;
+                font-size: 12px;
             }
         }
 
@@ -5214,10 +5269,10 @@ BARISTA_HTML = """
                                     <div id="ca-back-val-terms" style="color:#98989F; font-size:12px; line-height:1.45; white-space:pre-line;">{{ campaign.termsText }}</div>
                                 </div>
                                 <div style="padding:11px 0; border-bottom:1px solid rgba(255,255,255,0.12);">
-                                    <a href="tel:+526421138069" style="color:#0A84FF; text-decoration:none; font-weight:500;">📱 Teléfono</a>
+                                    <a href="tel:{{ hub.phone_tel if hub is defined else '+526421138069' }}" style="color:#0A84FF; text-decoration:none; font-weight:500;">📱 Teléfono ({{ hub.phone if hub is defined else '642 113 8069' }})</a>
                                 </div>
                                 <div style="padding:11px 0; border-bottom:1px solid rgba(255,255,255,0.12);">
-                                    <a href="https://www.instagram.com/" target="_blank" rel="noopener" style="color:#0A84FF; text-decoration:none; font-weight:500;">Instagram</a>
+                                    <a href="{{ hub.instagram_url if hub is defined else 'https://www.instagram.com/' }}" target="_blank" rel="noopener" style="color:#0A84FF; text-decoration:none; font-weight:500;">Instagram</a>
                                     <span id="ca-back-lbl-menu" style="display:none;"></span>
                                     <span id="ca-back-val-menu" style="display:none;">{{ campaign.menuUrl }}</span>
                                 </div>
@@ -5228,7 +5283,7 @@ BARISTA_HTML = """
                                 <div style="padding:11px 0; border-bottom:1px solid rgba(255,255,255,0.12);">
                                     <div style="font-size:12px; color:#98989F;">Información del emisor</div>
                                     <div id="ca-back-issuer-name" style="color:#98989F; margin-top:2px;">{{ campaign.shopName }}</div>
-                                    <div><a href="tel:+526421138069" style="color:#0A84FF; text-decoration:none;">+526421138069</a></div>
+                                    <div><a href="tel:{{ hub.phone_tel if hub is defined else '+526421138069' }}" style="color:#0A84FF; text-decoration:none;">{{ hub.phone_tel if hub is defined else '+526421138069' }}</a></div>
                                 </div>
                                 <div style="padding:11px 0; border-bottom:1px solid rgba(255,255,255,0.12); display:flex; justify-content:space-between; align-items:center;">
                                     <span style="color:#FFFFFF;">Número de serie</span>
@@ -5244,12 +5299,12 @@ BARISTA_HTML = """
                 </div>
             </div>
 
-            <!-- CONFIGURACIÓN DEL HUB DE EXPERIENCIA EN MESA (WI-FI, GOOGLE REVIEWS, ESLOGAN, INSTAGRAM) -->
+            <!-- CONFIGURACIÓN DEL HUB DE EXPERIENCIA EN MESA (WI-FI, GOOGLE REVIEWS, ESLOGAN, INSTAGRAM, WHATSAPP) -->
             <div class="bento-card" style="margin-top:16px;">
                 <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:14px;">
                     <div>
                         <span style="font-size:11px; font-weight:800; color:var(--gold-light); text-transform:uppercase; letter-spacing:0.6px;">📱 Hub de Experiencia en Mesa (Estilo Candour)</span>
-                        <h3 style="margin:2px 0 0; font-size:17px; font-weight:800;">Ajustes de Wi-Fi, Google Reviews y Portada del Cliente</h3>
+                        <h3 style="margin:2px 0 0; font-size:17px; font-weight:800;">Ajustes de Wi-Fi, WhatsApp, Google Reviews y Portada del Cliente</h3>
                     </div>
                     <a href="/" target="_blank" class="action-chip" style="text-decoration:none; border-color:rgba(212,175,55,0.45); color:var(--gold-light);">
                         🔗 Ver Hub del Cliente (/) ↗
@@ -5257,8 +5312,12 @@ BARISTA_HTML = """
                 </div>
                 <form action="/api/hub/settings" method="POST" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:12px;">
                     <div>
-                        <label style="font-size:11.5px; color:var(--gold-light); font-weight:700; display:block; margin-bottom:5px;">Eslogan debajo de Demo Café</label>
+                        <label style="font-size:11.5px; color:var(--gold-light); font-weight:700; display:block; margin-bottom:5px;">Eslogan debajo de {{ campaign.shopName }}</label>
                         <input type="text" name="slogan" class="input-dark" value="{{ hub.slogan if hub is defined else 'Tu rincón favorito de café de especialidad' }}" required>
+                    </div>
+                    <div>
+                        <label style="font-size:11.5px; color:var(--gold-light); font-weight:700; display:block; margin-bottom:5px;">Teléfono / WhatsApp del Negocio (10 dígitos)</label>
+                        <input type="tel" name="phone" class="input-dark" value="{{ hub.phone if hub is defined else '642 113 8069' }}" placeholder="Ej. 642 113 8069" required>
                     </div>
                     <div>
                         <label style="font-size:11.5px; color:var(--gold-light); font-weight:700; display:block; margin-bottom:5px;">Nombre de Red Wi-Fi (SSID)</label>
@@ -5385,13 +5444,37 @@ BARISTA_HTML = """
 
             <!-- Lista de Gift Cards Activas, Pendientes y Canjeadas -->
             <div class="bento-card" id="barista-gift-cards-list-card">
-                <div class="bento-header" style="margin-bottom:12px;">
-                    <h2 class="bento-title">📋 Gift Cards Registradas ({{ gift_cards|length if gift_cards is defined else 0 }})</h2>
+                {% set gc_total = (gift_cards|length) if (gift_cards is defined and gift_cards) else 0 %}
+                {% set gc_pending = (gift_cards|selectattr('status', 'equalto', 'pending')|list|length) if (gift_cards is defined and gift_cards) else 0 %}
+                {% set gc_active = (gift_cards|selectattr('status', 'equalto', 'active')|list|length) if (gift_cards is defined and gift_cards) else 0 %}
+                {% set gc_redeemed = (gift_cards|selectattr('status', 'equalto', 'redeemed')|list|length) if (gift_cards is defined and gift_cards) else 0 %}
+                <div class="bento-header" style="margin-bottom:12px; flex-wrap:wrap; gap:10px;">
+                    <h2 class="bento-title">📋 Gift Cards Registradas ({{ gc_total }})</h2>
+                    <div style="position:relative; flex:1 1 240px; max-width:360px;">
+                        <input type="search" id="gift-cards-search" class="input-dark" placeholder="🔍 Buscar GIFT-, destinatario o comprador..." oninput="filterBaristaGiftCards()" style="padding:8px 12px; font-size:14px;">
+                    </div>
                 </div>
-                <div class="client-list">
+                <div class="filter-tabs" id="gift-filter-tabs-bar" style="margin-bottom:14px;">
+                    <button type="button" class="filter-pill gift-filter-pill active" data-gift-tab="all" onclick="setBaristaGiftFilter('all')">
+                        Todas <span class="tab-count">{{ gc_total }}</span>
+                    </button>
+                    <button type="button" class="filter-pill gift-filter-pill" data-gift-tab="pending" onclick="setBaristaGiftFilter('pending')">
+                        ⏳ Por Activar <span class="tab-count">{{ gc_pending }}</span>
+                    </button>
+                    <button type="button" class="filter-pill gift-filter-pill" data-gift-tab="active" onclick="setBaristaGiftFilter('active')">
+                        🟢 Activas <span class="tab-count">{{ gc_active }}</span>
+                    </button>
+                    <button type="button" class="filter-pill gift-filter-pill" data-gift-tab="redeemed" onclick="setBaristaGiftFilter('redeemed')">
+                        🎉 Canjeadas <span class="tab-count">{{ gc_redeemed }}</span>
+                    </button>
+                </div>
+                <div class="client-list" id="barista-gift-cards-rows">
                     {% if gift_cards is defined and gift_cards %}
                         {% for g in gift_cards %}
-                        <div class="client-card-row {{ 'highlight-row' if gift_updated == g.code else '' }}" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; {{ 'border:1.5px solid rgba(245,158,11,0.55); background:rgba(245,158,11,0.06);' if g.status == 'pending' else '' }}">
+                        <div class="client-card-row barista-gift-row {{ 'highlight-row' if gift_updated == g.code else '' }}"
+                             data-gift-status="{{ g.status }}"
+                             data-gift-search="{{ (g.code ~ ' ' ~ g.recipient_name ~ ' ' ~ g.sender_name ~ ' ' ~ g.value_headline ~ ' ' ~ g.dedication)|lower }}"
+                             style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; {{ 'border:1.5px solid rgba(245,158,11,0.55); background:rgba(245,158,11,0.06);' if g.status == 'pending' else '' }}">
                             <div style="display:flex; align-items:center; gap:12px; min-width:240px;">
                                 <div class="avatar-circle tier-gold" style="font-size:18px;">
                                     {{ '🥐' if g.gift_type == 'combo' else '🎁' }}
@@ -5463,6 +5546,9 @@ BARISTA_HTML = """
                             </div>
                         </div>
                         {% endfor %}
+                        <div id="barista-gift-empty-filter" style="display:none; text-align:center; padding:22px; color:var(--text-secondary); font-size:13.5px;">
+                            No se encontraron Gift Cards con ese filtro o búsqueda.
+                        </div>
                     {% else %}
                         <div style="text-align:center; padding:28px; color:var(--text-secondary); font-size:13.5px;">
                             Aún no hay Gift Cards registradas. Puedes emitir una arriba o desde el Hub del Cliente.
@@ -5694,7 +5780,18 @@ BARISTA_HTML = """
                 const curGiftsCard = document.getElementById('barista-gift-cards-list-card');
                 const newGiftsCard = doc.getElementById('barista-gift-cards-list-card');
                 if (curGiftsCard && newGiftsCard) {
+                    const prevGiftSearchEl = document.getElementById('gift-cards-search');
+                    const wasFocusedSearch = (document.activeElement === prevGiftSearchEl);
+                    const prevGiftQuery = prevGiftSearchEl ? prevGiftSearchEl.value : '';
                     curGiftsCard.innerHTML = newGiftsCard.innerHTML;
+                    const nextGiftSearchEl = document.getElementById('gift-cards-search');
+                    if (nextGiftSearchEl) {
+                        nextGiftSearchEl.value = prevGiftQuery;
+                        if (wasFocusedSearch) nextGiftSearchEl.focus();
+                    }
+                    if (typeof filterBaristaGiftCards === 'function') {
+                        filterBaristaGiftCards();
+                    }
                 }
                 const curPkgSel = document.getElementById('bgc-package-select');
                 const newPkgSel = doc.getElementById('bgc-package-select');
@@ -6278,12 +6375,51 @@ BARISTA_HTML = """
             }
         }
 
+        let activeGiftTab = 'all';
+
         function setFilterTab(tab) {
             activeTab = tab;
-            document.querySelectorAll('.filter-pill').forEach(btn => {
+            document.querySelectorAll('#filter-tabs-bar .filter-pill').forEach(btn => {
                 btn.classList.toggle('active', btn.getAttribute('data-tab') === tab);
             });
             filterClients();
+        }
+
+        function setBaristaGiftFilter(tab) {
+            activeGiftTab = tab || 'all';
+            document.querySelectorAll('#gift-filter-tabs-bar .gift-filter-pill').forEach(btn => {
+                btn.classList.toggle('active', btn.getAttribute('data-gift-tab') === activeGiftTab);
+            });
+            filterBaristaGiftCards();
+        }
+
+        function filterBaristaGiftCards() {
+            const localSearchEl = document.getElementById('gift-cards-search');
+            const globalSearchEl = document.getElementById('client-search');
+            const qLocal = (localSearchEl ? localSearchEl.value : '').toLowerCase().trim();
+            const qGlobal = (globalSearchEl ? globalSearchEl.value : '').toLowerCase().trim();
+            const q = qLocal || qGlobal;
+
+            document.querySelectorAll('#gift-filter-tabs-bar .gift-filter-pill').forEach(btn => {
+                btn.classList.toggle('active', btn.getAttribute('data-gift-tab') === activeGiftTab);
+            });
+
+            const giftRows = document.querySelectorAll('.barista-gift-row');
+            let visibleCount = 0;
+            giftRows.forEach(row => {
+                const statusVal = row.getAttribute('data-gift-status') || '';
+                const searchTxt = row.getAttribute('data-gift-search') || '';
+                const matchesStatus = (activeGiftTab === 'all') || (statusVal === activeGiftTab);
+                const matchesQuery = !q || searchTxt.includes(q);
+                const show = matchesStatus && matchesQuery;
+                row.style.display = show ? 'flex' : 'none';
+                if (show) visibleCount++;
+            });
+
+            const emptyEl = document.getElementById('barista-gift-empty-filter');
+            if (emptyEl) {
+                emptyEl.style.display = (giftRows.length > 0 && visibleCount === 0) ? 'block' : 'none';
+            }
         }
 
         function filterClients() {
@@ -6305,6 +6441,8 @@ BARISTA_HTML = """
                 const searchTxt = row.getAttribute('data-search') || '';
                 row.style.display = (!q || searchTxt.includes(q)) ? '' : 'none';
             });
+
+            filterBaristaGiftCards();
         }
 
         // --- LÓGICA DEL DASHBOARD DE ADMINISTRACIÓN DE LA TARJETA / CAMPAÑA ---
@@ -7070,7 +7208,13 @@ def generate_signed_pkpass(
         # Actualizar el reverso de la tarjeta (.pkpass) con la estructura completa de Demo Café
         remaining_stamps_back = max(0, goal - stamps)
         avail_rewards_back = 1 if stamps >= goal else 0
-        wa_link_back = cfg.get("menuUrl") or "https://wa.me/526421138069"
+        hub_cfg_back = get_hub_config()
+        wa_num_back = hub_cfg_back.get("whatsapp_number") or "526421138069"
+        phone_tel_back = hub_cfg_back.get("phone_tel") or "+526421138069"
+        phone_disp_back = hub_cfg_back.get("phone") or "642 113 8069"
+        ig_handle_back = hub_cfg_back.get("instagram_handle") or "@democafe"
+        ig_url_back = hub_cfg_back.get("instagram_url") or "https://www.instagram.com/"
+        wa_link_back = cfg.get("menuUrl") or f"https://wa.me/{wa_num_back}"
         now_str_back = datetime.now().strftime("%d/%m/%Y, %H:%M")
 
         back_fields = [
@@ -7129,14 +7273,14 @@ def generate_signed_pkpass(
             {
                 "key": "phoneLink",
                 "label": "Teléfono",
-                "value": "📱 Teléfono (+52 642 113 8069)",
-                "attributedValue": f"<a href='{wa_link_back}'>📱 Teléfono</a>"
+                "value": f"📱 Teléfono ({phone_disp_back})",
+                "attributedValue": f"<a href='{wa_link_back}'>📱 Teléfono ({phone_disp_back})</a>"
             },
             {
                 "key": "instagramLink",
                 "label": "Instagram",
-                "value": "Instagram (@democafe)",
-                "attributedValue": "<a href='https://www.instagram.com/'>Instagram</a>"
+                "value": f"Instagram ({ig_handle_back})",
+                "attributedValue": f"<a href='{ig_url_back}'>Instagram</a>"
             },
             {
                 "key": "companyName",
@@ -7146,8 +7290,8 @@ def generate_signed_pkpass(
             {
                 "key": "issuerInfo",
                 "label": "Información del emisor",
-                "value": f"{shop_name}\nhola@democafe.com\n+526421138069",
-                "attributedValue": f"{shop_name}\n<a href='mailto:hola@democafe.com'>hola@democafe.com</a>\n<a href='tel:+526421138069'>+526421138069</a>"
+                "value": f"{shop_name}\n{phone_tel_back}",
+                "attributedValue": f"{shop_name}\n<a href='tel:{phone_tel_back}'>{phone_tel_back}</a>"
             },
             {
                 "key": "memberSerialId",
@@ -7515,7 +7659,7 @@ GIFT_UNBOXING_HTML = """
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="theme-color" content="#F3ECE7">
     <title>GIFT CARD - {{ campaign.shopName }}</title>
     <link rel="icon" type="image/png" href="/card/icon-192.png">
@@ -7537,6 +7681,7 @@ GIFT_UNBOXING_HTML = """
             --pass-accent: {{ campaign.labelColor or '#C5A869' }};
         }
         * { box-sizing: border-box; -webkit-font-smoothing: antialiased; }
+        input, select, textarea { font-size: 16px !important; }
         body {
             margin: 0;
             min-height: 100vh;
@@ -7674,7 +7819,7 @@ GIFT_UNBOXING_HTML = """
             border: 1px solid rgba(18, 18, 18, 0.15);
             background: var(--surface-white);
             color: var(--text-dark);
-            font-size: 14px;
+            font-size: 16px;
             font-family: inherit;
             outline: none;
         }
@@ -8068,10 +8213,11 @@ def _build_gift_whatsapp_urls(gift_dict):
         f"👤 Para: {gift_dict['recipient_name']}\n"
         f"🙌 De parte de: {gift_dict['sender_name']}"
     )
+    wa_shop_num = (get_hub_config().get("whatsapp_number") or "526421138069").strip()
     return {
         "gift_url": gift_url,
         "whatsapp_share_url": f"https://wa.me/?text={urllib_quote(share_msg)}",
-        "whatsapp_activate_url": f"https://wa.me/526421138069?text={urllib_quote(activate_msg)}",
+        "whatsapp_activate_url": f"https://wa.me/{wa_shop_num}?text={urllib_quote(activate_msg)}",
     }
 
 
@@ -9036,6 +9182,7 @@ def api_hub_feedback():
 def api_hub_settings():
     fields = {
         "hub_slogan": (request.form.get("slogan") or "").strip()[:120],
+        "hub_phone": (request.form.get("phone") or "").strip()[:30],
         "hub_wifi_ssid": (request.form.get("wifi_ssid") or "").strip()[:80],
         "hub_wifi_pass": (request.form.get("wifi_pass") or "").strip()[:80],
         "hub_google_review_url": (request.form.get("google_review_url") or "").strip()[:300],

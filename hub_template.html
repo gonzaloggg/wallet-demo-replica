@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>{{ campaign.shopName }} — Experiencia en Mesa y Club de Lealtad (DEMO)</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -41,6 +41,9 @@
             box-sizing: border-box;
             -webkit-tap-highlight-color: transparent;
             -webkit-font-smoothing: antialiased;
+        }
+        input, select, textarea {
+            font-size: 16px !important;
         }
         body {
             background-color: #E6DDD6;
@@ -259,7 +262,8 @@
                                 <span class="text-[15.5px] font-bold text-[#121212] tracking-[-0.01em]">Regalar una Gift Card</span>
                                 <span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-[#4A5D23]/15 text-[#4A5D23]">Wallet Digital</span>
                             </div>
-                            <div class="text-[12.5px] text-[#6E655F]">Envía saldo o un combo de café por WhatsApp</div>
+                            <div id="hub-main-gift-subtext" class="text-[12.5px] text-[#6E655F]">Envía saldo o un combo de café por WhatsApp</div>
+                            <div id="hub-main-gift-status-pill" class="hidden mt-1.5 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-extrabold bg-[#FFFBEB] text-[#92400E] border border-[#F59E0B]/50"></div>
                         </div>
                     </div>
                     <svg class="w-5 h-5 text-[#6E655F] shrink-0" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
@@ -685,7 +689,7 @@
                         </div>
                     </div>
                     <div class="px-4 py-3">
-                        <a href="tel:+526421138069" class="text-[#0A84FF] font-medium no-underline hover:underline">📱 Teléfono</a>
+                        <a href="tel:{{ hub.phone_tel if hub is defined else '+526421138069' }}" class="text-[#0A84FF] font-medium no-underline hover:underline">📱 Teléfono ({{ hub.phone if hub is defined else '642 113 8069' }})</a>
                     </div>
                     <div class="px-4 py-3">
                         <a href="{{ hub.instagram_url }}" target="_blank" rel="noopener" class="text-[#0A84FF] font-medium no-underline hover:underline">Instagram</a>
@@ -697,7 +701,7 @@
                     <div class="px-4 py-3">
                         <div class="text-[#98989F] text-[12.5px]">Información del emisor</div>
                         <div class="text-[#98989F] mt-0.5">{{ campaign.shopName }}</div>
-                        <a href="tel:+526421138069" class="text-[#0A84FF] no-underline hover:underline">+526421138069</a>
+                        <a href="tel:{{ hub.phone_tel if hub is defined else '+526421138069' }}" class="text-[#0A84FF] no-underline hover:underline">{{ hub.phone_tel if hub is defined else '+526421138069' }}</a>
                     </div>
                     <div class="px-4 py-3 flex items-center justify-between">
                         <span class="text-white">Número de serie</span>
@@ -2515,6 +2519,73 @@
             }, 3000);
         }
 
+        const GIFT_STORAGE_KEY = 'maishas_last_created_gift_v1';
+
+        function saveHubGiftToStorage() {
+            try {
+                if (!hubGiftState.createdGift || !hubGiftState.createdGift.code) {
+                    localStorage.removeItem(GIFT_STORAGE_KEY);
+                } else {
+                    localStorage.setItem(GIFT_STORAGE_KEY, JSON.stringify({
+                        createdGift: hubGiftState.createdGift,
+                        createdGiftUrl: hubGiftState.createdGiftUrl || '',
+                        whatsappShareUrl: hubGiftState.whatsappShareUrl || '',
+                        whatsappActivateUrl: hubGiftState.whatsappActivateUrl || '',
+                        savedAt: Date.now()
+                    }));
+                }
+            } catch (e) {}
+            updateHubMainGiftCardCta();
+        }
+
+        function updateHubMainGiftCardCta() {
+            const pill = document.getElementById('hub-main-gift-status-pill');
+            if (!pill) return;
+            const g = hubGiftState.createdGift;
+            if (!g || !g.code) {
+                pill.classList.add('hidden');
+                return;
+            }
+            pill.classList.remove('hidden');
+            if (g.status === 'active') {
+                pill.className = 'mt-1.5 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-extrabold bg-[#ECFDF5] text-[#065F46] border border-[#10B981]/50';
+                pill.textContent = `✅ Gift Card ${g.code} activa · Toca para enviarla`;
+            } else if (g.status === 'redeemed') {
+                pill.classList.add('hidden');
+            } else {
+                pill.className = 'mt-1.5 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-extrabold bg-[#FFFBEB] text-[#92400E] border border-[#F59E0B]/50';
+                pill.textContent = `⏳ Gift Card ${g.code} por activar · Toca para verla`;
+            }
+        }
+
+        async function loadHubGiftFromStorage() {
+            try {
+                const raw = localStorage.getItem(GIFT_STORAGE_KEY);
+                if (!raw) return;
+                const parsed = JSON.parse(raw);
+                if (!parsed || !parsed.createdGift || !parsed.createdGift.code) return;
+                // Ignorar registros de más de 48 horas
+                if (parsed.savedAt && (Date.now() - parsed.savedAt > 48 * 3600 * 1000)) {
+                    localStorage.removeItem(GIFT_STORAGE_KEY);
+                    return;
+                }
+                hubGiftState.createdGift = parsed.createdGift;
+                hubGiftState.createdGiftUrl = parsed.createdGiftUrl || '';
+                hubGiftState.whatsappShareUrl = parsed.whatsappShareUrl || '';
+                hubGiftState.whatsappActivateUrl = parsed.whatsappActivateUrl || '';
+
+                document.getElementById('hub-gift-form-step')?.classList.add('hidden');
+                document.getElementById('hub-gift-success-step')?.classList.remove('hidden');
+                renderHubCreatedGiftActivationUi();
+                updateHubMainGiftCardCta();
+
+                await checkHubGiftActivationStatus(true);
+                if (hubGiftState.createdGift && hubGiftState.createdGift.status === 'pending') {
+                    startHubGiftStatusPolling();
+                }
+            } catch (e) {}
+        }
+
         async function checkHubGiftActivationStatus(silent) {
             if (!hubGiftState.createdGift || !hubGiftState.createdGift.code) return false;
             try {
@@ -2526,6 +2597,7 @@
                 if (data.gift_url) hubGiftState.createdGiftUrl = data.gift_url;
                 if (data.whatsapp_share_url) hubGiftState.whatsappShareUrl = data.whatsapp_share_url;
                 if (data.whatsapp_activate_url) hubGiftState.whatsappActivateUrl = data.whatsapp_activate_url;
+                saveHubGiftToStorage();
                 renderHubCreatedGiftActivationUi();
 
                 if (wasPending && data.status === 'active') {
@@ -2650,6 +2722,7 @@
                 hubGiftState.createdGiftUrl = data.gift_url;
                 hubGiftState.whatsappShareUrl = data.whatsapp_share_url;
                 hubGiftState.whatsappActivateUrl = data.whatsapp_activate_url;
+                saveHubGiftToStorage();
 
                 const lockedNotice = document.getElementById('hub-gift-locked-notice');
                 if (lockedNotice) lockedNotice.classList.add('hidden');
@@ -2675,6 +2748,7 @@
                 hubGiftState.pollTimerId = null;
             }
             hubGiftState.createdGift = null;
+            saveHubGiftToStorage();
             document.getElementById('hub-gift-recipient').value = '';
             document.getElementById('hub-gift-message').value = '';
             const lockedNotice = document.getElementById('hub-gift-locked-notice');
@@ -2686,6 +2760,7 @@
 
         // Inicializar al cargar
         loadMemberFromStorage();
+        loadHubGiftFromStorage();
     </script>
 </body>
 </html>
